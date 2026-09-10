@@ -2,6 +2,8 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
+  // Clipboard is shared by browser processes on Linux CI.
+  workers: process.env.CI ? 1 : undefined,
   use: {
     baseURL: "http://127.0.0.1:5174",
     channel: "chrome",

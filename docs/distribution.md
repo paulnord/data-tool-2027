@@ -19,7 +19,7 @@ The [OSP project page](https://www.compadre.org/osp/webdocs/About.cfm) provides 
 
 ## Automated desktop previews
 
-Run **Actions → Desktop preview → Run workflow** in the public repository. The workflow first runs scientific and browser checks, then builds Windows x64 NSIS, universal macOS DMG (Intel and Apple Silicon), and Linux x64 DEB/AppImage on native GitHub runners. Each platform runs the Rust host tests. Packages are attached to a draft prerelease for review before publication.
+Run **Actions → Desktop preview → Run workflow** in the public repository. The workflow runs scientific and browser checks alongside builds of Windows x64 NSIS, universal macOS DMG (Intel and Apple Silicon), and Linux x64 DEB/AppImage on native GitHub runners. Each platform runs the Rust host tests. Packages are attached to a draft prerelease. Publish only after all validation and packaging jobs pass.
 
 The Mac deployment target is macOS 12.3 or newer because the frontend uses modern WebKit APIs such as structuredClone; this is a build target, not a claim that every OS version has been tested. Linux packages are built on Ubuntu 22.04 and require a compatible desktop/WebKit environment. Windows uses WebView2. ARM Windows and ARM Linux are not part of this first matrix.
 

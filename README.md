@@ -1,5 +1,7 @@
 # Data Tool 2027
 
+[Download the desktop preview for Windows, Mac or Linux](https://github.com/paulnord/data-tool-2027/releases/tag/v0.1.0-preview.1). These are development previews; see the release notes for signing and platform-testing limitations.
+
 A small, local-data fitting application for experimental physics. Import or paste measurements, declare units and uncertainties, fit models, inspect residuals and confidence bands, and export CSV or a printable vector report.
 
 Data Tool is an independent application extracted from the fitting companion developed in Tracker 2027. It contains no video engine, tracking workflow, decoder or Tracker UI. Tracker remains a separate project. Existing `tracker-fit-*` v1 files remain compatible. The five new nonlinear models use an explicit session v2 while retaining the `.trksess` extension; numerical requests and acknowledgments remain v1.

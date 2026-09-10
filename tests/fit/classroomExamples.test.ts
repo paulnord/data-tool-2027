@@ -39,9 +39,17 @@ it.each(classroomExamples)(
       gaussianIndependent: "unknown",
       correctModel: "unknown",
     });
-    expect(analysis.request.source.context).toContain(
-      "Synthetic classroom data",
-    );
+    if (file === "MillikanData.csv") {
+      expect(analysis.request.source.context ?? "").not.toContain(
+        "Synthetic classroom data",
+      );
+      expect(analysis.request.dataset.xColumn.unit).toBeNull();
+      expect(analysis.request.dataset.yColumn.unit).toBeNull();
+    } else {
+      expect(analysis.request.source.context).toContain(
+        "Synthetic classroom data",
+      );
+    }
     const saved = sessionSchema.parse(
       JSON.parse(
         JSON.stringify({

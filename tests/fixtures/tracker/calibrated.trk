@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object class="org.opensourcephysics.cabrillo.tracker.TrackerPanel">
+ <property name="semantic_version" type="string">6.3.5</property>
+ <property name="videoclip" type="object"><object class="org.opensourcephysics.media.core.VideoClip">
+  <property name="startframe" type="int">2</property><property name="stepsize" type="int">2</property><property name="stepcount" type="int">3</property><property name="starttime" type="double">500</property>
+ </object></property>
+ <property name="clipcontrol" type="object"><object class="org.opensourcephysics.media.core.StepperClipControl"><property name="delta_t" type="double">100</property></object></property>
+ <property name="coords" type="object"><object class="org.opensourcephysics.media.core.ImageCoordSystem">
+  <property name="fixedorigin" type="boolean">true</property><property name="fixedangle" type="boolean">true</property><property name="fixedscale" type="boolean">true</property>
+  <property name="framedata" type="array" class="[Lorg.opensourcephysics.media.core.ImageCoordSystem$FrameData;">
+   <property name="[0]" type="object"><object class="org.opensourcephysics.media.core.ImageCoordSystem$FrameData">
+    <property name="xorigin" type="double">100</property><property name="yorigin" type="double">200</property><property name="angle" type="double">90</property><property name="xscale" type="double">10</property><property name="yscale" type="double">20</property>
+   </object></property>
+  </property>
+ </object></property>
+ <property name="length_unit" type="string">m</property>
+ <property name="tracks" type="collection" class="java.util.ArrayList">
+  <property name="item" type="object"><object class="org.opensourcephysics.cabrillo.tracker.PointMass">
+   <property name="name" type="string">Cart &amp; spring</property>
+   <property name="framedata" type="array" class="[Lorg.opensourcephysics.cabrillo.tracker.PointMass$FrameData;">
+    <property name="[2]" type="object"><object class="org.opensourcephysics.cabrillo.tracker.PointMass$FrameData"><property name="x" type="double">80.00000000000000</property><property name="y" type="double">140</property></object></property>
+    <property name="[6]" type="object"><object class="org.opensourcephysics.cabrillo.tracker.PointMass$FrameData"><property name="x" type="double">60</property><property name="y" type="double">100</property></object></property>
+   </property>
+  </object></property>
+ </property>
+</object>

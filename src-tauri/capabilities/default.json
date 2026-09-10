@@ -1,0 +1,15 @@
+{
+  "identifier": "main",
+  "windows": [
+    "main",
+    "fit-*"
+  ],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:webview:allow-print"
+  ]
+}

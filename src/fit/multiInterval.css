@@ -1,0 +1,327 @@
+.multi-interval[hidden] {
+  display: none !important;
+}
+.multi-interval {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 14px;
+  padding: 12px 14px;
+  background: #f4f9fd;
+}
+.interval-controls {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 60px;
+  max-height: calc(100vh - 75px);
+  overflow: auto;
+  background: #edf4fa;
+  padding: 14px;
+  border: 1px solid #c9dce9;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.interval-controls h2 {
+  font-size: 15px;
+  margin: 18px 0 8px;
+}
+.interval-controls label {
+  display: block;
+  margin: 8px 0;
+}
+.interval-controls select,
+.interval-controls input:not([type="checkbox"]) {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid #b9cedd;
+  border-radius: 4px;
+  padding: 5px;
+  font: inherit;
+  background: white;
+}
+.interval-controls input[type="checkbox"] {
+  width: auto;
+}
+.interval-controls p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.interval-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.interval-tabs button {
+  font-size: 12px;
+  padding: 5px 8px;
+  white-space: normal;
+}
+.interval-tabs button[aria-pressed="true"] {
+  background: #d8eaf6;
+  border-width: 2px;
+}
+.interval-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.interval-parameter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 0.7fr);
+  gap: 6px;
+  align-items: center;
+}
+.interval-parameter > label {
+  margin: 4px 0;
+}
+.interval-parameters {
+  margin: 10px 0;
+}
+.interval-fit-button {
+  width: 100%;
+  margin-top: 12px;
+  background: #2c6386 !important;
+  color: white !important;
+}
+.interval-draft-note {
+  color: #526b7c;
+}
+.interval-workspace {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+.interval-workspace h1 {
+  font-size: 20px;
+  margin: 0;
+}
+.interval-workspace header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.interval-workspace h2 {
+  font-size: 16px;
+  margin: 5px 0;
+}
+.interval-workspace h3 {
+  font-size: 14px;
+  margin: 8px 0;
+}
+.interval-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  margin: 10px 0;
+}
+.interval-graphs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.interval-graphs.curves-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.interval-graphs > article,
+.interval-result-section {
+  padding: 10px;
+  background: white;
+  border: 1px solid #ccdde9;
+  border-radius: 5px;
+  min-width: 0;
+}
+.interval-plot {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  user-select: none;
+}
+.interval-plot text {
+  font: 11px sans-serif;
+  fill: #38576c;
+}
+.interval-handle {
+  cursor: ew-resize;
+}
+.interval-handle rect:focus {
+  outline: 2px solid #214f71;
+}
+.interval-results {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.interval-results table,
+.interval-print-overview {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.interval-results td,
+.interval-results th,
+.interval-print-overview td,
+.interval-print-overview th {
+  padding: 6px;
+  text-align: left;
+  border-bottom: 1px solid #d4e1ea;
+  overflow-wrap: anywhere;
+}
+.interval-results th,
+.interval-print-overview th {
+  background: #edf4f8;
+}
+.interval-results p,
+.interval-source,
+.interval-workspace footer {
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.interval-error {
+  background: #fff0e6;
+  padding: 12px;
+  margin: 8px 0;
+}
+.interval-print-overview {
+  display: none;
+}
+.interval-result-diagnostics {
+  margin: 10px 0;
+}
+@media (max-width: 850px) {
+  .multi-interval {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .interval-controls {
+    grid-column: 1;
+    position: static;
+    max-height: none;
+  }
+  .interval-workspace {
+    grid-row: 2;
+  }
+}
+@media print {
+  html:has(.multi-interval:not([hidden])),
+  body:has(.multi-interval:not([hidden])) {
+    background: white !important;
+  }
+  .fit-app:has(.multi-interval:not([hidden])) {
+    display: block !important;
+    contain: none !important;
+    container-type: normal !important;
+  }
+  .fit-app:has(.multi-interval:not([hidden])) > :not(.multi-interval) {
+    display: none !important;
+  }
+  .multi-interval:not([hidden]),
+  .interval-workspace,
+  .interval-results {
+    display: block !important;
+    padding: 0;
+    background: white;
+    height: auto;
+    overflow: visible;
+  }
+  .interval-controls,
+  .interval-workspace > [role="status"],
+  .interval-live-residual,
+  .interval-handle {
+    display: none !important;
+  }
+  .interval-print-overview {
+    display: table;
+    margin: 8px 0;
+  }
+  .interval-graphs {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .interval-graphs > article {
+    padding: 5px;
+  }
+  .interval-graphs .interval-plot {
+    max-height: 210px;
+  }
+  .interval-result-section {
+    page-break-before: always;
+    break-before: page;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .interval-curve-result {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .interval-result-diagnostics {
+    display: none !important;
+  }
+  .with-fit-details .interval-result-diagnostics {
+    display: block !important;
+  }
+  .with-fit-details .interval-result-diagnostics > :not(summary) {
+    display: block !important;
+  }
+  .with-fit-details .interval-result-diagnostics > table {
+    display: table !important;
+  }
+  .interval-result-diagnostics summary {
+    display: none;
+  }
+  .interval-result-diagnostics .interval-plot {
+    height: 140px;
+  }
+  .interval-results {
+    font-size: 10pt;
+  }
+  .interval-source {
+    margin: 8px 0;
+  }
+}
+.interval-print-parameters {
+  display: none;
+}
+@media print {
+  .interval-results {
+    display: none !important;
+  }
+  .with-fit-details .interval-results {
+    display: block !important;
+  }
+  .interval-print-parameters {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .interval-print-parameters th,
+  .interval-print-parameters td {
+    padding: 4px;
+    border-bottom: 1px solid #d4e1ea;
+    text-align: left;
+  }
+  .interval-print-parameters th {
+    background: #edf4f8;
+  }
+  .interval-print-parameters tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .interval-graphs.curves-1 .interval-plot {
+    max-height: 290px;
+  }
+}
+.interval-equation-preview {
+  font-family: monospace;
+  overflow-wrap: anywhere;
+  background: #e1edf6;
+  padding: 8px;
+}

@@ -1,0 +1,633 @@
+{
+  "format": "tracker-fit-session",
+  "version": 2,
+  "engine": "qr-lm-3",
+  "request": {
+    "format": "tracker-fit-request",
+    "version": 1,
+    "requestId": "e7c00000-0000-4000-8000-000000000701",
+    "snapshotId": "e7c00000-0000-4000-8000-000000000702",
+    "source": {
+      "application": "Synthetic nonlinear fixture",
+      "version": "PCG64-93002",
+      "context": "Gaussian peak; no measured student data"
+    },
+    "dataset": {
+      "id": "gaussian-v2",
+      "label": "Gaussian \u00b7 synthetic protocol fixture",
+      "xColumn": {
+        "id": "t",
+        "label": "Time",
+        "unit": "s"
+      },
+      "yColumn": {
+        "id": "y",
+        "label": "Height",
+        "unit": "m"
+      },
+      "assumptions": {
+        "exactX": "unknown",
+        "gaussianIndependent": "unknown",
+        "correctModel": "unknown"
+      },
+      "rows": [
+        {
+          "id": "row-0",
+          "x": -4.0,
+          "y": 0.19653142330254988,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-1",
+          "x": -3.9,
+          "y": 0.23005096851640455,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-2",
+          "x": -3.8,
+          "y": 0.18906462231255103,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-3",
+          "x": -3.7,
+          "y": 0.15408195592943602,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-4",
+          "x": -3.6,
+          "y": 0.18828901323374017,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-5",
+          "x": -3.5,
+          "y": 0.2012606954105522,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-6",
+          "x": -3.4,
+          "y": 0.19209899863596458,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-7",
+          "x": -3.3,
+          "y": 0.18591370246380376,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-8",
+          "x": -3.2,
+          "y": 0.237433344492563,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-9",
+          "x": -3.1,
+          "y": 0.2136776962024587,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-10",
+          "x": -3.0,
+          "y": 0.23844756584216426,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-11",
+          "x": -2.9,
+          "y": 0.1716621450157553,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-12",
+          "x": -2.8,
+          "y": 0.22242321455519276,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-13",
+          "x": -2.7,
+          "y": 0.2485688977258082,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-14",
+          "x": -2.5999999999999996,
+          "y": 0.20296103014539316,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-15",
+          "x": -2.5,
+          "y": 0.20648561861892026,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-16",
+          "x": -2.4,
+          "y": 0.2170282601054926,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-17",
+          "x": -2.3,
+          "y": 0.2633149245701122,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-18",
+          "x": -2.2,
+          "y": 0.21571216918701502,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-19",
+          "x": -2.0999999999999996,
+          "y": 0.21686709459569722,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-20",
+          "x": -2.0,
+          "y": 0.23863352447004477,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-21",
+          "x": -1.9,
+          "y": 0.272648330443833,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-22",
+          "x": -1.7999999999999998,
+          "y": 0.26198648493773685,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-23",
+          "x": -1.6999999999999997,
+          "y": 0.26552894027572027,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-24",
+          "x": -1.5999999999999996,
+          "y": 0.3475266487673813,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-25",
+          "x": -1.5,
+          "y": 0.38413628415773743,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-26",
+          "x": -1.4,
+          "y": 0.45405400488008146,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-27",
+          "x": -1.2999999999999998,
+          "y": 0.46380303070560697,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-28",
+          "x": -1.1999999999999997,
+          "y": 0.6142235900767692,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-29",
+          "x": -1.0999999999999996,
+          "y": 0.7235231310277753,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-30",
+          "x": -1.0,
+          "y": 0.8767363648780991,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-31",
+          "x": -0.8999999999999999,
+          "y": 1.0072293139398858,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-32",
+          "x": -0.7999999999999998,
+          "y": 1.168633138168367,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-33",
+          "x": -0.6999999999999997,
+          "y": 1.3746632731090551,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-34",
+          "x": -0.5999999999999996,
+          "y": 1.5605524057814864,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-35",
+          "x": -0.5,
+          "y": 1.7552105051312152,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-36",
+          "x": -0.3999999999999999,
+          "y": 2.053545287060272,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-37",
+          "x": -0.2999999999999998,
+          "y": 2.2299153340193905,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-38",
+          "x": -0.19999999999999973,
+          "y": 2.4262221448709673,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-39",
+          "x": -0.09999999999999964,
+          "y": 2.6400616309008846,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-40",
+          "x": 0.0,
+          "y": 2.8460483684112448,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-41",
+          "x": 0.10000000000000053,
+          "y": 3.0117554617862425,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-42",
+          "x": 0.20000000000000018,
+          "y": 3.161468270460445,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-43",
+          "x": 0.2999999999999998,
+          "y": 3.1141166903043094,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-44",
+          "x": 0.40000000000000036,
+          "y": 3.213750180332307,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-45",
+          "x": 0.5,
+          "y": 3.1686691549833257,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-46",
+          "x": 0.6000000000000005,
+          "y": 3.0888379403022515,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-47",
+          "x": 0.7000000000000002,
+          "y": 2.9773484566007564,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-48",
+          "x": 0.8000000000000007,
+          "y": 2.8640343601763814,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-49",
+          "x": 0.9000000000000004,
+          "y": 2.71677513796327,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-50",
+          "x": 1.0,
+          "y": 2.4483486609376683,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-51",
+          "x": 1.1000000000000005,
+          "y": 2.2542645063886155,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-52",
+          "x": 1.2000000000000002,
+          "y": 2.003699312098494,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-53",
+          "x": 1.3000000000000007,
+          "y": 1.8040901302938352,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-54",
+          "x": 1.4000000000000004,
+          "y": 1.5735271883001543,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-55",
+          "x": 1.5,
+          "y": 1.3426059899241292,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-56",
+          "x": 1.6000000000000005,
+          "y": 1.1493341488130389,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-57",
+          "x": 1.7000000000000002,
+          "y": 0.9606388538913484,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-58",
+          "x": 1.8000000000000007,
+          "y": 0.8047965034392872,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-59",
+          "x": 1.9000000000000004,
+          "y": 0.7469991845519628,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-60",
+          "x": 2.0,
+          "y": 0.6409319941577071,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-61",
+          "x": 2.1000000000000005,
+          "y": 0.5035788332479261,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-62",
+          "x": 2.2,
+          "y": 0.4846844643242605,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-63",
+          "x": 2.3000000000000007,
+          "y": 0.3931755375873423,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-64",
+          "x": 2.4000000000000004,
+          "y": 0.3865848055029609,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-65",
+          "x": 2.5,
+          "y": 0.26653684686969414,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-66",
+          "x": 2.6000000000000005,
+          "y": 0.30942096083374526,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-67",
+          "x": 2.7,
+          "y": 0.18771067796088095,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-68",
+          "x": 2.8000000000000007,
+          "y": 0.15703911475873567,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-69",
+          "x": 2.9000000000000004,
+          "y": 0.24452245286157878,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-70",
+          "x": 3.0,
+          "y": 0.21081889611671753,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-71",
+          "x": 3.1000000000000005,
+          "y": 0.16794023013655393,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-72",
+          "x": 3.2,
+          "y": 0.19152012679086472,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-73",
+          "x": 3.3000000000000007,
+          "y": 0.217946368858851,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-74",
+          "x": 3.4000000000000004,
+          "y": 0.1944525508165623,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-75",
+          "x": 3.5,
+          "y": 0.1968806084004462,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-76",
+          "x": 3.6000000000000005,
+          "y": 0.18923162403965155,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-77",
+          "x": 3.7,
+          "y": 0.15907594973834674,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-78",
+          "x": 3.8000000000000007,
+          "y": 0.28879085176141567,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-79",
+          "x": 3.9000000000000004,
+          "y": 0.15196529829537508,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "row-80",
+          "x": 4.0,
+          "y": 0.20820819835288173,
+          "included": true,
+          "missingReason": null
+        }
+      ]
+    },
+    "uncertainty": {
+      "kind": "unknown-equal",
+      "errorStructure": "unknown"
+    }
+  },
+  "settings": {
+    "model": "gaussian",
+    "parameters": [
+      {
+        "value": 0.24,
+        "fixed": false
+      },
+      {
+        "value": 2.55,
+        "fixed": false
+      },
+      {
+        "value": 0.44000000000000006,
+        "fixed": false
+      },
+      {
+        "value": 0.8800000000000001,
+        "fixed": false
+      }
+    ],
+    "excludedIds": [],
+    "conditionalInference": false,
+    "physicalTimeConfirmed": false,
+    "selectionAfterInspection": false
+  }
+}

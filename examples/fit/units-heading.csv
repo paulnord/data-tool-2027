@@ -1,0 +1,11 @@
+# Height measurements; units are declared in the column headings.
+Time (s),Height (cm),Uncertainty (cm)
+0,200,2
+0.25,420,2
+0.5,579,2
+0.75,674,2
+1,710,2
+1.25,684,2
+1.5,596,2
+1.75,447,2
+2,237,2

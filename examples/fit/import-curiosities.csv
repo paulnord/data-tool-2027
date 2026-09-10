@@ -1,0 +1,12 @@
+# Import practice: deliberately imperfect synthetic data
+# Expected trend: height = 2 + 3*time; no random scatter
+# Comments stay visible; column labels are on row 4
+id,time,height,sigma,note
+r1,0,2,0.1,ordinary row
+r2,1,5,0.1,"text with a comma, safely quoted"
+r3,2,inf,0.1,replace inf with 8
+r4,3,11,0.1,text is fine in this unused column
+r5,4,oops,0.1,replace oops with 14
+r6,5,,0.1,blank height is missing; optionally enter 17
+r7,6,20,0,replace zero uncertainty with 0.1
+r8,7,23,0.1,last row

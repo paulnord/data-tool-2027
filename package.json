@@ -1,0 +1,46 @@
+{
+  "name": "data-tool-2027",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "desktop:build": "bash scripts/desktop.sh build",
+    "desktop:dev": "bash scripts/desktop.sh dev",
+    "test:desktop": "bash scripts/desktop.sh verify",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "format": "prettier --write src tests e2e docs *.md *.ts *.json index.html",
+    "format:check": "prettier --check src tests e2e docs *.md *.ts *.json index.html",
+    "schemas:fit": "node --experimental-strip-types scripts/generate-fit-schemas.mjs",
+    "test:integration": "python3 scripts/test-integration.py"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "fast-xml-parser": "^5.11.1",
+    "fflate": "^0.8.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@tauri-apps/cli": "^2.11.4",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "ajv": "^8.18.0",
+    "prettier": "^3.6.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.0",
+    "vitest": "^3.2.0"
+  }
+}

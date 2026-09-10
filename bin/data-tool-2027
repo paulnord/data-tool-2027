@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+app_root="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$app_root/src-tauri/target/release/bundle/macos/Data Tool 2027.app/Contents/MacOS/data-tool-2027" "$@"

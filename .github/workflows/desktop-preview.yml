@@ -66,15 +66,31 @@ jobs:
           tagName: v0.1.0-preview.1
           releaseName: Data Tool 2027 — first desktop preview
           releaseBody: |
-            Development preview for undergraduate physics labs.
-
-            Downloads: Windows x64 setup.exe; macOS universal DMG (Intel and Apple Silicon, macOS 12.3+ target); Linux x64 DEB and AppImage (built on Ubuntu 22.04).
-
-            The Mac package is ad-hoc signed, not Apple-notarized. The Windows installer is unsigned. Operating systems may show security warnings. Native dialogs, file associations and printing need classroom testing on each platform; successful compilation is not a compatibility guarantee.
-
-            Multi-interval and collision setups are in-memory drafts: copy or print their reports before closing. Single-fit sessions and ordinary CSV data remain savable. Examples are ordinary files available through Data → Load file.
-
-            Source code, license, scientific tests and Tracker compatibility documentation accompany this release in the repository. No student data is uploaded.
+            Data Tool 2027 fits and graphs data for physics labs. **Choose your computer below—you only need one download.**
+            
+            | Your computer | Download | How to use it |
+            |---|---|---|
+            | **Windows** — 64-bit Intel or AMD PC | **[Download for Windows](https://github.com/paulnord/data-tool-2027/releases/download/v0.1.0-preview.1/Data.Tool.2027_0.1.0_x64-setup.exe)** · 2.2 MB | Open the downloaded setup file and follow the installer. |
+            | **Mac** — Intel or Apple Silicon (M-series) | **[Download for Mac](https://github.com/paulnord/data-tool-2027/releases/download/v0.1.0-preview.1/Data.Tool.2027_0.1.0_universal.dmg)** · 6.3 MB | Open the disk image and drag Data Tool 2027 into Applications. The same download includes both Mac processor types; it targets macOS 12.3 or newer. |
+            | **Linux** — 64-bit Intel or AMD, Debian/Ubuntu family | **[Download Linux installer (.deb)](https://github.com/paulnord/data-tool-2027/releases/download/v0.1.0-preview.1/Data.Tool.2027_0.1.0_amd64.deb)** · 3.3 MB | Install with your distribution’s package manager. Built on Ubuntu 22.04. |
+            | **Linux** — 64-bit Intel or AMD, AppImage option | **[Download Linux AppImage](https://github.com/paulnord/data-tool-2027/releases/download/v0.1.0-preview.1/Data.Tool.2027_0.1.0_amd64.AppImage)** · 80.8 MB | Mark the file as executable, then run it. Requires a compatible Linux desktop and FUSE support. |
+            
+            The Linux downloads are alternatives; you do not need both. Windows ARM and Linux ARM builds are not included. GitHub’s **Source code** downloads below are for developers, not installers.
+            
+            **This is a development preview.** The Windows installer is unsigned and the Mac app is not Apple-notarized, so your operating system may show a security warning or block opening it. Native file dialogs, file associations and printing still need testing on each target platform; build targets are not guarantees of compatibility with every OS version.
+            
+            **Getting started:** open **Data → Load file** to find the bundled example files, or load your own CSV data. Fitting runs locally; no student data is uploaded.
+            
+            **Saving your work:** single-fit sessions and CSV data can be saved. Multi-interval and collision setups are still in-memory drafts—copy or print their reports before closing.
+            
+            <details>
+            <summary>Build and test details</summary>
+            
+            154 scientific tests, 70 browser workflows and the web build passed. Five native host tests passed on Windows, Mac and Linux. The Mac disk image checksum, ad-hoc signature, both processor architectures and bundled examples were checked locally.
+            
+            Installer source: [4eaf7a9](https://github.com/paulnord/data-tool-2027/tree/4eaf7a9be9f86ff87050510ef532687fd2d6aff6). Source, license and Tracker integration documentation are in the repository.
+            
+            </details>
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}

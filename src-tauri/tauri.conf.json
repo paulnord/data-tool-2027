@@ -25,17 +25,27 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
-    "icon": ["icons/icon.icns", "icons/icon.png"],
+    "targets": [
+      "app"
+    ],
+    "icon": [
+      "icons/icon.icns",
+      "icons/icon.png"
+    ],
     "fileAssociations": [
       {
-        "ext": ["trksess"],
+        "ext": [
+          "trksess"
+        ],
         "name": "Data Tool analysis session",
         "role": "Editor"
       }
     ],
     "resources": {
       "../examples/data/": "Examples/"
+    },
+    "macOS": {
+      "minimumSystemVersion": "12.3"
     }
   }
 }

@@ -1,0 +1,71 @@
+name: Desktop preview
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chrome
+      - run: npm run test:e2e
+  package:
+    needs: verify
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin --bundles dmg
+          - platform: windows-latest
+            args: --bundles nsis
+          - platform: ubuntu-22.04
+            args: --bundles deb,appimage
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+      - run: rustup update stable
+      - if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: npm ci
+      - run: npx tauri icon src-tauri/icons/icon.svg
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: '-'
+        with:
+          tagName: v0.1.0-preview.1
+          releaseName: Data Tool 2027 — first desktop preview
+          releaseBody: |
+            Development preview for undergraduate physics labs.
+
+            Downloads: Windows x64 setup.exe; macOS universal DMG (Intel and Apple Silicon, macOS 12.3+ target); Linux x64 DEB and AppImage (built on Ubuntu 22.04).
+
+            The Mac package is ad-hoc signed, not Apple-notarized. The Windows installer is unsigned. Operating systems may show security warnings. Native dialogs, file associations and printing need classroom testing on each platform; successful compilation is not a compatibility guarantee.
+
+            Multi-interval and collision setups are in-memory drafts: copy or print their reports before closing. Single-fit sessions and ordinary CSV data remain savable. Examples are ordinary files available through Data → Load file.
+
+            Source code, license, scientific tests and Tracker compatibility documentation accompany this release in the repository. No student data is uploaded.
+          releaseDraft: true
+          prerelease: true
+          args: ${{ matrix.args }}

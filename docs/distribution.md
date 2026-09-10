@@ -15,3 +15,12 @@ Recommended references: [GitHub Releases](https://docs.github.com/en/repositorie
 Retain the inherited license and extraction history, and keep the Tracker integration contract documented. Prepare a stable release, a browser demonstration, example lab exercises and a short explanation of how this independent tool complements Tracker. Then approach the OSP maintainers about a collection listing and, separately, whether they want organizational hosting or maintenance. A listing does not require assuming that the repository must move.
 
 The [OSP project page](https://www.compadre.org/osp/webdocs/About.cfm) provides its staff contact route. No OSP submission or endorsement has been requested. The project remains an independent development draft.
+
+
+## Automated desktop previews
+
+Run **Actions → Desktop preview → Run workflow** in the public repository. The workflow first runs scientific and browser checks, then builds Windows x64 NSIS, universal macOS DMG (Intel and Apple Silicon), and Linux x64 DEB/AppImage on native GitHub runners. Each platform runs the Rust host tests. Packages are attached to a draft prerelease for review before publication.
+
+The Mac deployment target is macOS 12.3 or newer because the frontend uses modern WebKit APIs such as structuredClone; this is a build target, not a claim that every OS version has been tested. Linux packages are built on Ubuntu 22.04 and require a compatible desktop/WebKit environment. Windows uses WebView2. ARM Windows and ARM Linux are not part of this first matrix.
+
+The first preview uses tag v0.1.0-preview.1; choose a new version and tag before publishing another release. Signing/notarization credentials are not configured. Do not label these previews as signed production installers.

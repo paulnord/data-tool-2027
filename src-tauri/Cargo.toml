@@ -2,6 +2,9 @@
 name = "data-tool-2027"
 version = "0.1.0"
 edition = "2021"
+description = "Local-data fitting and graphing for undergraduate physics laboratories"
+license-file = "../LICENSE"
+repository = "https://github.com/paulnord/data-tool-2027"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

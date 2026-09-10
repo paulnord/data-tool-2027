@@ -20,7 +20,9 @@
     "format:check": "prettier --check src tests e2e docs *.md *.ts *.json index.html",
     "schemas:fit": "node --experimental-strip-types scripts/generate-fit-schemas.mjs",
     "test:integration": "python3 scripts/test-integration.py",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:web": "npm run build -- --base=/data-tool-2027/ && node scripts/package-web.mjs",
+    "test:web": "playwright test --config playwright.web.config.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

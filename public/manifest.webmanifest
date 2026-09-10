@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Data Tool 2027",
+  "short_name": "Data Tool",
+  "description": "Local-data fitting and graphing for physics labs",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#163c40",
+  "icons": [
+    {
+      "src": "./app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

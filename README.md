@@ -1,5 +1,7 @@
 # Data Tool 2027
 
+**[Open in your browser — Chromebook and other computers](https://paulnord.github.io/data-tool-2027/)** · [Download example files](https://paulnord.github.io/data-tool-2027/examples.zip) · [Browser instructions](docs/chromebook.md)
+
 [Download the desktop preview for Windows, Mac or Linux](https://github.com/paulnord/data-tool-2027/releases/tag/v0.1.0-preview.1). These are development previews; see the release notes for signing and platform-testing limitations.
 
 A small, local-data fitting application for experimental physics. Import or paste measurements, declare units and uncertainties, fit models, inspect residuals and confidence bands, and export CSV or a printable vector report.

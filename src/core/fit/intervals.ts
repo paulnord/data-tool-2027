@@ -11,6 +11,7 @@ import {
 } from "./schema";
 import { fit, type FitResult } from "./solve";
 import { fitReportTable, reportTableTsv, type Cell } from "./report";
+export const maxIntervals = 5;
 export type IntervalRange = [number, number];
 export interface IntervalDefinition {
   name: string;
@@ -103,8 +104,8 @@ export function intervalRequests(
 export function checkIntervalRanges(
   intervals: Pick<IntervalDefinition, "name" | "range">[],
 ) {
-  if (intervals.length < 1 || intervals.length > 3)
-    throw Error("Choose between one and three intervals.");
+  if (intervals.length < 1 || intervals.length > maxIntervals)
+    throw Error("Choose between one and five intervals.");
   for (const item of intervals) {
     if (!item.name.trim()) throw Error("Give each interval a name.");
     if (

@@ -7,7 +7,13 @@ import type {
 } from "../core/fit/intervals";
 import { predict } from "../core/fit/solve";
 import { plotScale, tickLabel, plotPath } from "./plotScale";
-export const intervalColors = ["#2875a4", "#b45b20", "#7854a0"];
+export const intervalColors = [
+  "#2875a4",
+  "#b45b20",
+  "#7854a0",
+  "#187a68",
+  "#a03856",
+];
 export function IntervalPlot({
   request,
   intervals,
@@ -251,7 +257,7 @@ export function IntervalPlot({
             fill="none"
             stroke={colors[i]}
             strokeWidth={2}
-            strokeDasharray={i === 1 ? "7 3" : i === 2 ? "3 3" : undefined}
+            strokeDasharray={[undefined, "7 3", "3 3", "10 3 2 3", "2 3"][i]}
           />
         ))}
         {selection && (

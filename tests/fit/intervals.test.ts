@@ -67,7 +67,7 @@ for (const count of [1, 2, 3, 4])
     expect(JSON.stringify(c)).toBe(before);
     expect(intervalReport(c, [results, null])).toContain("Not fitted");
   });
-it("requires student ranges, allows overlap and caps intervals at three", () => {
+it("requires student ranges, allows overlap and caps intervals at five", () => {
   const c = config();
   c.intervals[0].range = null;
   expect(() => fitInterval(source(), c, 0)).toThrow(/Select this interval/);
@@ -77,10 +77,20 @@ it("requires student ranges, allows overlap and caps intervals at three", () => 
   c.intervals[0].range = [1, 2.5];
   expect(fitInterval(source(), c, 0)[0].result!.residuals.at(-1)!.x).toBe(2.5);
   expect(fitInterval(source(), c, 1)[0].result!.residuals[0].x).toBe(2.5);
+  const five = {
+    ...c,
+    intervals: Array.from({ length: 5 }, (_, i) => ({
+      ...c.intervals[1],
+      name: `Interval ${i + 1}`,
+      range: [i * 0.5, i * 0.5 + 1] as [number, number],
+    })),
+  };
+  for (let i = 0; i < 5; i++)
+    expect(fitInterval(source(), five, i)[0].result!.n).toBe(21);
   c.intervals[0].range = [1, 1];
   expect(() => checkIntervalRanges(c.intervals)).toThrow(/increasing/);
-  expect(() => checkIntervalRanges(Array(4).fill(c.intervals[1]))).toThrow(
-    /three/,
+  expect(() => checkIntervalRanges(Array(6).fill(c.intervals[1]))).toThrow(
+    /five/,
   );
 });
 it("each interval can use a different equation with independent fixed parameters and weighted covariance", () => {

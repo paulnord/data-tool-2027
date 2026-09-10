@@ -25,6 +25,7 @@ import {
 } from "../core/fit/nonlinearModels";
 import {
   checkIntervalRanges,
+  maxIntervals,
   intervalRequests,
   intervalReport,
   type IntervalConfig,
@@ -472,7 +473,7 @@ export default forwardRef<
             value={intervals.length}
             onChange={(e) => countIntervals(Number(e.target.value))}
           >
-            {[1, 2, 3].map((i) => (
+            {Array.from({ length: maxIntervals }, (_, i) => i + 1).map((i) => (
               <option key={i} value={i}>
                 {i}
               </option>
@@ -495,6 +496,38 @@ export default forwardRef<
             </button>
           ))}
         </div>
+        <button
+          className="interval-fit-button"
+          disabled={
+            busy !== null ||
+            !!preview.error ||
+            !!rangeError ||
+            !selected.range ||
+            equationPending
+          }
+          onClick={fitSelected}
+        >
+          Fit {selected.name || "selected interval"}
+        </button>
+        {busy !== null && (
+          <button
+            onClick={() => {
+              cancel();
+              setNotice("Fit cancelled");
+            }}
+          >
+            Cancel fit
+          </button>
+        )}
+        {open && (
+          <Assumptions
+            checked={conditional}
+            onChange={(v) => {
+              invalidate();
+              setConditional(v);
+            }}
+          />
+        )}
         <label>
           Name
           <input
@@ -738,38 +771,6 @@ export default forwardRef<
             </div>
           ))}
         </details>
-        <button
-          className="interval-fit-button"
-          disabled={
-            busy !== null ||
-            !!preview.error ||
-            !!rangeError ||
-            !selected.range ||
-            equationPending
-          }
-          onClick={fitSelected}
-        >
-          Fit {selected.name || "selected interval"}
-        </button>
-        {busy !== null && (
-          <button
-            onClick={() => {
-              cancel();
-              setNotice("Fit cancelled");
-            }}
-          >
-            Cancel fit
-          </button>
-        )}
-        {open && (
-          <Assumptions
-            checked={conditional}
-            onChange={(v) => {
-              invalidate();
-              setConditional(v);
-            }}
-          />
-        )}
         <label className="interval-print-option">
           <input
             type="checkbox"

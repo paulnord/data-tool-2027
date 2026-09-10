@@ -219,3 +219,44 @@ test("one-dimensional carts and four-component data use independent curves", asy
     "Interval 1: 4 of 4 data series fitted",
   );
 });
+
+test("five Millikan intervals retain separate results with Fit beside interval selection", async ({
+  page,
+}) => {
+  const workspace = await open(page, "MillikanData.csv");
+  await page.getByLabel("Number of intervals").selectOption("5");
+  for (let i = 1; i <= 5; i++) {
+    await page
+      .getByRole("button", { name: `Interval ${i}`, exact: true })
+      .click();
+    const fit = page.getByRole("button", {
+      name: `Fit Interval ${i}`,
+      exact: true,
+    });
+    await fit.scrollIntoViewIfNeeded();
+    const tabs = await page.locator(".interval-tabs").boundingBox();
+    const button = await fit.boundingBox();
+    expect(button!.y - (tabs!.y + tabs!.height)).toBeGreaterThanOrEqual(0);
+    expect(button!.y - (tabs!.y + tabs!.height)).toBeLessThan(20);
+    await range(page, String((i - 1) * 20), String((i - 1) * 20 + 15));
+    await fit.click();
+    await expect(workspace.getByRole("status")).toHaveText(
+      `Interval ${i}: 1 of 1 data series fitted`,
+    );
+  }
+  await expect(
+    workspace.getByRole("table", { name: /parameters$/ }),
+  ).toHaveCount(5);
+  await expect(
+    workspace.getByRole("table", { name: /Interval 5.*parameters/ }),
+  ).toContainText("mm");
+  await expect(workspace.locator('path[stroke="#187a68"]')).not.toHaveCount(0);
+  await expect(workspace.locator('path[stroke="#a03856"]')).not.toHaveCount(0);
+  await page.getByRole("button", { name: "Interval 1 ✓", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Fit Interval 1", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    workspace.getByRole("table", { name: /parameters$/ }),
+  ).toHaveCount(5);
+});

@@ -1,3 +1,4 @@
+import { ticks as niceTicks, tickStep } from "d3-array";
 export type GraphMode = "linear" | "log-x" | "log-y" | "log-log";
 export const graphModes: Record<GraphMode, string> = {
   linear: "Linear (X linear, Y linear)",
@@ -15,7 +16,10 @@ export function plotScale(domain: [number, number], log: boolean) {
   return {
     fraction: (v: number) => (forward(v) - lo) / (hi - lo),
     value: (fraction: number) => inverse(lo + fraction * (hi - lo)),
+    label: (value: number, count: number) =>
+      tickLabel(value, log ? undefined : tickStep(domain[0], domain[1], count)),
     ticks: (count: number) => {
+      if (!log) return niceTicks(lo, hi, count);
       if (log) {
         const ticks: number[] = [];
         const step = Math.max(1, Math.ceil((hi - lo) / (count - 1)));
@@ -67,7 +71,21 @@ export function plotPath(
     .join(" ");
 }
 
-export const tickLabel = (v: number) =>
-  v !== 0 && (Math.abs(v) < 0.01 || Math.abs(v) >= 1e5)
-    ? v.toExponential(2)
-    : Number(v.toPrecision(4)).toString();
+export function tickLabel(v: number, step?: number): string {
+  if (v === 0) return "0";
+  const precision =
+    step && Number.isFinite(step)
+      ? Math.min(
+          16,
+          Math.max(
+            1,
+            Math.floor(Math.log10(Math.abs(v))) -
+              Math.floor(Math.log10(Math.abs(step))) +
+              1,
+          ),
+        )
+      : 3;
+  return Math.abs(v) < 0.01 || Math.abs(v) >= 1e5
+    ? v.toExponential(Math.max(2, precision - 1))
+    : Number(v.toPrecision(Math.max(4, precision))).toString();
+}

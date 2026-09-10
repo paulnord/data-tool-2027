@@ -104,8 +104,8 @@ test("unsaved replacement requires visible discard; both numerical plot domains 
   await expect(page.getByLabel("y0 value", { exact: true })).toHaveValue("0");
   await page.getByLabel("View from").fill("0.5");
   const plots = page.locator(".fit-plot");
-  await expect(plots.nth(0)).toContainText("0.50");
-  await expect(plots.nth(1)).toContainText("0.50");
+  await expect(plots.nth(0)).toHaveAttribute("data-x-min", "0.5");
+  await expect(plots.nth(1)).toHaveAttribute("data-x-min", "0.5");
 });
 
 test("cancelled work cannot replace a newer analysis", async ({ page }) => {
@@ -490,7 +490,9 @@ test("new example sessions open with their models, fit and preserve sine period"
       exact: true,
     });
     if (await discard.isVisible()) await discard.click();
-    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(model);
+    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+      model,
+    );
     await page
       .getByRole("button", { name: "Fit selected observations" })
       .click();
@@ -1402,7 +1404,9 @@ test("sessions open for review and Cancel preserves the current analysis", async
     .locator("input[type=file]")
     .setInputFiles("examples/fit/cubic-demo.trksess");
   await panel.getByRole("button", { name: "Use these data" }).click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue("cubic");
+  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+    "cubic",
+  );
 });
 
 test("column headings select contents; Delete clears and context menu removes columns", async ({
@@ -1970,4 +1974,44 @@ test("tables have no phantom third column and can insert, paste wider blocks, de
   await expect(panel.getByLabel("x column", { exact: true })).toHaveValue("1");
   await expect(panel.getByLabel("y column", { exact: true })).toHaveValue("2");
   await expect(panel.getByLabel("x unit", { exact: true })).toHaveValue("s");
+});
+
+test("Millikan source columns survive noise changes, exclusions and fitting", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles("examples/data/MillikanData.csv");
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await page
+    .getByLabel("Noise model", { exact: true })
+    .selectOption("supplied-common");
+  await page.getByLabel("Y uncertainty", { exact: true }).fill("0.01");
+  await page.getByLabel("Y uncertainty", { exact: true }).press("Enter");
+  await page
+    .getByLabel("Noise model", { exact: true })
+    .selectOption("unknown-equal");
+  await page
+    .getByRole("button", { name: "Observations & exclusions", exact: true })
+    .click();
+  await page
+    .getByRole("checkbox", { name: /^Include / })
+    .first()
+    .uncheck();
+  await page.getByRole("button", { name: "Fit selected observations" }).click();
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  await page.getByRole("button", { name: "Data…", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "Data", exact: true });
+  await expect(panel.getByLabel("Row 1 column 4", { exact: true })).toHaveValue(
+    "mass_C (mm)",
+  );
+  await expect(panel.getByLabel("Row 1 column 3", { exact: true })).toHaveValue(
+    "mass_A (mm)",
+  );
+  await expect(
+    panel.getByLabel("y column", { exact: true }).locator("option"),
+  ).toHaveCount(4);
 });

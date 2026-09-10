@@ -1,5 +1,13 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+async function setGraphMode(page: Page, mode: string) {
+  await page
+    .getByLabel("Log X", { exact: true })
+    .setChecked(mode === "log-x" || mode === "log-log");
+  await page
+    .getByLabel("Log Y", { exact: true })
+    .setChecked(mode === "log-y" || mode === "log-log");
+}
 test("log modes preserve fits and session data, use original tick units, and print matching axes", async ({
   page,
 }) => {
@@ -29,7 +37,7 @@ test("log modes preserve fits and session data, use original tick units, and pri
     ["log-log", "log", "log", 3],
     ["linear", "linear", "linear", 5],
   ] as const) {
-    await page.getByLabel("Graph mode").selectOption(mode);
+    await setGraphMode(page, mode);
     await expect(plot).toHaveAttribute("data-x-scale", x);
     await expect(plot).toHaveAttribute("data-y-scale", y);
     await expect(residual).toHaveAttribute("data-y-scale", "linear");
@@ -40,7 +48,7 @@ test("log modes preserve fits and session data, use original tick units, and pri
     await expect(page.getByRole("status")).toHaveText("Fit complete");
     expect(await plot.innerHTML()).not.toMatch(/NaN|Infinity/);
   }
-  await page.getByLabel("Graph mode").selectOption("log-log");
+  await setGraphMode(page, "log-log");
   const positions = await plot
     .locator("circle")
     .evaluateAll((nodes) => nodes.map((n) => Number(n.getAttribute("cx"))));
@@ -73,7 +81,8 @@ test("empty and entirely nonpositive data remain usable in logarithmic modes", a
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("Graph mode").selectOption("log-log");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await setGraphMode(page, "log-log");
   const plot = page.getByRole("img", {
     name: "Data and fitted curve",
     exact: true,
@@ -89,7 +98,7 @@ test("empty and entirely nonpositive data remain usable in logarithmic modes", a
     .click();
   await expect(plot.locator("circle")).toHaveCount(0);
   expect(await plot.innerHTML()).not.toMatch(/NaN|Infinity/);
-  await page.getByLabel("Graph mode").selectOption("linear");
+  await setGraphMode(page, "linear");
   await expect(plot.locator("circle")).toHaveCount(2);
 });
 
@@ -107,7 +116,7 @@ test("logarithmic selection and intervals crossing zero use the displayed coordi
   await page.getByLabel("Y uncertainty", { exact: true }).press("Enter");
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
-  await page.getByLabel("Graph mode").selectOption("log-log");
+  await setGraphMode(page, "log-log");
   const plot = page.getByRole("img", {
     name: "Data and fitted curve",
     exact: true,
@@ -118,14 +127,12 @@ test("logarithmic selection and intervals crossing zero use the displayed coordi
   expect(await plot.innerHTML()).not.toMatch(/NaN|Infinity/);
   await expect(plot.locator(".fit-confidence-band")).toBeVisible();
   await page.screenshot({ path: "test-results/log-graph.png" });
-  const circles = await plot
-    .locator("circle")
-    .evaluateAll((nodes) =>
-      nodes.map((n) => ({
-        x: Number(n.getAttribute("cx")),
-        y: Number(n.getAttribute("cy")),
-      })),
-    );
+  const circles = await plot.locator("circle").evaluateAll((nodes) =>
+    nodes.map((n) => ({
+      x: Number(n.getAttribute("cx")),
+      y: Number(n.getAttribute("cy")),
+    })),
+  );
   const xs = circles.map((p) => p.x).sort((a, b) => a - b);
   const left = xs[Math.floor(xs.length / 4)],
     right = xs[Math.floor((xs.length * 3) / 4)];
@@ -147,4 +154,47 @@ test("logarithmic selection and intervals crossing zero use the displayed coordi
   );
   await page.mouse.up();
   await expect(plot.locator("circle:not(.excluded)")).toHaveCount(expected);
+});
+
+test("Y range zoom is display-only, validates limits and matches print", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles("examples/data/ball-toss.trksess");
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Fit selected observations" }).click();
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  const plot = page.getByRole("img", {
+    name: "Data and fitted curve",
+    exact: true,
+  });
+  const originalMin = await plot.getAttribute("data-y-min");
+  await page.getByLabel("Data Y axis", { exact: true }).click();
+  await page.getByLabel("Data Zoom Y in", { exact: true }).click();
+  expect(await plot.getAttribute("data-y-min")).not.toBe(originalMin);
+  await page.getByLabel("Data Y minimum", { exact: true }).fill("-4.5");
+  await page.getByLabel("Data Y maximum", { exact: true }).fill("8.5");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await expect(plot).toHaveAttribute("data-y-min", "-4.5");
+  await expect(plot).toHaveAttribute("data-y-max", "8.5");
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  await page.getByLabel("Data Y axis", { exact: true }).click();
+  await page.getByRole("button", { name: "Print", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Print report" });
+  await expect(
+    dialog.getByRole("img", { name: "Data and fitted curve", exact: true }),
+  ).toHaveAttribute("data-y-min", "-4.5");
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Log Y", { exact: true }).check();
+  await page.getByLabel("Data Y axis", { exact: true }).click();
+  await page.getByLabel("Data Y minimum", { exact: true }).fill("-1");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("positive limits");
+  await page.getByRole("button", { name: "Auto", exact: true }).click();
+  expect(Number(await plot.getAttribute("data-y-min"))).toBeGreaterThan(0);
+  await page.screenshot({ path: "test-results/y-axis-controls.png" });
 });

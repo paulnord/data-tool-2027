@@ -1,3 +1,4 @@
+import { YAxisControls, useYRange, type AxisRange } from "./YAxisControls";
 import { FitErrorMessage } from "./FitErrorMessage";
 import Assumptions from "./Assumptions";
 import {
@@ -22,7 +23,7 @@ import {
   type CollisionChannel,
 } from "../core/fit/collision";
 import type { FitRequest } from "../core/fit/schema";
-import { plotScale, tickLabel } from "./plotScale";
+import { plotScale } from "./plotScale";
 import "./collision.css";
 
 const fmt = (v: number | null | undefined) =>
@@ -125,8 +126,12 @@ function CollisionPlot({
   if (residual) values.push(0);
   const [lo, hi] = rangeOf(values),
     pad = (hi - lo) * 0.12;
+  const [customY, setCustomY] = useYRange(
+    `${request.dataset.yColumn.label}/${request.dataset.yColumn.unit}`,
+  );
+  const yDomain: AxisRange = customY ?? [lo - pad, hi + pad];
   const sx = plotScale(domain, false),
-    sy = plotScale([lo - pad, hi + pad], false);
+    sy = plotScale(yDomain, false);
   const width = 560,
     height = residual ? 145 : 245,
     left = 65,
@@ -141,185 +146,199 @@ function CollisionPlot({
   const boundaryNames = ["Before from", "Before to", "After from", "After to"];
 
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-label={`${request.dataset.yColumn.label} ${residual ? "residuals" : "versus time"}`}
-      className="collision-plot"
-      onPointerMove={(e) => {
-        if (dragging.current === null || !onBoundary) return;
-        const bounds = e.currentTarget.getBoundingClientRect();
-        const scale = Math.min(bounds.width / width, bounds.height / height);
-        const px =
-          (e.clientX - bounds.left - (bounds.width - width * scale) / 2) /
-          scale;
-        onBoundary(
-          dragging.current,
-          sx.value((px - left) / (width - left - right)),
-        );
-      }}
-      onPointerUp={(e) => {
-        dragging.current = null;
-        if (e.currentTarget.hasPointerCapture(e.pointerId))
-          e.currentTarget.releasePointerCapture(e.pointerId);
-      }}
-      onPointerCancel={() => {
-        dragging.current = null;
-      }}
-      onLostPointerCapture={() => {
-        dragging.current = null;
-      }}
-    >
-      <defs>
-        <clipPath id={clipId}>
-          <rect
-            x={left}
-            y={top}
-            width={width - left - right}
-            height={height - top - bottom}
-          />
-        </clipPath>
-      </defs>
-      {sy.ticks(4).map((v) => (
-        <g key={v}>
-          <line
-            x1={left}
-            x2={width - right}
-            y1={y(v)}
-            y2={y(v)}
-            stroke="#dce5ed"
-          />
-          <text x={left - 6} y={y(v) + 4} textAnchor="end">
-            {tickLabel(v)}
-          </text>
-        </g>
-      ))}
-      {sx.ticks(5).map((v) => (
-        <text key={v} x={x(v)} y={height - 25} textAnchor="middle">
-          {tickLabel(v)}
-        </text>
-      ))}
-      <g clipPath={`url(#${clipId})`}>
-        {(["before", "after"] as const).map((phase) => (
-          <rect
-            key={phase}
-            className={`interval ${phase}`}
-            x={x(config[phase][0])}
-            y={top}
-            width={x(config[phase][1]) - x(config[phase][0])}
-            height={height - top - bottom}
-          />
-        ))}
-        {residual && (
-          <line
-            x1={left}
-            x2={width - right}
-            y1={y(0)}
-            y2={y(0)}
-            stroke="#6d7780"
-            strokeDasharray="3 3"
-          />
-        )}
-        {points.map((p, i) => (
-          <g key={i} className={p.phase}>
-            {sigma > 0 && (
-              <line
-                className="error-bar"
-                x1={x(p.x)}
-                x2={x(p.x)}
-                y1={y(p.y - sigma)}
-                y2={y(p.y + sigma)}
-              />
-            )}
-            <circle cx={x(p.x)} cy={y(p.y)} r={2.8}>
-              <title>{`${p.x}, ${p.y}`}</title>
-            </circle>
+    <>
+      {!residual && (
+        <YAxisControls
+          label={request.dataset.yColumn.label}
+          domain={yDomain}
+          custom={!!customY}
+          onChange={setCustomY}
+        />
+      )}
+      <svg
+        data-y-min={yDomain[0]}
+        data-y-max={yDomain[1]}
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={`${request.dataset.yColumn.label} ${residual ? "residuals" : "versus time"}`}
+        className="collision-plot"
+        onPointerMove={(e) => {
+          if (dragging.current === null || !onBoundary) return;
+          const bounds = e.currentTarget.getBoundingClientRect();
+          const scale = Math.min(bounds.width / width, bounds.height / height);
+          const px =
+            (e.clientX - bounds.left - (bounds.width - width * scale) / 2) /
+            scale;
+          onBoundary(
+            dragging.current,
+            sx.value((px - left) / (width - left - right)),
+          );
+        }}
+        onPointerUp={(e) => {
+          dragging.current = null;
+          if (e.currentTarget.hasPointerCapture(e.pointerId))
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
+        onPointerCancel={() => {
+          dragging.current = null;
+        }}
+        onLostPointerCapture={() => {
+          dragging.current = null;
+        }}
+      >
+        <defs>
+          <clipPath id={clipId}>
+            <rect
+              x={left}
+              y={top}
+              width={width - left - right}
+              height={height - top - bottom}
+            />
+          </clipPath>
+        </defs>
+        {sy.ticks(6).map((v) => (
+          <g key={v}>
+            <line
+              x1={left}
+              x2={width - right}
+              y1={y(v)}
+              y2={y(v)}
+              stroke="#dce5ed"
+            />
+            <text x={left - 6} y={y(v) + 4} textAnchor="end">
+              {sy.label(v, 6)}
+            </text>
           </g>
         ))}
-        {!residual &&
-          (["before", "after"] as const).map((phase) => {
-            const segment = channel?.[phase],
-              r = segment?.result;
-            return r && segment ? (
-              <line
-                key={phase}
-                className={`model ${phase}`}
-                x1={x(segment.interval[0])}
-                x2={x(segment.interval[1])}
-                y1={y(
-                  r.coefficients[0] + r.coefficients[1] * segment.interval[0],
-                )}
-                y2={y(
-                  r.coefficients[0] + r.coefficients[1] * segment.interval[1],
-                )}
-              />
-            ) : null;
-          })}
-      </g>
-      {!residual &&
-        onBoundary &&
-        boundaryValues.map((value, index) => (
-          <g key={index} className="collision-boundary">
+        {sx.ticks(5).map((v) => (
+          <text key={v} x={x(v)} y={height - 25} textAnchor="middle">
+            {sx.label(v, 5)}
+          </text>
+        ))}
+        <g clipPath={`url(#${clipId})`}>
+          {(["before", "after"] as const).map((phase) => (
+            <rect
+              key={phase}
+              className={`interval ${phase}`}
+              x={x(config[phase][0])}
+              y={top}
+              width={x(config[phase][1]) - x(config[phase][0])}
+              height={height - top - bottom}
+            />
+          ))}
+          {residual && (
             <line
-              x1={x(value)}
-              x2={x(value)}
-              y1={top}
-              y2={height - bottom}
-              stroke={index < 2 ? "#2875a4" : "#b45b20"}
+              x1={left}
+              x2={width - right}
+              y1={y(0)}
+              y2={y(0)}
+              stroke="#6d7780"
               strokeDasharray="3 3"
             />
-            <rect
-              x={x(value) - 7}
-              y={top}
-              width={14}
-              height={height - top - bottom}
-              fill="transparent"
-              role="slider"
-              tabIndex={0}
-              aria-label={`${request.dataset.yColumn.label}: ${boundaryNames[index]}`}
-              aria-valuemin={domain[0]}
-              aria-valuemax={domain[1]}
-              aria-valuenow={value}
-              onPointerDown={(e) => {
-                e.preventDefault();
-                dragging.current = index;
-                e.currentTarget.ownerSVGElement!.setPointerCapture(e.pointerId);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          )}
+          {points.map((p, i) => (
+            <g key={i} className={p.phase}>
+              {sigma > 0 && (
+                <line
+                  className="error-bar"
+                  x1={x(p.x)}
+                  x2={x(p.x)}
+                  y1={y(p.y - sigma)}
+                  y2={y(p.y + sigma)}
+                />
+              )}
+              <circle cx={x(p.x)} cy={y(p.y)} r={2.8}>
+                <title>{`${p.x}, ${p.y}`}</title>
+              </circle>
+            </g>
+          ))}
+          {!residual &&
+            (["before", "after"] as const).map((phase) => {
+              const segment = channel?.[phase],
+                r = segment?.result;
+              return r && segment ? (
+                <line
+                  key={phase}
+                  className={`model ${phase}`}
+                  x1={x(segment.interval[0])}
+                  x2={x(segment.interval[1])}
+                  y1={y(
+                    r.coefficients[0] + r.coefficients[1] * segment.interval[0],
+                  )}
+                  y2={y(
+                    r.coefficients[0] + r.coefficients[1] * segment.interval[1],
+                  )}
+                />
+              ) : null;
+            })}
+        </g>
+        {!residual &&
+          onBoundary &&
+          boundaryValues.map((value, index) => (
+            <g key={index} className="collision-boundary">
+              <line
+                x1={x(value)}
+                x2={x(value)}
+                y1={top}
+                y2={height - bottom}
+                stroke={index < 2 ? "#2875a4" : "#b45b20"}
+                strokeDasharray="3 3"
+              />
+              <rect
+                x={x(value) - 7}
+                y={top}
+                width={14}
+                height={height - top - bottom}
+                fill="transparent"
+                role="slider"
+                tabIndex={0}
+                aria-label={`${request.dataset.yColumn.label}: ${boundaryNames[index]}`}
+                aria-valuemin={domain[0]}
+                aria-valuemax={domain[1]}
+                aria-valuenow={value}
+                onPointerDown={(e) => {
                   e.preventDefault();
-                  onBoundary(
-                    index,
-                    value +
-                      ((e.key === "ArrowLeft" ? -1 : 1) *
-                        (domain[1] - domain[0])) /
-                        100,
+                  dragging.current = index;
+                  e.currentTarget.ownerSVGElement!.setPointerCapture(
+                    e.pointerId,
                   );
-                }
-              }}
-            />
-          </g>
-        ))}
-      <rect
-        x={left}
-        y={top}
-        width={width - left - right}
-        height={height - top - bottom}
-        fill="none"
-        stroke="#8295a5"
-      />
-      <text x={(left + width - right) / 2} y={height - 6} textAnchor="middle">
-        {request.dataset.xColumn.label} [
-        {request.dataset.xColumn.unit ?? "units unspecified"}]
-      </text>
-      <text
-        transform={`translate(13 ${(height - bottom + top) / 2}) rotate(-90)`}
-        textAnchor="middle"
-      >
-        {residual ? "Residual" : request.dataset.yColumn.label} [
-        {request.dataset.yColumn.unit ?? "units unspecified"}]
-      </text>
-    </svg>
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                    e.preventDefault();
+                    onBoundary(
+                      index,
+                      value +
+                        ((e.key === "ArrowLeft" ? -1 : 1) *
+                          (domain[1] - domain[0])) /
+                          100,
+                    );
+                  }
+                }}
+              />
+            </g>
+          ))}
+        <rect
+          x={left}
+          y={top}
+          width={width - left - right}
+          height={height - top - bottom}
+          fill="none"
+          stroke="#8295a5"
+        />
+        <text x={(left + width - right) / 2} y={height - 6} textAnchor="middle">
+          {request.dataset.xColumn.label} [
+          {request.dataset.xColumn.unit ?? "units unspecified"}]
+        </text>
+        <text
+          transform={`translate(13 ${(height - bottom + top) / 2}) rotate(-90)`}
+          textAnchor="middle"
+        >
+          {residual ? "Residual" : request.dataset.yColumn.label} [
+          {request.dataset.yColumn.unit ?? "units unspecified"}]
+        </text>
+      </svg>
+    </>
   );
 }
 

@@ -1,0 +1,50 @@
+.y-axis-controls {
+  position: relative;
+  margin: 0 4px 2px auto;
+  width: max-content;
+  max-width: 100%;
+  font-size: 11px;
+  color: #38576c;
+}
+.y-axis-controls summary {
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.y-axis-panel {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  width: 245px;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #a7becf;
+  border-radius: 5px;
+  background: white;
+  box-shadow: 0 3px 12px #203d5526;
+}
+.y-axis-panel label {
+  display: block;
+  margin: 7px 0;
+}
+.y-axis-panel input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.y-axis-panel button {
+  font-size: 11px;
+  padding: 4px 7px;
+}
+.y-axis-zoom {
+  display: flex;
+  gap: 4px;
+}
+.y-axis-panel p {
+  font-size: 11px;
+  margin-bottom: 0;
+}
+@media print {
+  .y-axis-controls {
+    display: none !important;
+  }
+}

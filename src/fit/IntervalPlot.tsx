@@ -1,3 +1,4 @@
+import { YAxisControls, useYRange, type AxisRange } from "./YAxisControls";
 import { useId, useRef, useState } from "react";
 import type { FitRequest } from "../core/fit/schema";
 import type {
@@ -6,7 +7,7 @@ import type {
   IntervalRange,
 } from "../core/fit/intervals";
 import { predict } from "../core/fit/solve";
-import { plotScale, tickLabel, plotPath } from "./plotScale";
+import { plotScale, plotPath } from "./plotScale";
 export const intervalColors = [
   "#2875a4",
   "#b45b20",
@@ -103,10 +104,14 @@ export function IntervalPlot({
   const pad = Number.isFinite(lo + hi)
     ? Math.max((hi - lo) * 0.12, Math.abs(lo) * 0.01, 1e-9)
     : 1;
-  const sy = plotScale(
-      Number.isFinite(lo + hi) ? [lo - pad, hi + pad] : [0, 1],
-      false,
-    ),
+  const automaticY: AxisRange = Number.isFinite(lo + hi)
+    ? [lo - pad, hi + pad]
+    : [0, 1];
+  const [customY, setCustomY] = useYRange(
+    `${request.dataset.yColumn.label}/${request.dataset.yColumn.unit}`,
+  );
+  const yDomain = customY ?? automaticY;
+  const sy = plotScale(yDomain, false),
     y = (v: number) => top + (1 - sy.fraction(v)) * (height - top - bottom);
   const at = (element: SVGSVGElement, clientX: number) => {
     const box = element.getBoundingClientRect(),
@@ -124,218 +129,233 @@ export function IntervalPlot({
     );
   };
   return (
-    <svg
-      role="img"
-      aria-label={`${request.dataset.yColumn.label} ${residual ? "residuals" : "interval plot"}`}
-      className="interval-plot"
-      viewBox={`0 0 ${width} ${height}`}
-      onPointerDown={(e) => {
-        if (!onRange || e.button !== 0 || drag.current) return;
-        const start = at(e.currentTarget, e.clientX);
-        drag.current = { start };
-        setSelection([start, start]);
-        e.currentTarget.setPointerCapture(e.pointerId);
-      }}
-      onPointerMove={(e) => {
-        const d = drag.current;
-        if (!d) return;
-        const value = at(e.currentTarget, e.clientX);
-        if (d.interval !== undefined) onBoundary?.(d.interval, d.end!, value);
-        else setSelection([Math.min(d.start, value), Math.max(d.start, value)]);
-      }}
-      onPointerUp={(e) => {
-        const d = drag.current;
-        if (d && d.interval === undefined) {
+    <>
+      {!residual && onRange && (
+        <YAxisControls
+          label={request.dataset.yColumn.label}
+          domain={yDomain}
+          custom={!!customY}
+          onChange={setCustomY}
+        />
+      )}
+      <svg
+        data-y-min={yDomain[0]}
+        data-y-max={yDomain[1]}
+        role="img"
+        aria-label={`${request.dataset.yColumn.label} ${residual ? "residuals" : "interval plot"}`}
+        className="interval-plot"
+        viewBox={`0 0 ${width} ${height}`}
+        onPointerDown={(e) => {
+          if (!onRange || e.button !== 0 || drag.current) return;
+          const start = at(e.currentTarget, e.clientX);
+          drag.current = { start };
+          setSelection([start, start]);
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
           const value = at(e.currentTarget, e.clientX);
-          if (Math.abs(value - d.start) > (domain[1] - domain[0]) * 0.002)
-            onRange?.([Math.min(d.start, value), Math.max(d.start, value)]);
-        }
-        drag.current = null;
-        setSelection(null);
-        if (e.currentTarget.hasPointerCapture(e.pointerId))
-          e.currentTarget.releasePointerCapture(e.pointerId);
-      }}
-      onPointerCancel={() => {
-        drag.current = null;
-        setSelection(null);
-      }}
-      onLostPointerCapture={() => {
-        drag.current = null;
-        setSelection(null);
-      }}
-    >
-      <defs>
-        <clipPath id={id}>
-          <rect
-            x={left}
-            y={top}
-            width={width - left - right}
-            height={height - top - bottom}
-          />
-        </clipPath>
-      </defs>
-      <rect
-        x={left}
-        y={top}
-        width={width - left - right}
-        height={height - top - bottom}
-        fill="#fff"
-        stroke="#a7becf"
-      />
-      {sx.ticks(5).map((v) => (
-        <g key={v}>
-          <line
-            x1={x(v)}
-            x2={x(v)}
-            y1={top}
-            y2={height - bottom}
-            stroke="#e5edf3"
-          />
-          <text x={x(v)} y={height - bottom + 17} textAnchor="middle">
-            {tickLabel(v)}
-          </text>
-        </g>
-      ))}
-      {sy.ticks(4).map((v) => (
-        <g key={v}>
-          <line
-            x1={left}
-            x2={width - right}
-            y1={y(v)}
-            y2={y(v)}
-            stroke="#e5edf3"
-          />
-          <text x={left - 7} y={y(v) + 4} textAnchor="end">
-            {tickLabel(v)}
-          </text>
-        </g>
-      ))}
-      <g clipPath={`url(#${id})`}>
-        {intervals.map(
-          (s, i) =>
-            s.range && (
-              <rect
-                key={i}
-                x={x(s.range[0])}
-                y={top}
-                width={Math.max(0, x(s.range[1]) - x(s.range[0]))}
-                height={height - top - bottom}
-                fill={colors[i]}
-                opacity={i === active ? 0.12 : 0.06}
-              />
-            ),
-        )}
-        {residual && (
-          <line
-            x1={left}
-            x2={width - right}
-            y1={y(0)}
-            y2={y(0)}
-            stroke="#667"
-            strokeDasharray="4 3"
-          />
-        )}
-        {points.map((p, i) => (
-          <g key={i} fill={colors[p.interval] ?? "#9baab6"}>
-            {sigma > 0 && (
-              <line
-                x1={x(p.x)}
-                x2={x(p.x)}
-                y1={y(p.y - sigma)}
-                y2={y(p.y + sigma)}
-                stroke="currentColor"
-                opacity=".4"
-              />
-            )}
-            <circle cx={x(p.x)} cy={y(p.y)} r={2.7} />
+          if (d.interval !== undefined) onBoundary?.(d.interval, d.end!, value);
+          else
+            setSelection([Math.min(d.start, value), Math.max(d.start, value)]);
+        }}
+        onPointerUp={(e) => {
+          const d = drag.current;
+          if (d && d.interval === undefined) {
+            const value = at(e.currentTarget, e.clientX);
+            if (Math.abs(value - d.start) > (domain[1] - domain[0]) * 0.002)
+              onRange?.([Math.min(d.start, value), Math.max(d.start, value)]);
+          }
+          drag.current = null;
+          setSelection(null);
+          if (e.currentTarget.hasPointerCapture(e.pointerId))
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+          setSelection(null);
+        }}
+        onLostPointerCapture={() => {
+          drag.current = null;
+          setSelection(null);
+        }}
+      >
+        <defs>
+          <clipPath id={id}>
+            <rect
+              x={left}
+              y={top}
+              width={width - left - right}
+              height={height - top - bottom}
+            />
+          </clipPath>
+        </defs>
+        <rect
+          x={left}
+          y={top}
+          width={width - left - right}
+          height={height - top - bottom}
+          fill="#fff"
+          stroke="#a7becf"
+        />
+        {sx.ticks(5).map((v) => (
+          <g key={v}>
+            <line
+              x1={x(v)}
+              x2={x(v)}
+              y1={top}
+              y2={height - bottom}
+              stroke="#e5edf3"
+            />
+            <text x={x(v)} y={height - bottom + 17} textAnchor="middle">
+              {sx.label(v, 5)}
+            </text>
           </g>
         ))}
-        {curves.map((c, i) => (
-          <path
-            key={i}
-            d={plotPath(c, x, y)}
-            fill="none"
-            stroke={colors[i]}
-            strokeWidth={2}
-            strokeDasharray={[undefined, "7 3", "3 3", "10 3 2 3", "2 3"][i]}
-          />
+        {sy.ticks(6).map((v) => (
+          <g key={v}>
+            <line
+              x1={left}
+              x2={width - right}
+              y1={y(v)}
+              y2={y(v)}
+              stroke="#e5edf3"
+            />
+            <text x={left - 7} y={y(v) + 4} textAnchor="end">
+              {sy.label(v, 6)}
+            </text>
+          </g>
         ))}
-        {selection && (
-          <rect
-            x={x(selection[0])}
-            y={top}
-            width={x(selection[1]) - x(selection[0])}
-            height={height - top - bottom}
-            fill={colors[active]}
-            opacity=".25"
-          />
-        )}
-      </g>
-      {!residual &&
-        onBoundary &&
-        intervals.flatMap(
-          (s, i) =>
-            s.range?.map((v, end) => (
-              <g className="interval-handle" key={`${i}-${end}`}>
-                <line
-                  x1={x(v)}
-                  x2={x(v)}
-                  y1={top}
-                  y2={height - bottom}
-                  stroke={colors[i]}
-                  strokeWidth={i === active ? 2 : 1}
-                />
+        <g clipPath={`url(#${id})`}>
+          {intervals.map(
+            (s, i) =>
+              s.range && (
                 <rect
-                  role="slider"
-                  tabIndex={0}
-                  aria-label={`${request.dataset.yColumn.label}: ${s.name} ${end === 0 ? "from" : "to"}`}
-                  aria-valuenow={v}
-                  aria-valuemin={domain[0]}
-                  aria-valuemax={domain[1]}
-                  x={x(v) - 7}
+                  key={i}
+                  x={x(s.range[0])}
                   y={top}
-                  width={14}
+                  width={Math.max(0, x(s.range[1]) - x(s.range[0]))}
                   height={height - top - bottom}
-                  fill="transparent"
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    const svg = e.currentTarget.ownerSVGElement!;
-                    drag.current = { start: v, interval: i, end };
-                    svg.setPointerCapture(e.pointerId);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-                    e.preventDefault();
-                    onBoundary(
-                      i,
-                      end,
-                      v +
-                        ((e.key === "ArrowLeft" ? -1 : 1) *
-                          (domain[1] - domain[0])) /
-                          100,
-                    );
-                  }}
+                  fill={colors[i]}
+                  opacity={i === active ? 0.12 : 0.06}
                 />
-              </g>
-            )) ?? [],
-        )}
-      <text x={(left + width - right) / 2} y={height - 5} textAnchor="middle">
-        {request.dataset.xColumn.label} [{request.dataset.xColumn.unit ?? "?"}]
-      </text>
-      <text
-        transform={`translate(14 ${(top + height - bottom) / 2}) rotate(-90)`}
-        textAnchor="middle"
-      >
-        {residual ? "Residual" : request.dataset.yColumn.label} [
-        {request.dataset.yColumn.unit ?? "?"}]
-      </text>
-      {!points.length && (
-        <text x={width / 2} y={height / 2} textAnchor="middle">
-          {residual
-            ? "Fit an interval to inspect residuals"
-            : "Open data and choose columns"}
+              ),
+          )}
+          {residual && (
+            <line
+              x1={left}
+              x2={width - right}
+              y1={y(0)}
+              y2={y(0)}
+              stroke="#667"
+              strokeDasharray="4 3"
+            />
+          )}
+          {points.map((p, i) => (
+            <g key={i} fill={colors[p.interval] ?? "#9baab6"}>
+              {sigma > 0 && (
+                <line
+                  x1={x(p.x)}
+                  x2={x(p.x)}
+                  y1={y(p.y - sigma)}
+                  y2={y(p.y + sigma)}
+                  stroke="currentColor"
+                  opacity=".4"
+                />
+              )}
+              <circle cx={x(p.x)} cy={y(p.y)} r={2.7} />
+            </g>
+          ))}
+          {curves.map((c, i) => (
+            <path
+              key={i}
+              d={plotPath(c, x, y)}
+              fill="none"
+              stroke={colors[i]}
+              strokeWidth={2}
+              strokeDasharray={[undefined, "7 3", "3 3", "10 3 2 3", "2 3"][i]}
+            />
+          ))}
+          {selection && (
+            <rect
+              x={x(selection[0])}
+              y={top}
+              width={x(selection[1]) - x(selection[0])}
+              height={height - top - bottom}
+              fill={colors[active]}
+              opacity=".25"
+            />
+          )}
+        </g>
+        {!residual &&
+          onBoundary &&
+          intervals.flatMap(
+            (s, i) =>
+              s.range?.map((v, end) => (
+                <g className="interval-handle" key={`${i}-${end}`}>
+                  <line
+                    x1={x(v)}
+                    x2={x(v)}
+                    y1={top}
+                    y2={height - bottom}
+                    stroke={colors[i]}
+                    strokeWidth={i === active ? 2 : 1}
+                  />
+                  <rect
+                    role="slider"
+                    tabIndex={0}
+                    aria-label={`${request.dataset.yColumn.label}: ${s.name} ${end === 0 ? "from" : "to"}`}
+                    aria-valuenow={v}
+                    aria-valuemin={domain[0]}
+                    aria-valuemax={domain[1]}
+                    x={x(v) - 7}
+                    y={top}
+                    width={14}
+                    height={height - top - bottom}
+                    fill="transparent"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      const svg = e.currentTarget.ownerSVGElement!;
+                      drag.current = { start: v, interval: i, end };
+                      svg.setPointerCapture(e.pointerId);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight")
+                        return;
+                      e.preventDefault();
+                      onBoundary(
+                        i,
+                        end,
+                        v +
+                          ((e.key === "ArrowLeft" ? -1 : 1) *
+                            (domain[1] - domain[0])) /
+                            100,
+                      );
+                    }}
+                  />
+                </g>
+              )) ?? [],
+          )}
+        <text x={(left + width - right) / 2} y={height - 5} textAnchor="middle">
+          {request.dataset.xColumn.label} [{request.dataset.xColumn.unit ?? "?"}
+          ]
         </text>
-      )}
-    </svg>
+        <text
+          transform={`translate(14 ${(top + height - bottom) / 2}) rotate(-90)`}
+          textAnchor="middle"
+        >
+          {residual ? "Residual" : request.dataset.yColumn.label} [
+          {request.dataset.yColumn.unit ?? "?"}]
+        </text>
+        {!points.length && (
+          <text x={width / 2} y={height / 2} textAnchor="middle">
+            {residual
+              ? "Fit an interval to inspect residuals"
+              : "Open data and choose columns"}
+          </text>
+        )}
+      </svg>
+    </>
   );
 }

@@ -36,3 +36,18 @@ it("breaks curves at unrepresentable points rather than joining across log-domai
   expect(d).toBe("M1,0  M3,1 L4,2");
   expect(d).not.toMatch(/NaN|Infinity/);
 });
+
+it("chooses clean linear ticks inside exact view limits", () => {
+  expect(plotScale([-4.306, 1.729], false).ticks(6)).toEqual([
+    -4, -3, -2, -1, 0, 1,
+  ]);
+  expect(plotScale([-4.5, 8.5], false).ticks(6)).toEqual([
+    -4, -2, 0, 2, 4, 6, 8,
+  ]);
+  expect(plotScale([0.11, 0.39], false).ticks(6)).toEqual([
+    0.15, 0.2, 0.25, 0.3, 0.35,
+  ]);
+  const scale = plotScale([1000000, 1000000.006], false);
+  const labels = scale.ticks(6).map((v) => scale.label(v, 6));
+  expect(new Set(labels).size).toBe(labels.length);
+});

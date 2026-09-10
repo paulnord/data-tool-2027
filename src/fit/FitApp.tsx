@@ -1,3 +1,4 @@
+import { YAxisControls, type AxisRange } from "./YAxisControls";
 import MultiInterval, { type MultiIntervalActions } from "./MultiInterval";
 import { FitErrorMessage } from "./FitErrorMessage";
 import { customFromModel } from "../core/fit/customFromModel";
@@ -5,11 +6,9 @@ import { CustomEquationEditor } from "./CustomEquationEditor";
 import Assumptions from "./Assumptions";
 import CollisionDraft, { type CollisionActions } from "./CollisionDraft";
 import {
-  graphModes,
   plotScale,
   positiveDomain,
   plotPath,
-  tickLabel,
   type GraphMode,
 } from "./plotScale";
 import {
@@ -102,6 +101,8 @@ function Plot({
   showBand = false,
   showErrorBars = false,
   idPrefix = "",
+  yRange,
+  onYRange,
 }: {
   state: State;
   result: FitResult | null;
@@ -117,6 +118,8 @@ function Plot({
   showBand?: boolean;
   showErrorBars?: boolean;
   idPrefix?: string;
+  yRange?: AxisRange | null;
+  onYRange?: (range: AxisRange | null) => void;
 }) {
   const logX = mode === "log-x" || mode === "log-log";
   const logY = !residual && (mode === "log-y" || mode === "log-log");
@@ -269,7 +272,9 @@ function Plot({
   const ymax = logY
     ? Math.min(Number.MAX_VALUE, 10 ** (Math.log10(logDomain[1]) + logPad))
     : hi + pad;
-  const yScale = plotScale([ymin, ymax], logY);
+  const yDomain: AxisRange =
+    !residual && yRange && (!logY || yRange[0] > 0) ? yRange : [ymin, ymax];
+  const yScale = plotScale(yDomain, logY);
   const hiddenCount = state.request.dataset.rows.filter(
     (r) =>
       r.x !== null &&
@@ -330,7 +335,20 @@ function Plot({
             : ""}
         </p>
       )}
+      {!residual && onYRange && (
+        <YAxisControls
+          label="Data"
+          domain={yDomain}
+          custom={!!yRange}
+          log={logY}
+          onChange={onYRange}
+        />
+      )}
       <svg
+        data-x-min={range[0]}
+        data-x-max={range[1]}
+        data-y-min={yDomain[0]}
+        data-y-max={yDomain[1]}
         ref={plotRef}
         className="fit-plot"
         viewBox={`0 0 ${width} ${height}`}
@@ -457,7 +475,7 @@ function Plot({
             />
           </clipPath>
         </defs>
-        {yScale.ticks(5).map((yy, i) => {
+        {yScale.ticks(6).map((yy, i) => {
           return (
             <g key={i}>
               <line
@@ -468,7 +486,7 @@ function Plot({
                 className="grid"
               />
               <text x={left - 10} y={y(yy) + 4} textAnchor="end">
-                {tickLabel(yy)}
+                {yScale.label(yy, 6)}
               </text>
             </g>
           );
@@ -481,7 +499,7 @@ function Plot({
               y={height - 30}
               textAnchor={i === 0 ? "start" : i === 5 ? "end" : "middle"}
             >
-              {tickLabel(xx)}
+              {xScale.label(xx, 6)}
             </text>
           );
         })}
@@ -576,6 +594,7 @@ function Plot({
   );
 }
 function PrintReport({
+  yRange,
   mode,
   state,
   result,
@@ -589,6 +608,7 @@ function PrintReport({
   result: FitResult | null;
   manual: boolean;
   mode: GraphMode;
+  yRange: AxisRange | null;
   range: [number, number];
   showBand: boolean;
   showErrorBars: boolean;
@@ -653,6 +673,7 @@ function PrintReport({
           </p>
         )}
         <Plot
+          yRange={yRange}
           mode={mode}
           state={state}
           result={result}
@@ -769,6 +790,13 @@ export default function FitApp() {
   const [collisionRevision, setCollisionRevision] = useState(0);
   const [collisionSource, setCollisionSource] = useState<State | null>(null);
   const [mode, setMode] = useState<GraphMode>("linear");
+  const [yRange, setYRange] = useState<AxisRange | null>(null);
+  const logX = mode === "log-x" || mode === "log-log";
+  const logY = mode === "log-y" || mode === "log-log";
+  function changeLog(x: boolean, y: boolean) {
+    if (y !== logY) setYRange(null);
+    setMode(x ? (y ? "log-log" : "log-x") : y ? "log-y" : "linear");
+  }
   const [printPreview, setPrintPreview] = useState(false);
   const [dataPanel, setDataPanel] = useState<{
     source: string;
@@ -877,6 +905,7 @@ export default function FitApp() {
     setDirty(true);
   }
   function bounds(next: State) {
+    setYRange(null);
     const xs = next.request.dataset.rows.flatMap((r) =>
       r.x === null ? [] : [r.x],
     );
@@ -1509,6 +1538,7 @@ export default function FitApp() {
       )}
       {printPreview && (
         <PrintReport
+          yRange={yRange}
           mode={mode}
           state={state}
           result={current}
@@ -1661,6 +1691,8 @@ export default function FitApp() {
               mode={mode}
               state={state}
               result={current}
+              yRange={yRange}
+              onYRange={setYRange}
               range={range}
               residual={false}
               manual={manualState === state}
@@ -1683,18 +1715,20 @@ export default function FitApp() {
             />
             <div className="fit-range">
               <label>
-                Graph mode{" "}
-                <select
-                  aria-label="Graph mode"
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value as GraphMode)}
-                >
-                  {Object.entries(graphModes).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  type="checkbox"
+                  checked={logX}
+                  onChange={(e) => changeLog(e.target.checked, logY)}
+                />{" "}
+                Log X
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={logY}
+                  onChange={(e) => changeLog(logX, e.target.checked)}
+                />{" "}
+                Log Y
               </label>
               <span>
                 {state.request.dataset.xColumn.label} [
@@ -2312,13 +2346,14 @@ export default function FitApp() {
                 aria-label="Noise model"
                 value={u.kind}
                 onChange={(e) => {
-                  change(
-                    switchNoiseModel(
+                  change({
+                    ...state,
+                    ...switchNoiseModel(
                       state.request,
                       state.settings,
                       e.target.value as FitRequest["uncertainty"]["kind"],
                     ),
-                  );
+                  });
                 }}
               >
                 <option value="unknown-equal">

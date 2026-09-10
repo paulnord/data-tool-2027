@@ -19,7 +19,8 @@
     "format": "prettier --write src tests e2e docs *.md *.ts *.json index.html",
     "format:check": "prettier --check src tests e2e docs *.md *.ts *.json index.html",
     "schemas:fit": "node --experimental-strip-types scripts/generate-fit-schemas.mjs",
-    "test:integration": "python3 scripts/test-integration.py"
+    "test:integration": "python3 scripts/test-integration.py",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

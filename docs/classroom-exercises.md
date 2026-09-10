@@ -4,7 +4,7 @@ Use **Data… → Load file…** to browse ordinary files. The desktop file choo
 
 | CSV file in `examples/data/`                                            | Introductory exercise                                                                                                             |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [MillikanData.csv](../examples/data/MillikanData.csv) | Inspect the supplied oil-drop data and select intervals for drift fits. Confirm units before interpreting results. |
+| [MillikanData.csv](../examples/data/MillikanData.csv) | Inspect the supplied oil-drop data and select intervals for drift fits. Time is in seconds; all three measurement columns are in millimeters. |
 | [constant-speed.csv](../examples/data/constant-speed.csv)               | Fit position versus time with a line. Interpret initial position, speed and residuals.                                            |
 | [spring-extension.csv](../examples/data/spring-extension.csv)           | Fit force versus extension. Interpret spring constant and the force offset; compare a free intercept with a fixed zero intercept. |
 | [ball-toss.csv](../examples/data/ball-toss.csv)                         | Fit height versus time with a quadratic. Explain why acceleration is twice the quadratic coefficient.                             |
@@ -12,7 +12,7 @@ Use **Data… → Load file…** to browse ordinary files. The desktop file choo
 | [oscillation.csv](../examples/data/oscillation.csv)                     | Estimate a period from the graph, then fit a sine with a free period and inspect residuals.                                       |
 | [unequal-uncertainties.csv](../examples/data/unequal-uncertainties.csv) | Compare an equal-weight line fit with a fit assigning the third column as per-row Y uncertainty.                                  |
 
-`MillikanData.csv` contains columns `t`, `mass_B`, `mass_A`, and `mass_C`, with some missing observations. It can be used to inspect multiple data series and select drift intervals for line fits. Confirm and enter the units before interpreting slopes; column names and units have not been guessed or rewritten.
+`MillikanData.csv` contains columns `t`, `mass_B`, `mass_A`, and `mass_C`, with some missing observations. It can be used to inspect multiple data series and select drift intervals for line fits. Time is in seconds and all three measurement columns are in millimeters, as confirmed by the instructor. Units are declared in the CSV headings; numerical observations and missing values are unchanged.
 
 Loading a CSV does not automatically fit, assert statistical assumptions or assign an uncertainty column. Students review columns/units and explicitly choose a model and uncertainty interpretation. For the weighting exercise, assign the standard-deviation column to Y uncertainty in the data editor. Use **Export CSV…** for the table and **Save session** for a reproducible analysis with settings.
 
@@ -20,7 +20,7 @@ The prepared sessions remain useful for demonstrations with a selected model, co
 
 ## Instructor and test notes
 
-The generated teaching datasets are synthetic. `MillikanData.csv` is an instructor-supplied file, preserved exactly as provided; its provenance and units are not specified in the file. The first two are hand-authored teaching fixtures: constant-speed data are near `position = 0.35 + 1.4*time`; spring data are near `force = 0.1 + 25*extension`. Their small deviations are illustrative and do not establish a Gaussian noise model.
+The generated teaching datasets are synthetic. `MillikanData.csv` is an instructor-supplied file, with original numerical observations preserved and instructor-confirmed units added to the headings. The first two are hand-authored teaching fixtures: constant-speed data are near `position = 0.35 + 1.4*time`; spring data are near `force = 0.1 + 25*extension`. Their small deviations are illustrative and do not establish a Gaussian noise model.
 
 The original CSVs retain observations from the corresponding prepared sessions (except the updated exponential exercise described below): ball toss uses `height = 2 + 10*time - 4.905*time²`; exponential uses `signal = 0.5 + 3*exp(-0.7*x)`; oscillation uses `y = 1 + 2*sin(2*pi*time/3) + 0.75*cos(2*pi*time/3)`; unequal uncertainties use `y = 1 + 2*x` with `sigma = 0.04 + 0.18*x`. Their original seeds and generation assumptions are in the paired session provenance. Finite noisy samples need not recover the generating coefficients exactly.
 

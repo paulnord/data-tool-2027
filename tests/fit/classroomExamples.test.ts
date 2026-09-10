@@ -43,8 +43,8 @@ it.each(classroomExamples)(
       expect(analysis.request.source.context ?? "").not.toContain(
         "Synthetic classroom data",
       );
-      expect(analysis.request.dataset.xColumn.unit).toBeNull();
-      expect(analysis.request.dataset.yColumn.unit).toBeNull();
+      expect(analysis.request.dataset.xColumn.unit).toBe("s");
+      expect(analysis.request.dataset.yColumn.unit).toBe("mm");
     } else {
       expect(analysis.request.source.context).toContain(
         "Synthetic classroom data",

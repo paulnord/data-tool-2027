@@ -1158,7 +1158,7 @@ test("dragging a rectangle copies two columns and Shift-arrow extends it", async
   await page.mouse.move(b!.x + 10, b!.y + 10, { steps: 10 });
   await page.mouse.up();
   await expect(panel.locator(".fit-cell-selected")).toHaveCount(4);
-  await page.keyboard.press("Meta+c");
+  await page.keyboard.press("ControlOrMeta+c");
   expect(
     (await page.evaluate(() => navigator.clipboard.readText())).split("\n"),
   ).toHaveLength(2);
@@ -1513,7 +1513,7 @@ test("table blocks copy between independent windows and saving names a pasted da
   await source
     .getByRole("button", { name: "Select entire table", exact: true })
     .click();
-  await page.keyboard.press("Meta+c");
+  await page.keyboard.press("ControlOrMeta+c");
   expect(
     (await page.evaluate(() => navigator.clipboard.readText())).split("\n"),
   ).toHaveLength(62);
@@ -1522,7 +1522,7 @@ test("table blocks copy between independent windows and saving names a pasted da
   await source
     .getByLabel("Row 4 column 2", { exact: true })
     .click({ modifiers: ["Shift"] });
-  await page.keyboard.press("Meta+c");
+  await page.keyboard.press("ControlOrMeta+c");
   const other = await context.newPage();
   await openDemo(other);
   await other.getByRole("button", { name: "Data…", exact: true }).click();

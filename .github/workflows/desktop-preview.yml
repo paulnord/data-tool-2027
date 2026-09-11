@@ -92,7 +92,7 @@ jobs:
             - Explicit comparisons between reproduced fits and published results, including differences in weighting, data selection and uncertainty conventions. Unresolved discrepancies are identified without attributing an error to the authors.
             - Automatic vertical axes follow plotted values with modest padding, without forcing zero into view. Clean tick marks, manual Y limits and zoom, and separate Log X / Log Y checkboxes improve graph inspection.
             - Up to five manually selected fitting intervals. Fit controls sit beside interval selection; supplied Millikan data retains its missing observations and declared units.
-            - Long source notes use a numbered appendix, with visible sheet boundaries in preview and explicit print page breaks. Compact summaries and fit-detail sections have clearer print layouts.
+            - Long source notes use a numbered appendix, with visible sheet boundaries in preview and explicit print page breaks. Data and residual plots share the same printed width and horizontal scale. Compact summaries and fit-detail sections have clearer print layouts.
             - Source columns survive uncertainty changes, exclusions and fitting. Unit entry preserves case, such as `m` and `mH`.
             - A general-purpose numerical-methods guide explains capabilities, validation, uncertainty assumptions and scope, with NIST, Bevington, GUM, EA-4/02 and AAPT references.
 

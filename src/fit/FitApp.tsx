@@ -288,13 +288,15 @@ function Plot({
     logY &&
     (visibleErrorBars.some((bar) => bar.lower <= 0) ||
       band?.points.some((p) => p.lower <= 0));
+  // Match the print CSS heights so both SVGs use the same uniform scale.
+  // A fixed canvas also avoids depending on ResizeObserver during printing.
   const { width, height } = idPrefix
-    ? { width: 780, height: residual ? 150 : 280 }
+    ? { width: 720, height: residual ? 100 : 220 }
     : plotSize;
   const left = 82,
     right = 36,
-    top = 18,
-    bottom = 52;
+    top = idPrefix ? 12 : 18,
+    bottom = idPrefix ? 42 : 52;
   const x = (v: number) => left + xScale.fraction(v) * (width - left - right),
     y = (v: number) => top + (1 - yScale.fraction(v)) * (height - top - bottom);
   function localPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
@@ -437,7 +439,11 @@ function Plot({
           transform={`translate(16 ${(top + height - bottom) / 2}) rotate(-90)`}
           textAnchor="middle"
         >
-          {residual ? "Residual" : state.request.dataset.yColumn.label}
+          {residual
+            ? idPrefix
+              ? ""
+              : "Residual"
+            : state.request.dataset.yColumn.label}
           {logY ? " (log scale)" : ""}
           {state.request.dataset.yColumn.unit
             ? ` [${state.request.dataset.yColumn.unit}]`
@@ -476,7 +482,7 @@ function Plot({
             />
           </clipPath>
         </defs>
-        {yScale.ticks(6).map((yy, i) => {
+        {yScale.ticks(idPrefix && residual ? 3 : 6).map((yy, i) => {
           return (
             <g key={i}>
               <line

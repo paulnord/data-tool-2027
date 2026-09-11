@@ -1857,11 +1857,14 @@ test("axis units are editable beside assignments and label every screen and prin
   ).toHaveText("Residual [cm]");
   await page.getByRole("button", { name: "Print", exact: true }).click();
   const report = page.getByRole("dialog", { name: "Print report" });
+  await expect(
+    report.getByRole("heading", { name: "Residuals", exact: true }),
+  ).toBeVisible();
   await expect(report.locator(".fit-axis-label")).toHaveText([
     "Time [ms]",
     "Height [cm]",
     "Time [ms]",
-    "Residual [cm]",
+    "[cm]",
   ]);
 });
 

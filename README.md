@@ -48,3 +48,7 @@ Choose **Analysis → Multi-interval fit…** for one to four data series across
 For recommended browser hosting, executable downloads and future OSP inclusion, see [distribution plans](docs/distribution.md).
 
 Published examples include [per-dataset fit comparisons and reproduction instructions](examples/data/published-examples.md).
+
+Automatic Y limits follow plotted values with modest padding; zero is not forced into view.
+
+Long source comments print as a numbered Source notes appendix, with matching sheet boundaries in the preview. Short notes remain inline. The full text is preserved, including notes spanning multiple pages.

@@ -1,3 +1,4 @@
+import SourceNotes from "./SourceNotes";
 import { YAxisControls, useYRange, type AxisRange } from "./YAxisControls";
 import { FitErrorMessage } from "./FitErrorMessage";
 import Assumptions from "./Assumptions";
@@ -741,7 +742,7 @@ export default forwardRef<
           ))}
         </section>
         <footer>
-          <p>{source.request.source.context}</p>
+          <SourceNotes text={source.request.source.context} />
           <p>
             Draft: setup is preserved while switching analyses with the same
             source table. Collision settings are not included in .trksess files.

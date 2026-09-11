@@ -1,3 +1,4 @@
+import SourceNotes from "./SourceNotes";
 import {
   forwardRef,
   useCallback,
@@ -916,7 +917,7 @@ export default forwardRef<
               )}
             </tbody>
           </table>
-          <p className="interval-source">{source.request.source.context}</p>
+          <SourceNotes text={source.request.source.context} />
         </div>
         <section className="interval-results" aria-label="Interval fit results">
           {intervals.map((item, index) => (

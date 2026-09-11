@@ -1789,12 +1789,21 @@ test("long print comments remain intact and continue after the fit summary", asy
     name: "Print report",
     exact: true,
   });
-  await expect(preview.locator(".fit-print-notes")).toHaveText(
-    lines.join("\n"),
-  );
+  await expect
+    .poll(async () =>
+      (
+        await preview
+          .locator(".report-notes-page .report-notes-text")
+          .allTextContents()
+      ).join(""),
+    )
+    .toBe(lines.join("\n"));
   await page.emulateMedia({ media: "print" });
   const summary = await preview.locator(".fit-print-results").boundingBox();
-  const notes = await preview.locator(".fit-print-notes").boundingBox();
+  const notes = await preview
+    .locator(".report-notes-page")
+    .first()
+    .boundingBox();
   expect(notes!.y).toBeGreaterThan(summary!.y + summary!.height);
   await page.pdf({
     path: ".tools/fit-report-long-comments.pdf",

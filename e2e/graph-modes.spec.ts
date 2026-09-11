@@ -198,3 +198,42 @@ test("Y range zoom is display-only, validates limits and matches print", async (
   expect(Number(await plot.getAttribute("data-y-min"))).toBeGreaterThan(0);
   await page.screenshot({ path: "test-results/y-axis-controls.png" });
 });
+
+test("Rydberg auto range shows the energy variation without forcing zero", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles("examples/data/published-cri-rydberg.csv");
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  const plot = page.getByRole("img", {
+    name: "Data and fitted curve",
+    exact: true,
+  });
+  async function checkRange() {
+    expect(Number(await plot.getAttribute("data-y-min"))).toBeGreaterThan(
+      54000,
+    );
+    expect(Number(await plot.getAttribute("data-y-min"))).toBeLessThan(
+      54216.37,
+    );
+    expect(Number(await plot.getAttribute("data-y-max"))).toBeGreaterThan(
+      54526.74,
+    );
+    expect(Number(await plot.getAttribute("data-y-max"))).toBeLessThan(54700);
+  }
+  await checkRange();
+  await page.getByRole("button", { name: "Fit selected observations" }).click();
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  await checkRange();
+  await page.getByLabel("Data Y axis", { exact: true }).click();
+  await page.getByLabel("Data Y minimum", { exact: true }).fill("0");
+  await page.getByLabel("Data Y maximum", { exact: true }).fill("60000");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await expect(plot).toHaveAttribute("data-y-min", "0");
+  await page.getByRole("button", { name: "Auto", exact: true }).click();
+  await checkRange();
+});

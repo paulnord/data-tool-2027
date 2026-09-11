@@ -3,276 +3,188 @@
   "fits": [
     {
       "id": "radio-exp",
-      "file": "published-asassn14li-radio.csv",
+      "file": "published/asassn14li-radio.csv",
       "expression": "C+A*exp(-x/tau)",
       "startingValues": [244, 2500, 66],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [
-          239.8818743714359, 2815.4558217667127, 66.05719039440284
-        ],
-        "standardErrors": [
-          8.138394840521924, 109.26517382501272, 2.7752658075257215
-        ],
-        "reducedChiSquare": 0.9599382374232088
-      }
+      "expected": {"coefficients": [239.8818743714359, 2815.4558217667127, 66.05719039440284], "standardErrors": [8.138394840521924, 109.26517382501272, 2.7752658075257215], "reducedChiSquare": 0.9599382374232088}
     },
     {
       "id": "radio-power",
-      "file": "published-asassn14li-radio.csv",
+      "file": "published/asassn14li-radio.csv",
       "expression": "C+A*((x-t0)/100)^(-5/3)",
       "startingValues": [180, 1800, -47],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [
-          178.02050240823806, 1247.98864649091, -47.2335955352626
-        ],
-        "standardErrors": [
-          10.532923306698633, 113.25246171700067, 4.704635694823895
-        ],
-        "reducedChiSquare": 0.9160403915308764
-      }
+      "expected": {"coefficients": [178.02050240823806, 1247.98864649091, -47.2335955352626], "standardErrors": [10.532923306698633, 113.25246171700067, 4.704635694823895], "reducedChiSquare": 0.9160403915308764}
     },
     {
       "id": "radio-early-exp",
-      "file": "published-asassn14li-radio.csv",
+      "file": "published/asassn14li-radio.csv",
       "expression": "A*exp(-x/tau)",
       "startingValues": [2500, 87],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [2796.901553421679, 87.29554156776598],
-        "standardErrors": [88.7148690701473, 3.2840247033765397],
-        "reducedChiSquare": 3.1495200630568547
-      },
+      "expected": {"coefficients": [2796.901553421679, 87.29554156776598], "standardErrors": [88.7148690701473, 3.2840247033765397], "reducedChiSquare": 3.1495200630568547},
       "maxX": 200
     },
     {
       "id": "xray-exp",
-      "file": "published-asassn14li-xray.csv",
+      "file": "published/asassn14li-xray.csv",
       "expression": "A*exp(-x/tau)",
       "startingValues": [25, 187],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [22.317558077223197, 178.5794167437735],
-        "standardErrors": [0.21380601111474845, 1.9133851035699174],
-        "reducedChiSquare": 7.931254683882895
-      }
+      "expected": {"coefficients": [22.317558077223197, 178.5794167437735], "standardErrors": [0.21380601111474845, 1.9133851035699174], "reducedChiSquare": 7.931254683882895}
     },
     {
       "id": "xray-power",
-      "file": "published-asassn14li-xray.csv",
+      "file": "published/asassn14li-xray.csv",
       "expression": "A*((x-t0)/100)^(-5/3)",
       "startingValues": [80, -155],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [43.619789624354894, -123.91776539859191],
-        "standardErrors": [0.7875703826185482, 2.177570445172613],
-        "reducedChiSquare": 10.568446814338474
-      }
+      "expected": {"coefficients": [43.619789624354894, -123.91776539859191], "standardErrors": [0.7875703826185482, 2.177570445172613], "reducedChiSquare": 10.568446814338474}
     },
     {
       "id": "xray-index",
-      "file": "published-asassn14li-xray.csv",
+      "file": "published/asassn14li-xray.csv",
       "expression": "A*((x-t0)/100)^p",
       "startingValues": [80, -132.35, -1.6],
       "fixed": [1],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [51.502314143730814, -132.35, -1.7812851973163122],
-        "standardErrors": [0.7184177807993483, 0.014524128866672465],
-        "reducedChiSquare": 9.943225939954813
-      }
+      "expected": {"coefficients": [51.502314143730814, -132.35, -1.7812851973163122], "standardErrors": [0.7184177807993483, 0.014524128866672465], "reducedChiSquare": 9.943225939954813}
     },
     {
       "id": "chromium-precise-R",
-      "file": "published-cri-rydberg.csv",
+      "file": "published/cri-rydberg.csv",
       "expression": "IP-R/(x-d-a/(x-d)^2)^2",
       "startingValues": [54575.49, 109736.157, 2.552, -9.9],
       "fixed": [1],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [
-          54575.48126112105, 109736.157, 2.5516325925107246, -9.670962836829107
-        ],
-        "standardErrors": [
-          0.02370705985758404, 0.0048867827821063295, 1.5827117122728027
-        ],
-        "reducedChiSquare": 0.6218672082373444
-      }
+      "expected": {"coefficients": [54575.48126112105, 109736.157, 2.5516325925107246, -9.670962836829107], "standardErrors": [0.02370705985758404, 0.0048867827821063295, 1.5827117122728027], "reducedChiSquare": 0.6218672082373444}
     },
     {
       "id": "pwn-edot",
-      "file": "published-pwn-luminosity-vs-edot.csv",
+      "file": "published/pwn-luminosity-vs-edot.csv",
       "expression": "a+b*x",
       "startingValues": [0, 1],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [-14.816193804245188, 1.3207594513544598],
-        "standardErrors": [2.284065766276601, 0.06250661365226283],
-        "reducedChiSquare": 4.453915574900629
-      }
+      "expected": {"coefficients": [-14.816193804245188, 1.3207594513544598], "standardErrors": [2.284065766276601, 0.06250661365226283], "reducedChiSquare": 4.453915574900629}
     },
     {
       "id": "pwn-blc",
-      "file": "published-pwn-luminosity-vs-blc.csv",
+      "file": "published/pwn-luminosity-vs-blc.csv",
       "expression": "a+b*x",
       "startingValues": [0, 1],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [25.29426549474411, 1.817825870136311],
-        "standardErrors": [0.3944378656080667, 0.08672709709569273],
-        "reducedChiSquare": 4.670254780740508
-      }
+      "expected": {"coefficients": [25.29426549474411, 1.817825870136311], "standardErrors": [0.3944378656080667, 0.08672709709569273], "reducedChiSquare": 4.670254780740508}
     },
     {
       "id": "pulsar-edot",
-      "file": "published-pulsar-luminosity-vs-edot.csv",
+      "file": "published/pulsar-luminosity-vs-edot.csv",
       "expression": "a+b*x",
       "startingValues": [0, 1],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [-10.887495431480104, 1.181074633840613],
-        "standardErrors": [2.2163325038009694, 0.060970056474343164],
-        "reducedChiSquare": 8.73274419740966
-      }
+      "expected": {"coefficients": [-10.887495431480104, 1.181074633840613], "standardErrors": [2.2163325038009694, 0.060970056474343164], "reducedChiSquare": 8.73274419740966}
     },
     {
       "id": "pulsar-blc",
-      "file": "published-pulsar-luminosity-vs-blc.csv",
+      "file": "published/pulsar-luminosity-vs-blc.csv",
       "expression": "a+b*x",
       "startingValues": [0, 1],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [24.61792428839312, 1.723090579367039],
-        "standardErrors": [0.3707437942856796, 0.08537689202162371],
-        "reducedChiSquare": 7.760952391253942
-      }
+      "expected": {"coefficients": [24.61792428839312, 1.723090579367039], "standardErrors": [0.3707437942856796, 0.08537689202162371], "reducedChiSquare": 7.760952391253942}
     },
     {
       "id": "photon-y-only",
-      "file": "published-pulsar-photon-index-vs-temperature.csv",
+      "file": "published/pulsar-photon-index-vs-temperature.csv",
       "expression": "a+b*x",
       "startingValues": [4, -1],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 3,
-      "expected": {
-        "coefficients": [4.29272910192598, -1.1463496557045758],
-        "standardErrors": [0.19253268727677728, 0.09114969045941265],
-        "reducedChiSquare": 17.130629819804575
-      }
+      "expected": {"coefficients": [4.29272910192598, -1.1463496557045758], "standardErrors": [0.19253268727677728, 0.09114969045941265], "reducedChiSquare": 17.130629819804575}
     },
     {
       "id": "thin-linear",
-      "file": "published-ion-chamber-wall-thin.csv",
+      "file": "published/ion-chamber-wall-thin.csv",
       "expression": "a+b*x",
       "startingValues": [1, -0.005],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [1.0031562984103852, -0.0065265396629990684],
-        "standardErrors": [0.001464872608979254, 0.00022296343589661702],
-        "reducedChiSquare": 0.3343064437881857
-      },
+      "expected": {"coefficients": [1.0031562984103852, -0.0065265396629990684], "standardErrors": [0.001464872608979254, 0.00022296343589661702], "reducedChiSquare": 0.3343064437881857},
       "minX": 3.7
     },
     {
       "id": "thin-transformed",
-      "file": "published-ion-chamber-wall-thin.csv",
+      "file": "published/ion-chamber-wall-thin.csv",
       "expression": "a+b*x",
       "startingValues": [1, -0.005],
       "fixed": [],
       "xColumn": 5,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [1.0127924501388328, -0.005409674522306617],
-        "standardErrors": [0.001770330850955601, 0.00018479512249090495],
-        "reducedChiSquare": 0.2725515908814654
-      },
+      "expected": {"coefficients": [1.0127924501388328, -0.005409674522306617], "standardErrors": [0.001770330850955601, 0.00018479512249090495], "reducedChiSquare": 0.2725515908814654},
       "minX": 6
     },
     {
       "id": "thick-linear",
-      "file": "published-ion-chamber-wall-thick.csv",
+      "file": "published/ion-chamber-wall-thick.csv",
       "expression": "a+b*x",
       "startingValues": [1, -0.005],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [0.9984208982899561, -0.00569204390111771],
-        "standardErrors": [0.0008498095587750208, 6.084818234591771e-5],
-        "reducedChiSquare": 4.675920663532817
-      },
+      "expected": {"coefficients": [0.9984208982899561, -0.00569204390111771], "standardErrors": [0.0008498095587750208, 6.084818234591771e-5], "reducedChiSquare": 4.675920663532817},
       "minX": 3.7
     },
     {
       "id": "thick-transformed",
-      "file": "published-ion-chamber-wall-thick.csv",
+      "file": "published/ion-chamber-wall-thick.csv",
       "expression": "a+b*x",
       "startingValues": [1, -0.005],
       "fixed": [],
       "xColumn": 5,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [1.0102227812759503, -0.005110552749426051],
-        "standardErrors": [0.0009555351102769615, 5.458659123989979e-5],
-        "reducedChiSquare": 1.0332581031693646
-      },
+      "expected": {"coefficients": [1.0102227812759503, -0.005110552749426051], "standardErrors": [0.0009555351102769615, 5.458659123989979e-5], "reducedChiSquare": 1.0332581031693646},
       "minX": 6
     },
     {
       "id": "ba137m",
-      "file": "published-ba137m-decay.csv",
+      "file": "published/ba137m-decay.csv",
       "expression": "A*exp(-k*x)",
       "startingValues": [174, 0.27],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [173.6972531840538, 0.2518868897531978],
-        "standardErrors": [11.681528548989078, 0.023233897544965923],
-        "reducedChiSquare": 0.18292078555356878
-      }
+      "expected": {"coefficients": [173.6972531840538, 0.2518868897531978], "standardErrors": [11.681528548989078, 0.023233897544965923], "reducedChiSquare": 0.18292078555356878}
     },
     {
       "id": "water",
-      "file": "published-supercooled-water-viscosity.csv",
+      "file": "published/supercooled-water-viscosity.csv",
       "expression": "A*(x/Ts-1)^(-g)",
       "startingValues": [0.13069, 224.8, 1.7044],
       "fixed": [],
       "xColumn": 0,
       "sigmaColumn": 2,
-      "expected": {
-        "coefficients": [
-          0.13067029153429982, 224.79807135758068, 1.704607902436216
-        ],
-        "standardErrors": [
-          0.0037892026117386417, 0.6960848787239224, 0.03740901931859754
-        ],
-        "reducedChiSquare": 4.496153828946026e-5
-      }
+      "expected": {"coefficients": [0.13067029153429982, 224.79807135758068, 1.704607902436216], "standardErrors": [0.0037892026117386417, 0.6960848787239224, 0.03740901931859754], "reducedChiSquare": 4.496153828946026e-5}
     }
   ]
 }

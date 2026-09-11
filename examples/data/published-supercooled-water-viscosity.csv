@@ -1,0 +1,62 @@
+# Published data: smoothed viscosity of deeply supercooled water from 239.15 K to 293.15 K.
+# Dehaoui, Issenmann & Caupin, PNAS 112 (2015) 12020-12025. DOI: 10.1073/pnas.1508996112. Values are Table S2 of the Supporting Information.
+# Meaning: dynamic viscosity rises rapidly as water is supercooled. The table values summarize 369 capillary measurements after the paper's smoothing procedure.
+# Published power-law description of these smoothed data: eta=eta0*(T/Ts-1)^(-gamma), eta0=0.13069 mPa*s, Ts=224.80 K, gamma=1.7044, reduced chi^2=0.79. The paper does NOT tabulate parameter uncertainties for this particular 55-point smoothing fit.
+# A separate 49-point multi-literature fit in the same paper gives eta0=0.13788 +/- 0.00026 mPa*s, Ts=225.66 +/- 0.18 K, gamma=1.6438 +/- 0.0052, reduced chi^2=0.91; those parameter errors belong to that separate dataset and should not be treated as the expected result of these 55 points.
+# Y standard deviations below are derived from the paper's stated uncertainty prescription: sigma_eta/eta=sqrt(0.023^2 + [0.15*gamma/(T-Ts)]^2), evaluated with Ts=224.80 K and gamma=1.7044. They are included to make the published uncertainty model directly usable in Data Tool.
+Temperature (K),Viscosity (mPa*s),Y standard deviation (mPa*s)
+239.15,14.22,0.413704
+240.15,12.68,0.360077
+241.15,11.39,0.316778
+242.15,10.29,0.281076
+243.15,9.354,0.251536
+244.15,8.545,0.226655
+245.15,7.842,0.205519
+246.15,7.226,0.187374
+247.15,6.684,0.171695
+248.15,6.203,0.15801
+249.15,5.775,0.14601
+250.15,5.392,0.135415
+251.15,5.048,0.126012
+252.15,4.738,0.11763
+253.15,4.456,0.110084
+254.15,4.201,0.10332
+255.15,3.967,0.0971679
+256.15,3.754,0.0916087
+257.15,3.558,0.0865301
+258.15,3.379,0.0819202
+259.15,3.213,0.0776719
+260.15,3.059,0.0737533
+261.15,2.917,0.0701578
+262.15,2.785,0.0668315
+263.15,2.663,0.0637699
+264.15,2.548,0.0608973
+265.15,2.442,0.0582582
+266.15,2.342,0.0557783
+267.15,2.248,0.0534553
+268.15,2.161,0.051311
+269.15,2.078,0.0492723
+270.15,2.001,0.0473853
+271.15,1.928,0.0456014
+272.15,1.859,0.0439194
+273.15,1.794,0.0423384
+274.15,1.732,0.040834
+275.15,1.674,0.0394291
+276.15,1.619,0.0380994
+277.15,1.567,0.0368445
+278.15,1.517,0.0356403
+279.15,1.47,0.0345099
+280.15,1.425,0.0334294
+281.15,1.382,0.0323985
+282.15,1.341,0.031417
+283.15,1.302,0.0304845
+284.15,1.265,0.0296009
+285.15,1.229,0.0287425
+286.15,1.195,0.0279325
+287.15,1.163,0.0271708
+288.15,1.132,0.0264338
+289.15,1.102,0.0257214
+290.15,1.073,0.0250335
+291.15,1.046,0.0243933
+292.15,1.02,0.0237774
+293.15,0.994,0.0231624

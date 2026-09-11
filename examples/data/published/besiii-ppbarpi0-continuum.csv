@@ -1,0 +1,28 @@
+# Published data: BESIII e+e- -> p pbar pi0 cross sections from 3.65 to 4.60 GeV.
+# Wang & Yuan, Physical Review D 106 (2022) 054014. DOI: 10.1103/PhysRevD.106.054014.
+# Meaning: the paper combines BESIII cross-section measurements and fits the continuum as sigma=C/s^lambda, where s=(sqrt(s))^2. The second column is the dressed cross section used by the fit, obtained from the tabulated Born cross section times the vacuum-polarization factor.
+# Published continuum-only fit: C=(3.07 +/- 0.58)e5 GeV^(2lambda) pb, lambda=3.96 +/- 0.07, chi^2/NDF=13.0/20 (reduced chi^2=0.65). The paper uses statistical errors only because the roughly 6.5% systematic uncertainty is correlated across points.
+# Reproduction note: the two rows with asymmetric statistical errors are symmetrized here by averaging the upper and lower magnitudes before applying the vacuum-polarization factor. With that convention, weighted least squares gives C=3.06374e5 +/- 5.8294e4 and lambda=3.96443 +/- 0.06907, chi^2/NDF=12.8924/20.
+Center-of-mass energy (GeV),Dressed cross section (pb),Y standard deviation (pb),Born cross section (pb),Stat lower error (pb),Stat upper error (pb),Systematic lower error (pb),Systematic upper error (pb),Vacuum polarization factor
+3.65,10.287764,0.856464,10.09,0.84,0.84,0.16,0.16,1.0196
+3.746,10.17216,2.421186,9.6,2.12,2.45,0.16,0.16,1.0596
+3.753,7.697144,1.459074,7.28,1.38,1.38,0.12,0.12,1.0573
+3.757,11.028816,1.869828,10.44,1.77,1.77,0.17,0.17,1.0564
+3.765,9.217134,1.42533,8.73,1.35,1.35,0.14,0.14,1.0558
+3.773,8.171058,0.095382,7.71,0.09,0.09,0.13,0.13,1.0598
+3.78,8.403912,2.6368335,7.92,2.31,2.66,0.13,0.13,1.0611
+3.791,9.564576,1.42992,9.03,1.35,1.35,0.15,0.15,1.0592
+3.804,8.923612,1.564804,8.44,1.48,1.48,0.14,0.14,1.0573
+4.008,5.11036,0.18072,5.09,0.18,0.18,0.24,0.26,1.004
+4.085,4.70244,0.48392,4.47,0.46,0.46,0.21,0.27,1.052
+4.189,3.84384,0.45408,3.64,0.43,0.43,0.19,0.18,1.056
+4.208,3.72064,0.41223,3.52,0.39,0.39,0.22,0.17,1.057
+4.217,3.42468,0.39109,3.24,0.37,0.37,0.18,0.18,1.057
+4.226,3.3264,0.08448,3.15,0.08,0.08,0.14,0.14,1.056
+4.242,3.4848,0.38016,3.3,0.36,0.36,0.15,0.19,1.056
+4.258,3.24632,0.1054,3.08,0.1,0.1,0.15,0.14,1.054
+4.308,2.44296,0.34749,2.32,0.33,0.33,0.1,0.15,1.053
+4.358,2.60648,0.11561,2.48,0.11,0.11,0.12,0.13,1.051
+4.387,2.01792,0.27326,1.92,0.26,0.26,0.1,0.1,1.051
+4.416,2.27448,0.1053,2.16,0.1,0.1,0.11,0.1,1.053
+4.6,1.71965,0.0844,1.63,0.08,0.08,0.08,0.08,1.055

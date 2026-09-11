@@ -10,7 +10,7 @@ Data Tool is an independent application extracted from the fitting companion dev
 
 ## Run
 
-The macOS application builds at `src-tauri/target/release/bundle/macos/Data Tool 2027.app`. Open it normally; no `--fit` switch is needed. Startup shows an empty data table with unknown units and uncertainty. **Data… → Load file…** opens the normal file chooser, initially in the bundled Examples directory. The same ordinary CSV and session files are in `examples/data/` in this checkout. Examples contain synthetic data and are labeled accordingly; no data is generated at release startup.
+The macOS application builds at `src-tauri/target/release/bundle/macos/Data Tool 2027.app`. Open it normally; no `--fit` switch is needed. Startup shows an empty data table with unknown units and uncertainty. **Data… → Load file…** opens the normal file chooser, initially in the bundled Examples directory. The same ordinary CSV and session files are in `examples/data/` in this checkout. Synthetic examples are labeled as such; publication-backed examples live under `examples/data/published/`. No data is generated at release startup.
 
 ```sh
 npm ci
@@ -47,7 +47,7 @@ Choose **Analysis → Multi-interval fit…** for one to four data series across
 
 For recommended browser hosting, executable downloads and future OSP inclusion, see [distribution plans](docs/distribution.md).
 
-Published examples include [per-dataset fit comparisons and reproduction instructions](examples/data/published-examples.md).
+Published examples include [per-dataset fit comparisons and reproduction instructions](examples/data/published/README.md).
 
 Automatic Y limits follow plotted values with modest padding; zero is not forced into view.
 

@@ -66,7 +66,7 @@ for f in fixtures:
 import sys
 if '--odr' in sys.argv:
     from scipy import odr
-    lines = [line for line in (ROOT / 'examples/data/published-pulsar-photon-index-vs-temperature.csv').read_text().splitlines()
+    lines = [line for line in (ROOT / 'examples/data/published/pulsar-photon-index-vs-temperature.csv').read_text().splitlines()
              if line.strip() and not line.startswith('#')]
     rows = np.loadtxt(lines[1:], delimiter=',')
     x, y, sx, sy = rows[:, :4].T

@@ -1,0 +1,38 @@
+# Published data: neutral-chromium Rydberg-series energies measured by two-step laser resonance ionization spectroscopy at TRIUMF.
+# Schulz et al., Results in Physics 76 (2025) 108368. DOI: 10.1016/j.rinp.2025.108368. Values below are the n=20-50 points used in the published fit.
+# Meaning: each row is the measured energy of a 3d^5(6S)ns 7S3 Rydberg state. The pointwise Y uncertainty is the published statistical standard error from three spectra; a separate common systematic wavelength-meter uncertainty of 0.03 cm^-1 is NOT folded into these per-point errors.
+# Published model: E_n = IP - R_M/[n-delta(n)]^2, with delta(n)=delta0 + a/(n-delta0)^2 and R_M fixed to the mass-corrected Rydberg constant.
+# Published fit: IP=54575.49 +/- 0.02(stat) +/- 0.03(sys) cm^-1, delta0=2.552 +/- 0.004, a=-9.9 +/- 1.3, reduced chi^2=0.6315. The paper states the quoted 0.02 cm^-1 IP fitting error was scaled by reduced chi-square.
+# Reproduction helper: for a custom equation, R_M is about 109736.16 cm^-1 for Cr; it is a fixed physical constant, not a fitted parameter. The paper's full table continues through n=62, but its Fig. 5 fit uses n=20-50.
+Principal quantum number,Energy (cm^-1),Y standard deviation (cm^-1)
+20,54216.37,0.08
+21,54254.00,0.05
+22,54286.12,0.04
+23,54313.72,0.06
+24,54337.42,0.06
+25,54358.06,0.05
+26,54376.10,0.07
+27,54392.18,0.04
+28,54406.24,0.04
+29,54418.78,0.08
+30,54429.96,0.09
+31,54440.05,0.05
+32,54449.02,0.02
+33,54457.19,0.05
+34,54464.63,0.03
+35,54471.32,0.03
+36,54477.44,0.02
+37,54482.99,0.05
+38,54488.12,0.08
+39,54492.87,0.06
+40,54497.24,0.04
+41,54501.24,0.07
+42,54504.99,0.05
+43,54508.45,0.07
+44,54511.66,0.06
+45,54514.61,0.07
+46,54517.39,0.07
+47,54520.02,0.04
+48,54522.34,0.06
+49,54524.61,0.05
+50,54526.74,0.11

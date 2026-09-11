@@ -38,6 +38,25 @@ export function plotScale(domain: [number, number], log: boolean) {
   };
 }
 
+/** Fit the display to finite plotted values; zero is not an implicit datum. */
+export function linearDomain(values: number[]): [number, number] {
+  const finite = values.filter(Number.isFinite);
+  if (!finite.length) return [0, 1];
+  const lo = finite.reduce((a, b) => Math.min(a, b), Infinity);
+  const hi = finite.reduce((a, b) => Math.max(a, b), -Infinity);
+  const pad =
+    lo === hi
+      ? Math.abs(lo) * 0.01 || 1
+      : Math.max(
+          hi * 0.12 - lo * 0.12,
+          Math.max(Math.abs(lo), Math.abs(hi)) * Number.EPSILON,
+        );
+  return [
+    Math.max(-Number.MAX_VALUE, lo - pad),
+    Math.min(Number.MAX_VALUE, hi + pad),
+  ];
+}
+
 export function positiveDomain(
   values: number[],
   fallback: [number, number] = [1, 10],

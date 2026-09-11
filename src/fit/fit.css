@@ -383,7 +383,7 @@
   padding: 8px;
   border-bottom: 1px solid var(--line);
 }
-.fit-app th {
+.fit-app thead th {
   position: sticky;
   top: 0;
   background: #f3f5f1;
@@ -1251,11 +1251,11 @@
   margin-bottom: 16px;
 }
 .fit-print-dialog .fit-plot {
-  height: 260px !important;
+  height: 220px !important;
   pointer-events: none;
 }
 .fit-print-dialog .fit-plot[aria-label="Residual plot"] {
-  height: 140px !important;
+  height: 100px !important;
 }
 .fit-print-dialog table {
   width: 100%;
@@ -1267,10 +1267,6 @@
   padding: 4px 8px;
   text-align: left;
   border-bottom: 1px solid #ddd;
-}
-.fit-print-notes {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 @media print {
   @page {
@@ -1390,10 +1386,6 @@
   .fit-print-results td:not(:first-child) {
     white-space: nowrap;
   }
-  .fit-print-notes {
-    orphans: 3;
-    widows: 3;
-  }
 }
 
 .fit-unit-row th,
@@ -1483,7 +1475,38 @@
   font-style: normal;
   overflow-wrap: anywhere;
 }
-.parameter-unit[hidden] { display: none; }
-.fit-error-details { margin-top: 8px; font-size: 12px; }
-.fit-error-details summary { cursor: pointer; }
-.fit-error-details > div { margin-top: 6px; }
+.parameter-unit[hidden] {
+  display: none;
+}
+.fit-error-details {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.fit-error-details summary {
+  cursor: pointer;
+}
+.fit-error-details > div {
+  margin-top: 6px;
+}
+
+/* Sticky screen headers can cover the first data row in WebKit print output. */
+@media print {
+  .fit-app th,
+  .fit-app thead th {
+    position: static;
+    top: auto;
+  }
+}
+
+@media print {
+  /* WebKit needs ordinary block flow for explicit source-note page breaks. */
+  .fit-app:has(.fit-print-dialog) {
+    display: block !important;
+    container-type: normal !important;
+    contain: none !important;
+  }
+}
+
+.fit-print-results th:first-child {
+  white-space: nowrap;
+}

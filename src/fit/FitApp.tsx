@@ -1,3 +1,4 @@
+import SourceNotes from "./SourceNotes";
 import { YAxisControls, type AxisRange } from "./YAxisControls";
 import MultiInterval, { type MultiIntervalActions } from "./MultiInterval";
 import { FitErrorMessage } from "./FitErrorMessage";
@@ -7,6 +8,7 @@ import Assumptions from "./Assumptions";
 import CollisionDraft, { type CollisionActions } from "./CollisionDraft";
 import {
   plotScale,
+  linearDomain,
   positiveDomain,
   plotPath,
   type GraphMode,
@@ -259,19 +261,18 @@ function Plot({
     ...(!residual ? curve.map((p) => p.y).filter(Number.isFinite) : []),
     ...(band?.points.flatMap((p) => [p.lower, p.upper]) ?? []),
   ];
-  const lo = residual
-      ? -ys.reduce((m, v) => Math.max(m, Math.abs(v)), 0.001)
-      : plottedY.reduce((m, v) => Math.min(m, v), 0),
-    hi = residual ? -lo : plottedY.reduce((m, v) => Math.max(m, v), 1);
-  const pad = (hi - lo) * 0.12;
+  const residualExtent = ys.reduce((m, v) => Math.max(m, Math.abs(v)), 0.001);
+  const linearY = residual
+    ? [-residualExtent * 1.24, residualExtent * 1.24]
+    : linearDomain(plottedY);
   const logDomain = positiveDomain(plottedY);
   const logPad = (Math.log10(logDomain[1]) - Math.log10(logDomain[0])) * 0.12;
   const ymin = logY
     ? Math.max(Number.MIN_VALUE, 10 ** (Math.log10(logDomain[0]) - logPad))
-    : lo - pad;
+    : linearY[0];
   const ymax = logY
     ? Math.min(Number.MAX_VALUE, 10 ** (Math.log10(logDomain[1]) + logPad))
-    : hi + pad;
+    : linearY[1];
   const yDomain: AxisRange =
     !residual && yRange && (!logY || yRange[0] > 0) ? yRange : [ymin, ymax];
   const yScale = plotScale(yDomain, logY);
@@ -768,10 +769,11 @@ function PrintReport({
             ))}
           </>
         )}
-        <h2>Source</h2>
-        <p>{state.request.source.fileName}</p>
-        <p>{state.request.source.application}</p>
-        <p className="fit-print-notes">{state.request.source.context}</p>
+        <p className="fit-print-source">
+          Source: {state.request.source.fileName} ·{" "}
+          {state.request.source.application}
+        </p>
+        <SourceNotes text={state.request.source.context} />
       </article>
     </dialog>
   );

@@ -1,4 +1,4 @@
-import { YAxisControls, useYRange, type AxisRange } from "./YAxisControls";
+import { YAxisControls, useYRange } from "./YAxisControls";
 import { useId, useRef, useState } from "react";
 import type { FitRequest } from "../core/fit/schema";
 import type {
@@ -7,7 +7,7 @@ import type {
   IntervalRange,
 } from "../core/fit/intervals";
 import { predict } from "../core/fit/solve";
-import { plotScale, plotPath } from "./plotScale";
+import { plotScale, plotPath, linearDomain } from "./plotScale";
 export const intervalColors = [
   "#2875a4",
   "#b45b20",
@@ -99,14 +99,7 @@ export function IntervalPlot({
     ...curves.flatMap((c) => c.map((p) => p.y).filter(Number.isFinite)),
     ...(residual ? [0] : []),
   ];
-  const lo = values.reduce((a, v) => Math.min(a, v), Infinity),
-    hi = values.reduce((a, v) => Math.max(a, v), -Infinity);
-  const pad = Number.isFinite(lo + hi)
-    ? Math.max((hi - lo) * 0.12, Math.abs(lo) * 0.01, 1e-9)
-    : 1;
-  const automaticY: AxisRange = Number.isFinite(lo + hi)
-    ? [lo - pad, hi + pad]
-    : [0, 1];
+  const automaticY = linearDomain(values);
   const [customY, setCustomY] = useYRange(
     `${request.dataset.yColumn.label}/${request.dataset.yColumn.unit}`,
   );

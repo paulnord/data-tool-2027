@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
   plotScale,
+  linearDomain,
   positiveDomain,
   plotPath,
   tickLabel,
@@ -50,4 +51,27 @@ it("chooses clean linear ticks inside exact view limits", () => {
   const scale = plotScale([1000000, 1000000.006], false);
   const labels = scale.ticks(6).map((v) => scale.label(v, 6));
   expect(new Set(labels).size).toBe(labels.length);
+});
+
+it("automatic linear limits follow the data spread, not zero or the absolute offset", () => {
+  const range = linearDomain([54216.37, 54526.74]);
+  expect(range[0]).toBeCloseTo(54179.1256);
+  expect(range[1]).toBeCloseTo(54563.9844);
+  expect(plotScale(range, false).ticks(6)).toEqual([
+    54200, 54250, 54300, 54350, 54400, 54450, 54500, 54550,
+  ]);
+  expect(linearDomain([-54526.74, -54216.37])).toEqual([-range[1], -range[0]]);
+  const small = linearDomain([0.002, 0.003]);
+  expect(small[0]).toBeGreaterThan(0);
+  expect(small[1]).toBeLessThan(0.004);
+  expect(linearDomain([-2, 3])[0]).toBeLessThan(0);
+});
+it("automatic linear limits handle empty and constant plots", () => {
+  expect(linearDomain([NaN, Infinity])).toEqual([0, 1]);
+  for (const value of [0, 54200, -54200, 1e-12]) {
+    const [lo, hi] = linearDomain([value, value]);
+    expect(lo).toBeLessThan(value);
+    expect(hi).toBeGreaterThan(value);
+    expect([lo, hi].every(Number.isFinite)).toBe(true);
+  }
 });

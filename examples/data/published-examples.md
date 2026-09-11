@@ -42,3 +42,7 @@ All 18 documented Data Tool fits were checked against independent SciPy 1.18.1 c
 Developer checks live in `tests/fit/publishedExamples.test.ts` and `tests/fit/published-reference.json`; `scripts/check-published-fits.py` independently recalculates the reference fits with NumPy/SciPy. These are numerical regression targets for specified CSV calculations. Literature comparisons remain separately labeled and are not used as exact targets merely because they were published.
 
 Run `python scripts/check-published-fits.py` from a checkout with NumPy/SciPy installed. Add `--odr` in a SciPy 1.18.1 environment to reproduce the separate photon-index comparison; that optional check uses the deprecated `scipy.odr` module.
+
+## Prepared sessions
+
+Each CSV now has a companion `.trksess` file with the same base name, supplied by PR #3 (`ef42fe9`). Open it through the ordinary file chooser to review the selected columns, equation, starting values and uncertainties. These are configured analyses, unlike the CSV files. Sessions contain the selected fitting columns; open the CSV for the full source table and auxiliary columns. The photon-index session is a Y-only comparison, not ODR.

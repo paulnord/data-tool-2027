@@ -205,7 +205,7 @@ test("Rydberg auto range shows the energy variation without forcing zero", async
   await page.goto("/");
   await page
     .locator("input[type=file]")
-    .setInputFiles("examples/data/published-cri-rydberg.csv");
+    .setInputFiles("examples/data/published/cri-rydberg.csv");
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();

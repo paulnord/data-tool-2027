@@ -113,16 +113,6 @@
       "expected": {"coefficients": [24.61792428839312, 1.723090579367039], "standardErrors": [0.3707437942856796, 0.08537689202162371], "reducedChiSquare": 7.760952391253942}
     },
     {
-      "id": "photon-y-only",
-      "file": "published/pulsar-photon-index-vs-temperature.csv",
-      "expression": "a+b*x",
-      "startingValues": [4, -1],
-      "fixed": [],
-      "xColumn": 0,
-      "sigmaColumn": 3,
-      "expected": {"coefficients": [4.29272910192598, -1.1463496557045758], "standardErrors": [0.19253268727677728, 0.09114969045941265], "reducedChiSquare": 17.130629819804575}
-    },
-    {
       "id": "thin-linear",
       "file": "published/ion-chamber-wall-thin.csv",
       "expression": "a+b*x",

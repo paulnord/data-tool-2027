@@ -36,12 +36,26 @@ test("assumptions sit below Fit; hover and click explain without accepting", asy
   await expect(guide).toBeVisible();
   await expect(check).not.toBeChecked();
   await expect(
-    guide.getByRole("link", { name: /NIST: checking/ }),
+    guide
+      .locator("#guide-residuals")
+      .getByRole("link", { name: /NIST: checking/ }),
   ).toHaveAttribute(
     "href",
     "https://www.itl.nist.gov/div898/handbook/pmd/section4/pmd44.htm",
   );
   await expect(guide).toContainText("unknown scatter, not zero error");
+  const references = guide.locator("#guide-references");
+  await expect(references).toContainText("For EA-4/02 calibration work");
+  await expect(
+    references.getByRole("link", { name: /JCGM GUM:/ }),
+  ).toHaveAttribute("href", "https://doi.org/10.59161/JCGM100-2008E");
+  await expect(
+    references.getByRole("link", { name: /EA-4\/02:/ }),
+  ).toHaveAttribute(
+    "href",
+    "https://european-accreditation.org/wp-content/uploads/2018/10/EA-4-02.pdf",
+  );
+
   await page.screenshot({ path: "test-results/assumptions-guide.png" });
   await guide.getByRole("button", { name: "Close guide" }).click();
   await expect(help).toBeFocused();

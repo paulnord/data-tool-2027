@@ -1,6 +1,6 @@
 # Ba-137m radioactive decay
 
-[Data file](published-ba137m-decay.csv) · [Example documentation index](published-examples.md) · [Publication](https://doi.org/10.3938/jkps.65.532)
+[Data file](ba137m-decay.csv) · [Example documentation index](README.md) · [Publication](https://doi.org/10.3938/jkps.65.532)
 
 ## Data and interpretation
 
@@ -33,4 +33,4 @@ Use all rows.
 
 Reduced weighted objective on selected rows: **0.182920786**.
 
-These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](published-examples.md) before comparing standard errors or goodness-of-fit statistics.
+These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](README.md) before comparing standard errors or goodness-of-fit statistics.

@@ -73,6 +73,15 @@ test("integrated collision analysis retains both setups, shares report controls,
   await page.emulateMedia({ media: "print" });
   await expect(workspace.locator(".collision-details")).toBeHidden();
   await expect(page.locator(".fit-header")).toBeHidden();
+  const header = summary.locator("thead");
+  const firstRow = summary.locator("tbody tr").first();
+  await expect(firstRow).toContainText("x1");
+  await expect(firstRow.locator("td").nth(2)).toContainText("±");
+  for (const cell of await summary.locator("th").all())
+    await expect(cell).toHaveCSS("position", "static");
+  const headerBox = (await header.boundingBox())!;
+  const firstBox = (await firstRow.boundingBox())!;
+  expect(firstBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height - 1);
   const summaryPdf = await page.pdf({
     path: "test-results/collision-summary.pdf",
     format: "Letter",

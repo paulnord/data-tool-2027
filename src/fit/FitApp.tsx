@@ -1390,7 +1390,7 @@ export default function FitApp() {
         <div>
           <span className="fit-brand">EXPERIMENTAL DATA ANALYSIS</span>
           <h1>
-            Data Tool 2027 <span>Preview</span>
+            Data Tool 2027 <span>0.2</span>
           </h1>
         </div>
         <nav>

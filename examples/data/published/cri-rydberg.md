@@ -1,6 +1,6 @@
 # Neutral chromium Rydberg series
 
-[Data file](published-cri-rydberg.csv) · [Example documentation index](published-examples.md) · [Publication](https://doi.org/10.1016/j.rinp.2025.108368)
+[Data file](cri-rydberg.csv) · [Example documentation index](README.md) · [Publication](https://doi.org/10.1016/j.rinp.2025.108368)
 
 ## Data and interpretation
 
@@ -33,4 +33,4 @@ Use all rows.
 
 Reduced weighted objective on selected rows: **0.621867208**.
 
-These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](published-examples.md) before comparing standard errors or goodness-of-fit statistics.
+These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](README.md) before comparing standard errors or goodness-of-fit statistics.

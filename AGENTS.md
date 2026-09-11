@@ -6,4 +6,6 @@ TypeScript scientific core in src/core/fit is independent of UI and native APIs.
 
 Keep the versioned tracker-fit-request/session/ack v1 protocol and .trksess compatibility until a documented migration supersedes them. See docs/integration.md; the five nonlinear model additions use the documented session v2 migration while requests and acknowledgments stay v1. Validate before import/save; failed imports preserve work.
 
+Documentation and in-app guidance present a general-purpose numerical analysis tool. Explain implemented methods, statistical conventions, validation evidence and limitations in accessible language. Keep lab-report assignments and course-specific advice out of the software. Cite specific methods and references rather than claiming blanket standards compliance or certification.
+
 Run npm test, npm run build, npm run test:e2e. Native host changes also require npm run test:desktop. No production smoke harnesses. Do not configure a remote or push without authorization.

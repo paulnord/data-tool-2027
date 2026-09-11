@@ -1,6 +1,6 @@
 # Ionization chamber: thin walls
 
-[Data file](published-ion-chamber-wall-thin.csv) · [Example documentation index](published-examples.md) · [Publication](https://doi.org/10.1088/0031-9155/47/10/308)
+[Data file](ion-chamber-wall-thin.csv) · [Example documentation index](README.md) · [Publication](https://doi.org/10.1088/0031-9155/47/10/308)
 
 ## Data and interpretation
 
@@ -46,4 +46,4 @@ Select X ≥ 6.
 
 Reduced weighted objective on selected rows: **0.272551591**.
 
-These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](published-examples.md) before comparing standard errors or goodness-of-fit statistics.
+These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](README.md) before comparing standard errors or goodness-of-fit statistics.

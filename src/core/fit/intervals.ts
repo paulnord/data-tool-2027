@@ -115,7 +115,7 @@ export function checkIntervalRanges(
       throw Error(`${item.name}: select an increasing range.`);
   }
 }
-/** Fit only the interval explicitly requested by the student. */
+/** Fit only the interval explicitly requested by the user. */
 export function fitInterval(
   source: TableAnalysis,
   config: IntervalConfig,
@@ -192,7 +192,7 @@ export function intervalReport(
   const rows: Cell[][] = [
     ["Multi-interval fit report"],
     [
-      "Ranges selected by the student; inclusive endpoints. Overlapping ranges reuse observations, so fitted results may be correlated. Interval-selection uncertainty and cross-fit covariance are not modeled.",
+      "Ranges selected by the user; inclusive endpoints. Overlapping ranges reuse observations, so fitted results may be correlated. Interval-selection uncertainty and cross-fit covariance are not modeled.",
     ],
     [],
     ...Array.from(

@@ -20,6 +20,22 @@ const references = {
     "NIST: expressing measurement uncertainty",
     "https://physics.nist.gov/cuu/Uncertainty/basic.html",
   ],
+  bevington: [
+    "Bevington and Robinson: Data Reduction and Error Analysis (3rd edition, PDF)",
+    "https://experimentationlab.berkeley.edu/sites/default/files/pdfs/Bevington.pdf",
+  ],
+  gum: [
+    "JCGM GUM: Guide to the Expression of Uncertainty in Measurement",
+    "https://doi.org/10.59161/JCGM100-2008E",
+  ],
+  ea: [
+    "EA-4/02: Uncertainty of Measurement in Calibration (PDF)",
+    "https://european-accreditation.org/wp-content/uploads/2018/10/EA-4-02.pdf",
+  ],
+  aapt: [
+    "AAPT: Undergraduate Physics Laboratory Recommendations (PDF)",
+    "https://www.aapt.org/resources/upload/labguidlinesdocument_ebendorsed_nov10.pdf",
+  ],
 } as const;
 function Reference({ name }: { name: keyof typeof references }) {
   const [error, setError] = useState("");
@@ -73,25 +89,28 @@ function Guide({ onClose }: { onClose: () => void }) {
       </header>
       <article>
         <p className="guide-intro">
-          A fit connects measurements to a physical model. It estimates
-          quantities such as a velocity, spring constant, or decay time. The
-          uncertainty in those estimates depends on how the measurements were
-          made and whether the model describes the experiment.
+          Data Tool estimates model parameters from numerical observations using
+          ordinary or weighted least squares. Its uncertainty estimates follow
+          established regression methods under explicit assumptions. This guide
+          describes the fitting objective, numerical methods, diagnostics, and
+          limits of the reported uncertainty.
         </p>
         <nav aria-label="Fitting guide contents">
           <a href="#guide-fit">What a fit does</a>
           <a href="#guide-assumptions">The assumptions</a>
           <a href="#guide-residuals">Reading residuals</a>
           <a href="#guide-uncertainty">Understanding uncertainty</a>
-          <a href="#guide-report">Reporting a result</a>
+          <a href="#guide-report">Numerical methods and scope</a>
+          <a href="#guide-references">References and further reading</a>
         </nav>
         <section id="guide-fit">
           <h2>1. What a fit does</h2>
           <p>
-            For constant-speed motion, position = initial position + velocity ×
-            time. The fit chooses the initial position and velocity that best
-            describe the selected measurements. A residual is observed position
-            minus predicted position; it has the same units as position.
+            A model expresses Y as a function of X and a set of parameters. For
+            a line, y = b + m*x, the fitted parameters are the intercept b and
+            slope m. A residual is the observed Y minus the predicted Y, in the
+            original Y units. Fixed parameters are held at their specified
+            values; only free parameters are estimated.
           </p>
           <p>
             Least squares minimizes the sum of squared residuals. With supplied
@@ -103,7 +122,7 @@ function Guide({ onClose }: { onClose: () => void }) {
           <p>
             A curve can be fitted without accepting the assumptions below.
             However, a best-fitting number alone does not establish how
-            precisely the corresponding physical quantity is known.
+            precisely the corresponding parameter is known.
           </p>
         </section>
         <section id="guide-assumptions">
@@ -119,29 +138,25 @@ function Guide({ onClose }: { onClose: () => void }) {
           <ol>
             <li>
               <strong>The horizontal variable is treated as exact.</strong> For
-              a time plot, timing uncertainty is ignored by this fitting method.
-              That may be a useful approximation with reliable frame timing, but
-              not with substantial timing jitter. If uncertainty in X
-              contributes appreciably to the vertical residual, a method that
-              includes uncertainty in both axes is needed.
+              regression in this app, uncertainty in X is not propagated. If
+              uncertainty in X contributes appreciably to the vertical residual,
+              a method that includes uncertainty in both axes is needed.
             </li>
             <li>
               <strong>The model and fixed parameters are appropriate.</strong> A
-              straight line represents constant velocity over the selected
-              interval. A visibly accelerating cart needs a different model or a
-              justified interval. Fixing a parameter treats its value as exact;
-              its uncertainty is not propagated into the other fitted
-              parameters.
+              model must describe the mean response over the selected range.
+              Fixing a parameter treats its value as exact; its uncertainty is
+              not propagated into the other fitted parameters.
             </li>
             <li>
               <strong>
                 Measurement errors have zero mean and are independent.
               </strong>{" "}
               Repeated measurements should not systematically lie on one side of
-              the physical relation. Smoothing, shared drift, or tracking errors
-              persisting across frames can link neighboring errors. More linked
-              points do not provide as much new information as the same number
-              of independent measurements.
+              the modeled relation. Smoothing, shared drift, or instrument
+              effects persisting across observations can link neighboring
+              errors. More linked points do not provide as much new information
+              as the same number of independent measurements.
             </li>
             <li>
               <strong>The uncertainty model describes the scatter.</strong>{" "}
@@ -156,9 +171,9 @@ function Guide({ onClose }: { onClose: () => void }) {
                 Errors are approximately Gaussian for the reported inference.
               </strong>{" "}
               This means a bell-shaped distribution about the model, not that
-              the measured positions themselves must form a bell curve.
-              Normality supports the interval and goodness-of-fit calculations;
-              it is not required merely to calculate a least-squares minimum.
+              the observed Y values themselves must form a bell curve. Normality
+              supports the interval and goodness-of-fit calculations; it is not
+              required merely to calculate a least-squares minimum.
             </li>
           </ol>
           <p>
@@ -166,12 +181,12 @@ function Guide({ onClose }: { onClose: () => void }) {
           </p>
         </section>
         <section id="guide-residuals">
-          <h2>3. Read the residuals before trusting a number</h2>
+          <h2>3. Residual diagnostics</h2>
           <p>
             Look for scatter around zero without an obvious trend. Curvature can
-            indicate a missing physical effect; a widening spread can indicate
-            changing precision; long runs of similar residuals can suggest drift
-            or correlation. A small sample may show accidental patterns, so
+            indicate model mismatch; a widening spread can indicate changing
+            precision; long runs of similar residuals can suggest drift or
+            correlation. A small sample may show accidental patterns, so
             appearance alone cannot prove the assumptions.
           </p>
           <p>
@@ -181,11 +196,11 @@ function Guide({ onClose }: { onClose: () => void }) {
             model is appropriate. <Reference name="residuals" />
           </p>
           <p>
-            Investigate unusual points rather than deleting them just to improve
-            the fit. Record exclusions and their experimental justification. In
-            a collision analysis, choose before/after intervals that avoid the
-            interaction. The displayed intervals do not account for uncertainty
-            introduced by choosing boundaries after inspecting the data.
+            Exclusions and selected ranges determine which observations enter
+            the objective. Reported confidence intervals do not account for
+            choosing observations, boundaries, or models after inspecting the
+            data. Overlapping fit ranges can produce correlated estimates;
+            separate interval fits do not calculate that cross-fit covariance.
           </p>
         </section>
         <section id="guide-uncertainty">
@@ -232,43 +247,95 @@ function Guide({ onClose }: { onClose: () => void }) {
           </p>
         </section>
         <section id="guide-report">
-          <h2>5. What belongs in a first lab report</h2>
+          <h2>5. Numerical methods and scope</h2>
+          <p>
+            Models linear in their free parameters use column-scaled,
+            rank-revealing QR least squares. Nonlinear models use iterative
+            optimization with QR steps and a final Jacobian rank check. The
+            solver does not explicitly invert normal equations. Rank loss,
+            invalid domains, and convergence failures are reported explicitly. A
+            successful nonlinear fit does not establish a global optimum.
+          </p>
+          <p>
+            For full-rank linear fits, supplied absolute standard uncertainties
+            determine parameter covariance without residual rescaling.
+            Residual-estimated scatter uses the residual degrees of freedom.
+            Marginal 95% intervals use normal quantiles for known uncertainty
+            and Student-t quantiles for estimated scatter. Nonlinear intervals
+            use a local approximation; the chi-square tail probability Q is
+            unavailable for fits with free nonlinear parameters.
+          </p>
+          <p>
+            These are regression uncertainty estimates, not a complete
+            measurement uncertainty budget. Calibration errors, uncertainty in
+            fixed parameters, and shared systematic effects can remain even when
+            residuals are small. Propagation into derived quantities may require
+            additional inputs and correlations. <Reference name="uncertainty" />
+          </p>
+          <p>
+            The implementation is checked against independent numerical
+            references and simulation tests in documented regimes. These checks
+            support the implemented methods; they do not certify every dataset
+            or establish that its assumptions hold.
+          </p>
+        </section>
+        <section id="guide-references">
+          <h2>6. References and further reading</h2>
+          <p>
+            Data Tool brings established least-squares methods into an
+            interactive analysis workflow: built-in and custom models, weighted
+            fitting, independent fits across multiple intervals, and residual
+            plots alongside the data. Rank and convergence diagnostics,
+            parameter standard errors, and confidence intervals make the results
+            assessable under explicit assumptions. Numerical tests compare
+            results with independent references and check interval coverage in
+            documented regimes. Original observations, units and analysis
+            settings remain available for review, with reports ready to copy or
+            print.
+          </p>
           <ul>
             <li>
-              Name the model and explain why it describes the selected part of
-              the experiment.
+              <Reference name="bevington" /> — statistical foundations,
+              least-squares fitting and fit diagnostics; chapters 6–8 and 11.
             </li>
             <li>
-              Give fitted quantities with units, and say whether “±” is a
-              standard error or a confidence interval.
+              <Reference name="assumptions" />
             </li>
             <li>
-              Include residuals, the uncertainty model, any fixed values, and
-              the selected interval or excluded observations.
+              <Reference name="weights" />
             </li>
             <li>
-              Discuss calibration, timing, and other systematic effects that the
-              fit does not include.
+              <Reference name="residuals" />
+            </li>
+            <li>
+              <Reference name="uncertainty" />
+            </li>
+            <li>
+              <Reference name="gum" /> — international framework for evaluating
+              and combining measurement uncertainties.
+            </li>
+            <li>
+              <Reference name="ea" /> — application of GUM principles to
+              calibration budgets and expanded uncertainty.
+            </li>
+            <li>
+              <Reference name="aapt" /> — curriculum recommendations, including
+              use of professional uncertainty methods; not a separate fitting
+              algorithm.
             </li>
           </ul>
           <p>
-            A ruler calibration error can affect every position together while
-            leaving small residuals. A small fitted standard error therefore
-            need not mean a small total measurement uncertainty. NIST’s
-            measurement-uncertainty guidance addresses the wider measurement
-            process, including contributions beyond random scatter.{" "}
-            <Reference name="uncertainty" />
-          </p>
-          <p>
-            For collisions, each before/after component fit is independent in
-            this app. Uncertainty in a later momentum or energy calculation may
-            require masses, calibration uncertainties, and correlations between
-            components that this fit report does not supply.
+            <strong>Calibration scope.</strong> For EA-4/02 calibration work,
+            supplement the fit with an assessment of calibration, resolution,
+            environmental and other systematic effects, including relevant
+            correlations. These contributions and an appropriate coverage factor
+            are needed for a complete expanded-uncertainty statement; Data Tool
+            does not evaluate them automatically.
           </p>
         </section>
         <p className="guide-note">
-          This guide is part of Data Tool and works offline. NIST links open in
-          your browser and require an internet connection.
+          This guide is part of Data Tool and works offline. Reference links
+          open in your browser and require an internet connection.
         </p>
       </article>
     </dialog>,

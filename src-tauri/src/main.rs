@@ -109,6 +109,10 @@ fn fitting_reference(reference: &str) -> Result<&'static str> {
         "residuals" => Ok("https://www.itl.nist.gov/div898/handbook/pmd/section4/pmd44.htm"),
         "weights" => Ok("https://www.itl.nist.gov/div898/handbook/pmd/section1/pmd143.htm"),
         "uncertainty" => Ok("https://physics.nist.gov/cuu/Uncertainty/basic.html"),
+        "bevington" => Ok("https://experimentationlab.berkeley.edu/sites/default/files/pdfs/Bevington.pdf"),
+        "gum" => Ok("https://doi.org/10.59161/JCGM100-2008E"),
+        "ea" => Ok("https://european-accreditation.org/wp-content/uploads/2018/10/EA-4-02.pdf"),
+        "aapt" => Ok("https://www.aapt.org/resources/upload/labguidlinesdocument_ebendorsed_nov10.pdf"),
         _ => Err("Unknown fitting reference".into()),
     }
 }
@@ -154,8 +158,8 @@ fn main() {
 }
 #[cfg(test)]
 mod tests {
-    #[test] fn fitting_links_are_fixed_nist_references() {
-        for name in ["assumptions", "residuals", "weights", "uncertainty"] { assert!(super::fitting_reference(name).unwrap().starts_with("https://")); }
+    #[test] fn fitting_links_are_fixed_references() {
+        for name in ["assumptions", "residuals", "weights", "uncertainty", "bevington", "gum", "ea", "aapt"] { assert!(super::fitting_reference(name).unwrap().starts_with("https://")); }
         assert!(super::fitting_reference("https://example.com").is_err());
         assert!(super::fitting_reference("file:///tmp/input").is_err());
     }

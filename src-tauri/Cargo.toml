@@ -1,8 +1,8 @@
 [package]
 name = "data-tool-2027"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "Local-data fitting and graphing for undergraduate physics laboratories"
+description = "Local-data fitting and graphing with explicit uncertainty analysis"
 license-file = "../LICENSE"
 repository = "https://github.com/paulnord/data-tool-2027"
 

@@ -1,4 +1,4 @@
-# Single-trace fit differs from the published ensemble result - see documentation: published-ba137m-decay.md
+# Single-trace fit differs from the published ensemble result - see documentation: ba137m-decay.md
 # Published data: representative Ba-137m decay trace measured with a Geiger-Muller counter.
 # Kweon et al., Journal of the Korean Physical Society 65 (2014) 532-540. DOI: 10.3938/jkps.65.532.
 # Meaning: each row is one 60-s counting interval after elution from a Cs-137/Ba-137m isotope generator. The net counting rate has the paper's reported standard deviation.

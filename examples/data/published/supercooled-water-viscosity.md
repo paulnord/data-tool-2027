@@ -1,6 +1,6 @@
 # Smoothed supercooled-water viscosity
 
-[Data file](published-supercooled-water-viscosity.csv) · [Example documentation index](published-examples.md) · [Publication](https://doi.org/10.1073/pnas.1508996112)
+[Data file](supercooled-water-viscosity.csv) · [Example documentation index](README.md) · [Publication](https://doi.org/10.1073/pnas.1508996112)
 
 ## Data and interpretation
 
@@ -32,4 +32,4 @@ Use all rows.
 
 Reduced weighted objective on selected rows: **4.49615383e-05**.
 
-These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](published-examples.md) before comparing standard errors or goodness-of-fit statistics.
+These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](README.md) before comparing standard errors or goodness-of-fit statistics.

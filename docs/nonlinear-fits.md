@@ -12,7 +12,7 @@ Choose a model after loading an ordinary data file. Selecting one of these model
 
 The supplied-rate exponential and supplied-exponent power law remain available. The new decay-time model describes decay toward a background, with either sign of amplitude; it does not fit an exponential growth rate. A peak amplitude may also be negative to describe a dip. Units are labels, never guessed conversions. Unit entry preserves case.
 
-Ordinary synthetic exercises are in `examples/data/exponential-decay.csv`, `power-law-free.csv`, `gaussian.csv`, `damped-sine.csv` and `lorentzian.csv`. Use **Data… → Load file…**; these files are included in the normal Examples directory. They contain no fitting settings or automatic uncertainty assignments. There is no example selector.
+Ordinary synthetic examples are in `examples/data/exponential-decay.csv`, `power-law-free.csv`, `gaussian.csv`, `damped-sine.csv` and `lorentzian.csv`. Use **Data… → Load file…**; these files are included in the normal Examples directory. They contain no fitting settings or automatic uncertainty assignments. There is no example selector.
 
 ## Numerical method and diagnostics
 

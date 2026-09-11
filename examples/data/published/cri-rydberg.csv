@@ -1,4 +1,4 @@
-# Use the precise fixed R value; fitted statistics differ from publication - see documentation: published-cri-rydberg.md
+# Use the precise fixed R value; fitted statistics differ from publication - see documentation: cri-rydberg.md
 # Published data: neutral-chromium Rydberg-series energies measured by two-step laser resonance ionization spectroscopy at TRIUMF.
 # Schulz et al., Results in Physics 76 (2025) 108368. DOI: 10.1016/j.rinp.2025.108368. Values below are the n=20-50 points used in the published fit.
 # Meaning: each row is the measured energy of a 3d^5(6S)ns 7S3 Rydberg state. The pointwise Y uncertainty is the published statistical standard error from three spectra; a separate common systematic wavelength-meter uncertainty of 0.03 cm^-1 is NOT folded into these per-point errors.

@@ -1,6 +1,6 @@
 # ASASSN-14li radio light curve
 
-[Data file](published-asassn14li-radio.csv) · [Example documentation index](published-examples.md) · [Publication](https://doi.org/10.1093/mnras/sty077)
+[Data file](asassn14li-radio.csv) · [Example documentation index](README.md) · [Publication](https://doi.org/10.1093/mnras/sty077)
 
 ## Data and interpretation
 
@@ -63,4 +63,4 @@ Select X ≤ 200 d.
 
 Reduced weighted objective on selected rows: **3.14952006**.
 
-These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](published-examples.md) before comparing standard errors or goodness-of-fit statistics.
+These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](README.md) before comparing standard errors or goodness-of-fit statistics.

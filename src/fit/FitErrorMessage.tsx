@@ -1,4 +1,4 @@
-/** Keep solver diagnostics intact while explaining fitting failures to students. */
+/** Keep solver diagnostics intact while explaining fitting failures to users. */
 export function FitErrorMessage({ message }: { message: string }) {
   const rank =
     /Rank deficient: (?:at most )?\d+ independent columns for (\d+) free parameters/.exec(

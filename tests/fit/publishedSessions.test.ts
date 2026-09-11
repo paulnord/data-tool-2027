@@ -3,17 +3,16 @@ import { expect, it } from "vitest";
 import { sessionSchema } from "../../src/core/fit/schema";
 import { fit } from "../../src/core/fit/solve";
 import { parseDelimited, suggestImport } from "../../src/core/fit/dataInput";
-const files = readdirSync("examples/data").filter(
-  (f) => f.startsWith("published-") && f.endsWith(".trksess"),
-);
+const dir = "examples/data/published";
+const files = readdirSync(dir).filter((f) => f.endsWith(".trksess"));
 it.each(files)(
   "published session %s validates, preserves its CSV observations and fits",
   (file) => {
     const session = sessionSchema.parse(
-      JSON.parse(readFileSync(`examples/data/${file}`, "utf8")),
+      JSON.parse(readFileSync(`${dir}/${file}`, "utf8")),
     );
     const text = readFileSync(
-      `examples/data/${file.replace(/\.trksess$/, ".csv")}`,
+      `${dir}/${file.replace(/\.trksess$/, ".csv")}`,
       "utf8",
     );
     const suggestion = suggestImport(text);

@@ -1,0 +1,19 @@
+# Published data: wall-thickness dependence of a spherical ionization chamber response, including very thick walls.
+# Shortt et al., Physics in Medicine & Biology 47 (2002) 1721-1731. DOI: 10.1088/0031-9155/47/10/308.
+# Meaning: chamber response is normalized to the thinnest wall. The Y uncertainty is the paper's combined standard uncertainty; thickness uncertainty and the direct response uncertainty are retained separately.
+# Thick-wall benchmark: the paper fitted ONLY t=3.73, 3.97, 4.85, 9.56, 20.99, and 26.97 mm, then evaluated the reported reduced chi-square over all eleven points shown here.
+# Published linear fit R(t)=a0+a1*t: a0=0.9984 +/- 0.0008, a1=(-5.69 +/- 0.06)e-3 mm^-1, reduced chi^2=20.3; wall correction Kw=1.0210 +/- 0.0011.
+# Published nonlinear fit R(t)=a0+a1*t*f(alpha): a0=1.0102 +/- 0.0010, a1=(-5.11 +/- 0.05)e-3 mm^-1, reduced chi^2=1.9; Kw=1.0318 +/- 0.0014.
+# Reproduction helper: the final column is the paper's tabulated t*f(alpha), so the nonlinear model can be checked as a straight line in that column. Data Tool's chi-square for the six selected fit rows will not equal the paper's quoted chi-square, which was evaluated over all eleven points.
+Wall thickness (mm),Response,Y standard deviation,Thickness standard uncertainty (mm),Response direct standard uncertainty,t*f(alpha) (mm)
+1.15,1.0000,0.0011,0.06,0.0010,2.47
+1.71,0.9945,0.0007,0.09,0.0005,3.38
+2.23,0.9905,0.0010,0.10,0.0009,4.16
+2.98,0.9839,0.0014,0.17,0.0011,5.25
+3.06,0.9834,0.0007,0.11,0.0004,5.36
+3.73,0.9793,0.0010,0.10,0.0008,6.26
+3.97,0.9763,0.0015,0.19,0.0011,6.57
+4.85,0.9712,0.0017,0.22,0.0011,7.71
+9.56,0.9408,0.0010,0.12,0.0008,13.31
+20.99,0.8788,0.0009,0.15,0.0003,25.70
+26.97,0.8490,0.0021,0.20,0.0018,31.94

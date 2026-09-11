@@ -1,3 +1,4 @@
+# Published fit includes X uncertainty; Data Tool Y-only fit differs - see documentation: published-pulsar-photon-index-vs-temperature.md
 # Published data: non-thermal X-ray photon index versus neutron-star surface temperature for the 12 thermally detected pulsars in the Hsiang & Chang sample.
 # Hsiang & Chang, MNRAS 502 (2021) 390-397. DOI: 10.1093/mnras/stab025.
 # Meaning: x is log10 of the fitted thermal temperature T in eV/k; y is the pulsar power-law photon index Gamma. The paper used orthogonal distance regression because both coordinates have uncertainties.

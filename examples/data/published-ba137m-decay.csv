@@ -1,7 +1,8 @@
+# Single-trace fit differs from the published ensemble result - see documentation: published-ba137m-decay.md
 # Published data: representative Ba-137m decay trace measured with a Geiger-Muller counter.
 # Kweon et al., Journal of the Korean Physical Society 65 (2014) 532-540. DOI: 10.3938/jkps.65.532.
 # Meaning: each row is one 60-s counting interval after elution from a Cs-137/Ba-137m isotope generator. The net counting rate has the paper's reported standard deviation.
-# Suggested fit: R(t)=R0*exp(-lambda*t), with half-life T_1/2=ln(2)/lambda. The paper describes the representative semilog slope as about -0.32 min^-1, corresponding to about 2.6 min.
+# Suggested fit: R(t)=R0*exp(-lambda*t), with half-life T_1/2=ln(2)/lambda. The ensemble result below is not a target for this single trace.
 # Published ensemble result: combining five GM-counter decay measurements gave T_1/2=2.577 +/- 0.009 min. Table 4 reports a chi-square range of 0.97-1.14 for those runs; this is NOT the fit statistic of this single representative trace.
 # For comparison, the paper quotes the accepted value T_1/2=2.552 +/- 0.001 min. This file is therefore a real-data decay exercise rather than an exact one-trace reproduction of the ensemble uncertainty.
 Elapsed time (min),Net counting rate (1/min),Y standard deviation (1/min),Raw counts

@@ -46,3 +46,5 @@ The **Accept uncertainty assumptions** checkbox sits directly below Fit in both 
 Choose **Analysis → Multi-interval fit…** for one to four data series across up to five student-selected ranges. Select each range on the graph, choose its equation, and fit it explicitly. Results and residuals remain available together; copy the report for spreadsheet calculations or print a compact overview with optional detail pages. Ordinary examples include `cart-track.csv`, `bounce-intervals.csv` and `oil-drop-intervals.csv`. This draft keeps setup while switching analyses but does not yet save multi-interval sessions. See [workflow and scope](docs/multi-interval.md).
 
 For recommended browser hosting, executable downloads and future OSP inclusion, see [distribution plans](docs/distribution.md).
+
+Published examples include [per-dataset fit comparisons and reproduction instructions](examples/data/published-examples.md).

@@ -1,3 +1,4 @@
+# Radio fits are close to publication; see documentation: published-asassn14li-radio.md
 # Published data: AMI-LA radio light curve of the tidal-disruption event ASASSN-14li.
 # Bright et al., MNRAS 475 (2018) 4011-4019. DOI: 10.1093/mnras/sty077. Errors are published 1-sigma flux-density uncertainties.
 # Meaning: 15.7 GHz measurements cover the early fading phase; later measurements are at 15.5 GHz, where the emission settles onto a host-galaxy plateau. Time here is MJD - 56983.6, the paper's discovery reference.

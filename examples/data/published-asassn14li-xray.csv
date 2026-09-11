@@ -1,3 +1,4 @@
+# Fitted results differ from publication - see documentation: published-asassn14li-xray.md
 # Published data: Swift XRT 0.3-10 keV light curve of the tidal-disruption event ASASSN-14li.
 # Bright et al., MNRAS 475 (2018) 4011-4019. DOI: 10.1093/mnras/sty077. Errors are published 1-sigma flux uncertainties.
 # Meaning: the X-ray emission from the accretion flow fades for roughly 1000 d but shows substantial short-timescale structure. Time here is MJD - 56983.6, the paper's discovery reference.

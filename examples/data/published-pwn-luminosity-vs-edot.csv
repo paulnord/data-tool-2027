@@ -1,3 +1,4 @@
+# Fitted results differ from publication - see documentation: published-pwn-luminosity-vs-edot.md
 # Published data: X-ray luminosity correlation for pulsars and pulsar-wind nebulae.
 # Hsiang & Chang, MNRAS 502 (2021) 390-397. DOI: 10.1093/mnras/stab025. 35-source sample; millisecond pulsar J2124-3358 is excluded as in the paper.
 # Meaning: x is log10(spin-down power (erg/s)); y is log10(PWN X-ray luminosity (erg/s)). Raw values and the paper's asymmetric luminosity errors are retained in later columns.

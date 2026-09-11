@@ -45,6 +45,11 @@ it.each(classroomExamples)(
       );
       expect(analysis.request.dataset.xColumn.unit).toBe("s");
       expect(analysis.request.dataset.yColumn.unit).toBe("mm");
+    } else if (file.startsWith("published-")) {
+      expect(analysis.request.source.context).toContain("Published data:");
+      expect(analysis.request.source.context).not.toContain(
+        "Synthetic classroom data",
+      );
     } else {
       expect(analysis.request.source.context).toContain(
         "Synthetic classroom data",

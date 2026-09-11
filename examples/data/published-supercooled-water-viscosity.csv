@@ -1,7 +1,8 @@
+# Smoothed values: fit statistic differs from publication - see documentation: published-supercooled-water-viscosity.md
 # Published data: smoothed viscosity of deeply supercooled water from 239.15 K to 293.15 K.
 # Dehaoui, Issenmann & Caupin, PNAS 112 (2015) 12020-12025. DOI: 10.1073/pnas.1508996112. Values are Table S2 of the Supporting Information.
-# Meaning: dynamic viscosity rises rapidly as water is supercooled. The table values summarize 369 capillary measurements after the paper's smoothing procedure.
-# Published power-law description of these smoothed data: eta=eta0*(T/Ts-1)^(-gamma), eta0=0.13069 mPa*s, Ts=224.80 K, gamma=1.7044, reduced chi^2=0.79. The paper does NOT tabulate parameter uncertainties for this particular 55-point smoothing fit.
+# Meaning: dynamic viscosity rises rapidly as water is supercooled. The table values summarize 369 Brownian-motion viscosity measurements in four capillaries after the paper's smoothing procedure.
+# Published smoothing function fitted to original measurements: eta=eta0*(T/Ts-1)^(-gamma), eta0=0.13069 mPa*s, Ts=224.80 K, gamma=1.7044, reduced chi^2=0.79 for the original measurements, NOT for these 55 smoothed values. No parameter uncertainties are assigned here to the smoothing function.
 # A separate 49-point multi-literature fit in the same paper gives eta0=0.13788 +/- 0.00026 mPa*s, Ts=225.66 +/- 0.18 K, gamma=1.6438 +/- 0.0052, reduced chi^2=0.91; those parameter errors belong to that separate dataset and should not be treated as the expected result of these 55 points.
 # Y standard deviations below are derived from the paper's stated uncertainty prescription: sigma_eta/eta=sqrt(0.023^2 + [0.15*gamma/(T-Ts)]^2), evaluated with Ts=224.80 K and gamma=1.7044. They are included to make the published uncertainty model directly usable in Data Tool.
 Temperature (K),Viscosity (mPa*s),Y standard deviation (mPa*s)

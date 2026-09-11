@@ -5,7 +5,7 @@ test("long source notes preserve text across preview sheets and printed pages", 
   page,
 }) => {
   const session = JSON.parse(
-    readFileSync("examples/data/published-cri-rydberg.trksess", "utf8"),
+    readFileSync("examples/data/published/cri-rydberg.trksess", "utf8"),
   );
   const text = Array.from(
     { length: 100 },

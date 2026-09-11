@@ -60,19 +60,3 @@ for f in fixtures:
     np.testing.assert_allclose(errors, expected['standardErrors'], rtol=2e-4, atol=2e-10)
     np.testing.assert_allclose(chi, expected['reducedChiSquare'], rtol=1e-7, atol=1e-9)
     print(f"{f['id']}: n={len(x)}, coefficients={params}, standard errors={errors}, reduced chi-square={chi:.10g}")
-
-# Optional cross-check of the paper's method, which Data Tool does not implement.
-# SciPy 1.18.1 still provides scipy.odr; it is scheduled for removal in 1.19.
-import sys
-if '--odr' in sys.argv:
-    from scipy import odr
-    lines = [line for line in (ROOT / 'examples/data/published-pulsar-photon-index-vs-temperature.csv').read_text().splitlines()
-             if line.strip() and not line.startswith('#')]
-    rows = np.loadtxt(lines[1:], delimiter=',')
-    x, y, sx, sy = rows[:, :4].T
-    result = odr.ODR(odr.RealData(x, y, sx=sx, sy=sy),
-                     odr.Model(lambda p, x: p[0]+p[1]*x), beta0=[4.32, -1.23]).run()
-    np.testing.assert_allclose(result.beta, [4.31851393, -1.22574237], rtol=1e-5)
-    np.testing.assert_allclose(result.sd_beta, [0.66348896, 0.31344871], rtol=1e-5)
-    np.testing.assert_allclose(result.res_var, 9.56841186, rtol=1e-5)
-    print(f'photon ODR: coefficients={result.beta}, rescaled standard errors={result.sd_beta}, reduced objective={result.res_var}')

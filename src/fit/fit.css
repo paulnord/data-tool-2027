@@ -90,6 +90,190 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+.fit-examples-menu {
+  position: relative;
+}
+.fit-settings-menu,
+.fit-display-menu {
+  position: relative;
+}
+.fit-settings-menu summary,
+.fit-display-menu summary {
+  list-style: none;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid #ccd6cf;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.fit-settings-menu summary::-webkit-details-marker,
+.fit-display-menu summary::-webkit-details-marker {
+  display: none;
+}
+.fit-menu-arrow {
+  display: inline-block;
+  margin-left: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  transform: translateY(-1px);
+}
+.fit-settings-menu[open] summary,
+.fit-settings-menu summary:hover,
+.fit-display-menu[open] summary,
+.fit-display-menu summary:hover {
+  border-color: var(--accent);
+  background: #edf5ef;
+}
+.fit-settings-popover {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 245px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgb(32 49 47 / 16%);
+}
+.fit-display-popover {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 6px);
+  width: min(280px, calc(90vw / var(--fit-scale, 1)));
+  max-height: calc(78vh / var(--fit-scale, 1));
+  overflow: auto;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgb(32 49 47 / 16%);
+}
+.fit-display-popover label {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.fit-display-popover select {
+  width: 100%;
+  padding: 6px;
+}
+.fit-display-popover fieldset {
+  padding: 12px 0 0;
+  margin: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.fit-display-popover legend {
+  padding: 0 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.fit-appearance-sample {
+  display: block;
+  width: 100%;
+  height: 28px;
+  font: 12px sans-serif;
+  fill: var(--ink);
+  color: var(--plot-data-color);
+}
+.fit-display-popover p {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 4px 0 12px;
+}
+.fit-display-popover button {
+  font-size: 12px;
+  padding: 5px 8px;
+}
+.fit-settings-popover::before {
+  content: "Report output";
+  display: block;
+  padding-bottom: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.fit-settings-popover strong {
+  display: none;
+}
+.fit-settings-popover label {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 12px;
+}
+.fit-settings-popover button {
+  padding: 5px 8px;
+  font-size: 12px;
+  text-align: left;
+}
+.fit-settings-popover button + button {
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding-top: 8px;
+}
+.fit-examples-menu summary {
+  list-style: none;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid #ccd6cf;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.fit-examples-menu summary::-webkit-details-marker {
+  display: none;
+}
+.fit-examples-menu summary::after {
+  content: "▾";
+  margin-left: 7px;
+  color: var(--muted);
+}
+.fit-examples-menu[open] summary,
+.fit-examples-menu summary:hover {
+  border-color: var(--accent);
+  background: #edf5ef;
+}
+.fit-examples-list {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 205px;
+  max-height: min(70vh, 440px);
+  overflow-y: auto;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgb(32 49 47 / 16%);
+}
+.fit-examples-list button {
+  border: 0;
+  border-radius: 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+.fit-examples-heading {
+  padding: 6px 8px 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .fit-layout {
   display: grid;
   grid-template-columns: minmax(500px, 1fr) 340px;
@@ -171,10 +355,11 @@
   stroke-width: 2.5;
 }
 .fit-plot .point {
-  fill: #247263;
-  stroke: white;
-  stroke-width: 1.2;
+  fill: var(--plot-data-color, #2875a4);
+  color: var(--plot-data-color, #2875a4);
+  stroke: none;
   cursor: pointer;
+  pointer-events: all;
 }
 .fit-plot .excluded {
   fill: #ddd;
@@ -639,19 +824,21 @@
   font-size: 9px;
 }
 .fit-plot .point {
-  fill: #3a7cab;
+  fill: var(--plot-data-color, #2875a4);
 }
 .fit-plot .point.excluded {
-  fill: #dbe5ec;
-  stroke: #8fa6b8;
+  fill: none;
+  color: #999;
+  stroke: #999;
+  stroke-width: 1;
 }
 .fit-plot .curve {
-  stroke: #32688c;
+  stroke: var(--plot-fit-color, #b45b20);
   stroke-width: 2;
 }
 .fit-confidence-band {
-  fill: #79b3dc;
-  fill-opacity: 0.35;
+  fill: var(--plot-fit-color, #b45b20);
+  fill-opacity: 0.18;
 }
 .fit-selection-box {
   fill: rgba(89, 157, 206, 0.18);
@@ -952,10 +1139,10 @@
   padding: 4px;
 }
 .fit-plot {
-  height: max(170px, calc((100vh / var(--fit-scale, 1) - 370px) * 0.725));
+  height: max(198px, calc((100vh / var(--fit-scale, 1) - 370px) * 0.64 + 42px));
 }
 .fit-plot[aria-label="Residual plot"] {
-  height: max(110px, calc((100vh / var(--fit-scale, 1) - 370px) * 0.275));
+  height: max(125px, calc((100vh / var(--fit-scale, 1) - 370px) * 0.36));
 }
 .fit-chart-toolbar {
   display: flex;
@@ -976,6 +1163,79 @@
   margin: 0;
   padding: 0;
   flex: 1 1 230px;
+}
+.fit-band-option {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.fit-band-option .fit-band-note {
+  position: relative;
+  margin: 0;
+}
+.fit-band-option .fit-band-note p {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  width: min(330px, calc(80vw / var(--fit-scale, 1)));
+  padding: 10px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: white;
+  box-shadow: 0 3px 12px #203d5526;
+  color: var(--ink);
+}
+.fit-export-menu {
+  position: relative;
+  margin-left: auto;
+}
+.fit-export-menu summary {
+  list-style: none;
+  padding: 4px 7px;
+  border: 1px solid #ccd6cf;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 11px;
+  cursor: pointer;
+}
+.fit-export-menu summary::-webkit-details-marker {
+  display: none;
+}
+.fit-export-menu summary::after {
+  content: "▾";
+  margin-left: 5px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.fit-export-menu[open] summary,
+.fit-export-menu summary:hover {
+  border-color: var(--accent);
+  background: #edf5ef;
+}
+.fit-export-popover {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  top: calc(100% + 5px);
+  width: 180px;
+  padding: 5px;
+  display: grid;
+  gap: 2px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 7px 18px rgb(32 49 47 / 15%);
+}
+.fit-export-popover button {
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 11px;
 }
 .fit-band-controls label {
   white-space: normal;
@@ -1016,7 +1276,7 @@
 
 .fit-error-bar {
   fill: none;
-  stroke: #447da5;
+  stroke: var(--plot-data-color, #2875a4);
   stroke-width: 1.2;
   pointer-events: none;
 }
@@ -1201,8 +1461,40 @@
   gap: 8px;
   margin-left: auto;
 }
-.fit-history-icon {
-  font-size: 1.4em;
+.fit-header-start {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  min-width: 0;
+}
+.fit-header {
+  flex-wrap: wrap;
+}
+.fit-header nav {
+  margin-left: auto;
+}
+.fit-header-start .fit-settings-popover {
+  left: 0;
+  right: auto;
+}
+.fit-history-controls {
+  display: flex;
+  gap: 5px;
+}
+.fit-history-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+.fit-history-controls button:disabled {
+  opacity: 0.6;
+}
+.fit-history-controls button span {
+  font-size: 20px;
   line-height: 1;
 }
 .fit-column-heading {
@@ -1245,17 +1537,54 @@
   padding: 24px;
   border: 1px solid #7893a8;
 }
+.fit-print-dialog.full-page-graph {
+  width: min(770px, calc(94vw / var(--fit-scale, 1)));
+}
 .fit-print-controls {
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
 }
-.fit-print-dialog .fit-plot {
-  height: 220px !important;
+.fit-print-dialog .fit-plot,
+.fit-print-dialog .fit-plot[aria-label="Residual plot"] {
+  height: auto;
+  width: 100%;
+  max-width: 100%;
   pointer-events: none;
 }
-.fit-print-dialog .fit-plot[aria-label="Residual plot"] {
-  height: 100px !important;
+.fit-print-graphs {
+  width: 100%;
+}
+.fit-print-graphs .fit-plot {
+  display: block;
+  margin: 0;
+}
+.fit-print-dialog.full-page-graph .fit-print-graph-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 7.5in;
+  aspect-ratio: 3 / 4;
+  margin: 0 auto;
+}
+.fit-print-dialog.full-page-graph .fit-print-graph-content {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 10in;
+  min-height: 7.5in;
+  display: flow-root;
+  transform-origin: top left;
+  transform: scale(
+      calc(var(--print-sheet-scale, 1) * var(--print-content-scale, 1))
+    )
+    rotate(90deg);
+  font-size: 10pt;
+  line-height: 1.25;
+}
+.fit-print-dialog.full-page-graph .fit-print-details {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #ccd6cf;
 }
 .fit-print-dialog table {
   width: 100%;
@@ -1273,6 +1602,7 @@
     size: letter portrait;
     margin: 0.5in;
   }
+  html:root,
   html,
   body,
   #root {
@@ -1290,7 +1620,8 @@
   .fit-app:has(.fit-print-dialog) > :not(.fit-print-dialog) {
     display: none !important;
   }
-  .fit-print-dialog {
+  .fit-print-dialog,
+  .fit-print-dialog.full-page-graph {
     display: block;
     position: static;
     width: 100%;
@@ -1316,6 +1647,21 @@
   .fit-print-dialog tr {
     break-inside: avoid;
   }
+  .fit-print-dialog.full-page-graph .fit-print-graph-sheet {
+    width: 7.5in;
+    height: 10in;
+    margin: 0;
+    break-inside: avoid;
+  }
+  .fit-print-dialog.full-page-graph .fit-print-graph-content {
+    transform: scale(var(--print-content-scale, 1)) rotate(90deg);
+  }
+  .fit-print-dialog.full-page-graph .fit-print-details {
+    break-before: page;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
 }
 
 .fit-plot-frame {
@@ -1327,10 +1673,6 @@
 .fit-print-dialog article {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-.fit-print-dialog .fit-plot {
-  width: 100%;
-  max-width: 100%;
 }
 @media print {
   .fit-plot-frame {
@@ -1346,6 +1688,12 @@
 .fit-print-controls span {
   font-size: 12px;
 }
+.fit-print-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
 .fit-print-results {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
@@ -1357,6 +1705,27 @@
   min-width: 0;
   font-size: 8.5pt;
   line-height: 1.25;
+}
+.fit-print-results .fit-correlation-table {
+  grid-column: 1 / -1;
+  width: 100%;
+  table-layout: fixed;
+  font-size: 8pt;
+}
+.fit-correlation-table caption {
+  margin-bottom: 4px;
+  text-align: left;
+  font-weight: 650;
+}
+.fit-correlation-table th,
+.fit-correlation-table td {
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.fit-correlation-table th:first-child,
+.fit-correlation-table td:first-child {
+  width: 18%;
+  text-align: left;
 }
 .fit-print-results th,
 .fit-print-results td {

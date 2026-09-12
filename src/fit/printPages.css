@@ -1,0 +1,165 @@
+.fit-print-measure {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  width: 720px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.fit-print-document {
+  display: flow-root;
+  width: 720px;
+  color: #20312f;
+  font-size: 10pt;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.fit-print-document h1 {
+  font-size: 16pt;
+  line-height: 1.2;
+  margin: 0 0 6px;
+}
+.fit-print-document h2 {
+  font-size: 11pt;
+  margin: 8px 0 4px;
+}
+.fit-print-document p {
+  margin: 6px 0;
+}
+.fit-print-document table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+.fit-print-document th,
+.fit-print-document td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  position: static;
+}
+.fit-print-document .fit-print-results table {
+  margin: 8px 0;
+}
+.fit-print-document .fit-print-results th,
+.fit-print-document .fit-print-results td {
+  padding: 3px 4px;
+}
+.fit-print-document .fit-print-results td:not(:first-child) {
+  white-space: nowrap;
+}
+.fit-print-document.fit-print-document th,
+.fit-print-document.fit-print-document td {
+  position: static;
+}
+.fit-print-document .fit-print-split-results {
+  display: block;
+}
+.fit-print-document .fit-plot,
+.fit-print-document .fit-plot[aria-label="Residual plot"] {
+  height: auto;
+  width: 100%;
+  max-width: 100%;
+  pointer-events: none;
+}
+.fit-print-document.is-full-page .fit-print-graph-sheet {
+  position: relative;
+  width: 720px;
+  height: 960px;
+  margin: 0;
+}
+.fit-print-document.is-full-page .fit-print-graph-content {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 960px;
+  min-height: 720px;
+  display: flow-root;
+  transform-origin: top left;
+  transform: scale(var(--print-content-scale, 1)) rotate(90deg);
+  font-size: 10pt;
+  line-height: 1.25;
+}
+.fit-print-document .report-source-notes {
+  margin: 0;
+  max-width: none;
+}
+.fit-print-document .report-notes-page {
+  margin: 0;
+  min-height: 0;
+  padding: 0.2in;
+  border: 0;
+  box-shadow: none;
+}
+.fit-print-document .report-source-notes .report-notes-page-label {
+  margin: 0 0 12px;
+}
+.fit-print-document .report-source-notes .report-notes-text {
+  margin: 0;
+}
+.fit-print-pages-viewport {
+  width: 100%;
+}
+.fit-print-pages {
+  width: 816px;
+  zoom: var(--print-preview-scale, 1);
+  margin: 0 auto;
+}
+.fit-print-dialog .fit-print-pages .fit-print-details,
+.fit-print-dialog.full-page-graph .fit-print-pages .fit-print-details {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.fit-print-page {
+  position: relative;
+  box-sizing: border-box;
+  width: 816px;
+  height: 1056px;
+  padding: 48px;
+  margin-bottom: 24px;
+  background: white;
+  box-shadow: 0 1px 8px #20312f33;
+  outline: 1px solid #b4c0c6;
+}
+.fit-print-page-content {
+  height: 960px;
+}
+.fit-print-page-label {
+  position: absolute;
+  bottom: 16px;
+  right: 48px;
+  color: #657572;
+  font-size: 11px;
+}
+@media screen {
+  .fit-print-dialog:has(.fit-print-pages) {
+    background: #e4e8eb;
+  }
+}
+@media print {
+  .fit-print-measure {
+    display: none !important;
+  }
+  .fit-print-pages {
+    zoom: 1;
+    width: 720px;
+    margin: 0;
+  }
+  .fit-print-page {
+    width: 720px;
+    height: 960px;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    outline: 0;
+    break-after: page;
+    break-inside: avoid;
+  }
+  .fit-print-page[data-last-page="true"] {
+    break-after: auto;
+  }
+  .fit-print-page-label {
+    display: none;
+  }
+}

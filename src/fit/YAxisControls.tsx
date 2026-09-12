@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { plotScale } from "./plotScale";
 import "./yAxisControls.css";
 
@@ -13,25 +13,54 @@ export function useYRange(key: string) {
     (range: AxisRange | null) => setSaved({ key, range }),
   ] as const;
 }
-export function YAxisControls({
-  label,
-  domain,
-  custom,
-  log = false,
-  onChange,
-}: {
+type AxisControlsProps = {
+  axis: "X" | "Y";
   label: string;
   domain: AxisRange;
   custom: boolean;
   log?: boolean;
+  onLogChange?: (log: boolean) => void;
   onChange: (range: AxisRange | null) => void;
-}) {
+};
+
+export function YAxisControls(props: Omit<AxisControlsProps, "axis">) {
+  return <AxisControls {...props} axis="Y" />;
+}
+
+export function AxisControls({
+  axis,
+  label,
+  domain,
+  custom,
+  log = false,
+  onLogChange,
+  onChange,
+}: AxisControlsProps) {
+  const menu = useRef<HTMLDetailsElement>(null);
   const [draft, setDraft] = useState(["", ""]);
   const [error, setError] = useState("");
   useEffect(() => {
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menu.current?.contains(event.target))
+        menu.current?.removeAttribute("open");
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !menu.current?.open) return;
+      event.preventDefault();
+      menu.current.removeAttribute("open");
+      menu.current.querySelector("summary")?.focus();
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
+  useEffect(() => {
     setDraft(domain.map((v) => String(Number(v.toPrecision(12)))));
     setError("");
-  }, [domain[0], domain[1]]);
+  }, [domain[0], domain[1], log]);
   function zoom(factor: number) {
     const scale = plotScale(domain, log);
     const next: AxisRange = [
@@ -46,23 +75,43 @@ export function YAxisControls({
       onChange(next);
   }
   return (
-    <details className="y-axis-controls">
-      <summary aria-label={`${label} Y axis`}>
-        Y axis · {custom ? "Custom" : "Auto"}
+    <details ref={menu} className="y-axis-controls">
+      <summary
+        aria-label={`${label} ${axis} axis`}
+        onClick={() => {
+          for (const other of document.querySelectorAll(
+            ".y-axis-controls[open]",
+          )) {
+            if (other !== menu.current) other.removeAttribute("open");
+          }
+        }}
+      >
+        {axis} axis · {custom ? "Custom" : "Auto"}
       </summary>
       <div className="y-axis-panel">
+        {onLogChange && (
+          <label className="axis-log-control">
+            <input
+              type="checkbox"
+              aria-label={`Log ${axis}`}
+              checked={log}
+              onChange={(event) => onLogChange(event.target.checked)}
+            />
+            Logarithmic scale
+          </label>
+        )}
         <div className="y-axis-zoom">
           <button
             type="button"
             onClick={() => zoom(0.5)}
-            aria-label={`${label} Zoom Y in`}
+            aria-label={`${label} Zoom ${axis} in`}
           >
             Zoom in
           </button>
           <button
             type="button"
             onClick={() => zoom(2)}
-            aria-label={`${label} Zoom Y out`}
+            aria-label={`${label} Zoom ${axis} out`}
           >
             Zoom out
           </button>
@@ -83,7 +132,7 @@ export function YAxisControls({
             <input
               type="number"
               step="any"
-              aria-label={`${label} Y ${name.toLowerCase()}`}
+              aria-label={`${label} ${axis} ${name.toLowerCase()}`}
               value={draft[i]}
               onChange={(e) =>
                 setDraft((old) =>

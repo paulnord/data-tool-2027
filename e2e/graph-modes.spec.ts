@@ -1,12 +1,16 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 async function setGraphMode(page: Page, mode: string) {
+  await page.getByLabel("Data X axis", { exact: true }).click();
   await page
     .getByLabel("Log X", { exact: true })
     .setChecked(mode === "log-x" || mode === "log-log");
+  await page.getByLabel("Data X axis", { exact: true }).click();
+  await page.getByLabel("Data Y axis", { exact: true }).click();
   await page
     .getByLabel("Log Y", { exact: true })
     .setChecked(mode === "log-y" || mode === "log-log");
+  await page.getByLabel("Data Y axis", { exact: true }).click();
 }
 test("log modes preserve fits and session data, use original tick units, and print matching axes", async ({
   page,
@@ -189,8 +193,8 @@ test("Y range zoom is display-only, validates limits and matches print", async (
     dialog.getByRole("img", { name: "Data and fitted curve", exact: true }),
   ).toHaveAttribute("data-y-min", "-4.5");
   await page.keyboard.press("Escape");
-  await page.getByLabel("Log Y", { exact: true }).check();
   await page.getByLabel("Data Y axis", { exact: true }).click();
+  await page.getByLabel("Log Y", { exact: true }).check();
   await page.getByLabel("Data Y minimum", { exact: true }).fill("-1");
   await page.getByRole("button", { name: "Apply range", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("positive limits");
@@ -236,4 +240,135 @@ test("Rydberg auto range shows the energy variation without forcing zero", async
   await expect(plot).toHaveAttribute("data-y-min", "0");
   await page.getByRole("button", { name: "Auto", exact: true }).click();
   await checkRange();
+});
+
+test("matching X and Y panels share display-only X limits with residuals and printing, and Auto resets each axis", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles("examples/data/ball-toss.trksess");
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Fit selected observations", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  const coefficient = await page
+    .getByLabel("a value", { exact: true })
+    .inputValue();
+  const plot = page.getByRole("img", {
+    name: "Data and fitted curve",
+    exact: true,
+  });
+  const residual = page.getByRole("img", {
+    name: "Residual plot",
+    exact: true,
+  });
+  const originalX = await plot.getAttribute("data-x-min");
+  const originalY = await plot.getAttribute("data-y-min");
+  const xSummary = page.getByLabel("Data X axis", { exact: true });
+  const ySummary = page.getByLabel("Data Y axis", { exact: true });
+  const xBox = (await xSummary.boundingBox())!;
+  const yBox = (await ySummary.boundingBox())!;
+  expect(Math.abs(xBox.y - yBox.y)).toBeLessThan(1);
+  expect(xBox.x + xBox.width).toBeLessThan(yBox.x);
+  await expect(page.locator(".fit-range")).toHaveCount(0);
+  await expect(page.getByLabel("View from", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Reset view", exact: true }),
+  ).toHaveCount(0);
+
+  await ySummary.click();
+  await page.getByLabel("Data Y minimum", { exact: true }).fill("-4");
+  await page.getByLabel("Data Y maximum", { exact: true }).fill("9");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await xSummary.click();
+  await expect(page.getByLabel("Data Y minimum", { exact: true })).toBeHidden();
+  await page.getByLabel("Data X minimum", { exact: true }).fill("0.4");
+  await page.getByLabel("Data X maximum", { exact: true }).fill("1.6");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  for (const graph of [plot, residual]) {
+    await expect(graph).toHaveAttribute("data-x-min", "0.4");
+    await expect(graph).toHaveAttribute("data-x-max", "1.6");
+  }
+  await expect(page.locator(".fit-source")).toContainText("61 / 61");
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  expect(await page.getByLabel("a value", { exact: true }).inputValue()).toBe(
+    coefficient,
+  );
+
+  await page.getByRole("button", { name: "Print", exact: true }).click();
+  const preview = page.getByRole("dialog", {
+    name: "Print report",
+    exact: true,
+  });
+  for (const graph of await preview.locator("svg.fit-plot").all()) {
+    await expect(graph).toHaveAttribute("data-x-min", "0.4");
+    await expect(graph).toHaveAttribute("data-x-max", "1.6");
+  }
+  await expect(
+    preview.getByRole("img", { name: "Data and fitted curve", exact: true }),
+  ).toHaveAttribute("data-y-min", "-4");
+  await preview
+    .getByRole("button", { name: "Close preview", exact: true })
+    .click();
+  await xSummary.click();
+  await page.getByRole("button", { name: "Auto", exact: true }).click();
+  await expect(plot).toHaveAttribute("data-x-min", originalX!);
+  await expect(residual).toHaveAttribute("data-x-min", originalX!);
+  await expect(plot).toHaveAttribute("data-y-min", "-4");
+  await ySummary.click();
+  await page.getByRole("button", { name: "Auto", exact: true }).click();
+  await expect(plot).toHaveAttribute("data-y-min", originalY!);
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+});
+
+test("axis panels keep logarithmic limits valid and dismiss with keyboard or outside clicks", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles("examples/data/ball-toss.trksess");
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  const xSummary = page.getByLabel("Data X axis", { exact: true });
+  const ySummary = page.getByLabel("Data Y axis", { exact: true });
+  await xSummary.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("checkbox", { name: "Log X", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("checkbox", { name: "Log X", exact: true }).check();
+  await page.getByLabel("Data X minimum", { exact: true }).fill("0");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Enter positive limits with minimum below maximum.",
+  );
+  await page.getByRole("button", { name: "Auto", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  const plot = page.getByRole("img", {
+    name: "Data and fitted curve",
+    exact: true,
+  });
+  expect(Number(await plot.getAttribute("data-x-min"))).toBeGreaterThan(0);
+  await page.keyboard.press("Escape");
+  await expect(xSummary).toBeFocused();
+  await expect(page.locator(".y-axis-controls[open]")).toHaveCount(0);
+  await xSummary.click();
+  await ySummary.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".y-axis-controls[open]")).toHaveCount(1);
+  await expect(
+    page.getByRole("checkbox", { name: "Log Y", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", { name: "Log X", exact: true }),
+  ).toBeHidden();
+  await page.getByRole("heading", { name: /^Data Tool 2027/ }).click();
+  await expect(page.locator(".y-axis-controls[open]")).toHaveCount(0);
 });

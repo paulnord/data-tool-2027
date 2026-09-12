@@ -35,7 +35,8 @@ import {
   type IntervalRange,
 } from "../core/fit/intervals";
 import { fitReportRows } from "../core/fit/report";
-import { IntervalPlot, intervalColors } from "./IntervalPlot";
+import { IntervalPlot } from "./IntervalPlot";
+import { appearanceColors, usePlotAppearance } from "./PlotAppearance";
 import { CustomEquationEditor } from "./CustomEquationEditor";
 import { FitErrorMessage } from "./FitErrorMessage";
 import Assumptions from "./Assumptions";
@@ -96,6 +97,7 @@ export default forwardRef<
     onReady: (ready: boolean) => void;
   }
 >(function MultiInterval({ source, open, analysisControl, onReady }, ref) {
+  const intervalColors = appearanceColors(usePlotAppearance());
   const table = useMemo(() => tableForAnalysis(source), [source]);
   const width = table.cells.reduce((n, r) => Math.max(n, r.length), 0);
   const heading = (i: number) =>

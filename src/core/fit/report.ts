@@ -13,6 +13,34 @@ import {
 import type { FitResult } from "./solve";
 export type Cell = string | number | boolean | null;
 export type ReportRow = readonly [statistic: string, value: Cell];
+export type ReportSections = {
+  statistics?: boolean;
+  correlation?: boolean;
+  observations?: boolean;
+  provenance?: boolean;
+};
+export function fitCorrelationMatrix(
+  settings: FitSettings,
+  result: FitResult,
+): Cell[][] {
+  const names = parameterNames(settings.model, settings.custom);
+  if (!result.covariance)
+    return [["Parameter correlation matrix", "Unavailable"]];
+  return [
+    ["Parameter correlation matrix", ...names],
+    ...names.map((name, i) => [
+      name,
+      ...names.map((_, j) => {
+        const denominator = Math.sqrt(
+          result.covariance![i][i] * result.covariance![j][j],
+        );
+        return denominator > 0
+          ? result.covariance![i][j] / denominator
+          : null;
+      }),
+    ]),
+  ];
+}
 /** Summary statistics alone use one statistic/value pair per row.
  * Parameters and observations retain their conventional rectangular tables.
  */
@@ -55,6 +83,7 @@ export function fitReportTable(
   request: FitRequest,
   settings: FitSettings,
   result: FitResult,
+  sections: ReportSections = {},
 ): Cell[][] {
   const names = parameterNames(settings.model, settings.custom);
   const equations = {
@@ -183,6 +212,8 @@ export function fitReportTable(
       row.predicted,
       row.residual,
     ]),
+    [],
+    ...fitCorrelationMatrix(settings, result),
   ];
   if (result.warnings.length)
     rows.push([], ["Notes"], ...result.warnings.map((warning) => [warning]));
@@ -192,6 +223,17 @@ export function fitReportTable(
     ["Source application", request.source.application],
     ["Source notes", request.source.context],
   );
+  const remove = (header: string) => {
+    const start = rows.findIndex((row) => row[0] === header);
+    if (start < 0) return;
+    let end = start + 1;
+    while (end < rows.length && rows[end].length > 0) end++;
+    rows.splice(Math.max(0, start - 1), end - start + 1);
+  };
+  if (sections.statistics === false) remove("Statistic");
+  if (sections.correlation === false) remove("Parameter correlation matrix");
+  if (sections.observations === false) remove("Row");
+  if (sections.provenance === false) remove("Source file");
   return rows;
 }
 
@@ -203,8 +245,9 @@ export function fitReportTsv(
   request: FitRequest,
   settings: FitSettings,
   result: FitResult,
+  sections?: ReportSections,
 ): string {
-  return reportTableTsv(fitReportTable(request, settings, result));
+  return reportTableTsv(fitReportTable(request, settings, result, sections));
 }
 
 /** Name only an untitled pasted dataset; preserve deliberately supplied titles. */

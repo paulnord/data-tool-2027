@@ -69,10 +69,13 @@ test("long source notes preserve text across preview sheets and printed pages", 
   expect(
     await sheets.first().evaluate((e) => getComputedStyle(e).breakBefore),
   ).toBe("page");
-  await page.pdf({
+  const pdf = await page.pdf({
     path: "test-results/source-notes-print.pdf",
     preferCSSPageSize: true,
   });
+  expect(pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)!.length).toBe(
+    await dialog.locator(".fit-print-page").count(),
+  );
   expect(
     (await sheets.locator(".report-notes-text").allTextContents()).join(""),
   ).toBe(text);

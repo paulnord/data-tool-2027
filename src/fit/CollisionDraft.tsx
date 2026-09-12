@@ -25,6 +25,11 @@ import {
 } from "../core/fit/collision";
 import type { FitRequest } from "../core/fit/schema";
 import { plotScale } from "./plotScale";
+import {
+  appearanceStyle,
+  PlotMarker,
+  usePlotAppearance,
+} from "./PlotAppearance";
 import "./collision.css";
 
 const fmt = (v: number | null | undefined) =>
@@ -88,6 +93,7 @@ function CollisionPlot({
   timeDomain: [number, number];
   onBoundary?: (index: number, value: number) => void;
 }) {
+  const appearance = usePlotAppearance();
   const rows = request.dataset.rows.filter((r) => r.x !== null && r.y !== null);
   const domain = timeDomain;
   const points = residual
@@ -157,6 +163,7 @@ function CollisionPlot({
         />
       )}
       <svg
+        style={appearanceStyle(appearance)}
         data-y-min={yDomain[0]}
         data-y-max={yDomain[1]}
         viewBox={`0 0 ${width} ${height}`}
@@ -248,9 +255,9 @@ function CollisionPlot({
                   y2={y(p.y + sigma)}
                 />
               )}
-              <circle cx={x(p.x)} cy={y(p.y)} r={2.8}>
+              <PlotMarker x={x(p.x)} y={y(p.y)} r={2.8}>
                 <title>{`${p.x}, ${p.y}`}</title>
-              </circle>
+              </PlotMarker>
             </g>
           ))}
           {!residual &&
@@ -282,7 +289,11 @@ function CollisionPlot({
                 x2={x(value)}
                 y1={top}
                 y2={height - bottom}
-                stroke={index < 2 ? "#2875a4" : "#b45b20"}
+                stroke={
+                  index < 2
+                    ? "var(--plot-data-color, #2875a4)"
+                    : "var(--plot-fit-color, #b45b20)"
+                }
                 strokeDasharray="3 3"
               />
               <rect

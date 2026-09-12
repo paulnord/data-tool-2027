@@ -153,13 +153,16 @@
   fill: #395568;
 }
 .collision-plot .before {
-  fill: #2875a4;
+  fill: var(--plot-data-color, #2875a4);
+  color: var(--plot-data-color, #2875a4);
 }
 .collision-plot .after {
-  fill: #b45b20;
+  fill: var(--plot-fit-color, #b45b20);
+  color: var(--plot-fit-color, #b45b20);
 }
 .collision-plot .gap {
-  fill: #9babb7;
+  fill: var(--plot-outside-color, #9babb7);
+  color: var(--plot-outside-color, #9babb7);
 }
 .collision-plot .error-bar {
   stroke: currentColor;
@@ -172,10 +175,10 @@
   stroke-width: 2;
 }
 .collision-plot .model.before {
-  stroke: #2875a4;
+  stroke: var(--plot-data-color, #2875a4);
 }
 .collision-plot .model.after {
-  stroke: #b45b20;
+  stroke: var(--plot-fit-color, #b45b20);
   stroke-dasharray: 7 4;
 }
 .collision-legend {
@@ -187,10 +190,10 @@
   color: #768b9b;
 }
 .collision-legend .before {
-  color: #2875a4;
+  color: var(--plot-data-color, #2875a4);
 }
 .collision-legend .after {
-  color: #b45b20;
+  color: var(--plot-fit-color, #b45b20);
 }
 .collision-details {
   display: none;

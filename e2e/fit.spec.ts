@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+async function setDisplaySize(page: Page, scale: string) {
+  const summary = page.locator(".fit-display-menu summary");
+  await summary.click();
+  await page.getByLabel("Display size", { exact: true }).selectOption(scale);
+  await summary.click();
+}
 async function openDemo(page: Page) {
   await page.goto("/");
   const panel = page.getByRole("dialog", { name: "Data", exact: true });
@@ -102,7 +108,10 @@ test("unsaved replacement requires visible discard; both numerical plot domains 
     .getByRole("button", { name: "Discard changes", exact: true })
     .click();
   await expect(page.getByLabel("y0 value", { exact: true })).toHaveValue("0");
-  await page.getByLabel("View from").fill("0.5");
+  await page.getByLabel("Data X axis", { exact: true }).click();
+  await page.getByLabel("Data X minimum", { exact: true }).fill("0.5");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await page.getByLabel("Data X axis", { exact: true }).click();
   const plots = page.locator(".fit-plot");
   await expect(plots.nth(0)).toHaveAttribute("data-x-min", "0.5");
   await expect(plots.nth(1)).toHaveAttribute("data-x-min", "0.5");
@@ -134,6 +143,10 @@ test("copied report separates scalar statistics and keeps normal data tables", a
   await openDemo(page);
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
+  await page.locator(".fit-settings-menu summary").click();
+  await page
+    .getByRole("button", { name: "Technical report", exact: true })
+    .click();
   await page.getByRole("button", { name: "Copy report", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText(
     "Report copied: statistics in two columns",
@@ -279,14 +292,37 @@ test("mean confidence band follows the current fit, selection and visibility tog
   await expect(page.locator(".fit-band-note")).toContainText(
     "Selection after inspecting",
   );
+  const graphBounds = () =>
+    page.locator(".fit-plot").evaluateAll((graphs) =>
+      graphs.map((graph) => {
+        const { x, y, width, height } = graph.getBoundingClientRect();
+        return [x, y, width, height];
+      }),
+    );
+  const beforeToggle = await graphBounds();
+  const assumptions = page.locator(".fit-band-note summary");
+  await expect(assumptions).toBeVisible();
+  const optionBox = (await page
+    .locator(".fit-band-option > label")
+    .boundingBox())!;
+  const noteBox = (await assumptions.boundingBox())!;
+  expect(noteBox.x).toBeGreaterThanOrEqual(optionBox.x + optionBox.width);
+  expect(Math.abs(noteBox.y - optionBox.y)).toBeLessThan(4);
   await page
     .getByLabel("Show 95% mean confidence band", { exact: true })
     .uncheck();
   await expect(band).toHaveCount(0);
+  await expect(assumptions).toBeVisible();
+  expect(await graphBounds()).toEqual(beforeToggle);
+  await assumptions.click();
+  await expect(page.locator(".fit-band-note p")).toBeVisible();
+  expect(await graphBounds()).toEqual(beforeToggle);
+  await assumptions.click();
   await page
     .getByLabel("Show 95% mean confidence band", { exact: true })
     .check();
   await expect(band).toHaveCount(1);
+  expect(await graphBounds()).toEqual(beforeToggle);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: ".tools/fit-confidence-band.png",
@@ -437,7 +473,7 @@ test("large displays use the window and display scaling preserves fit and clean 
     .toBeGreaterThan(2000);
   const initial = (await plot.boundingBox())!;
   expect(initial.height).toBeGreaterThan(600);
-  await page.getByLabel("Display size", { exact: true }).selectOption("1.5");
+  await setDisplaySize(page, "1.5");
   await expect(page.locator(".fit-status")).toHaveText("Fitted");
   expect(await page.getByLabel("a value", { exact: true }).inputValue()).toBe(
     coefficient,
@@ -457,7 +493,7 @@ test("large displays use the window and display scaling preserves fit and clean 
   ).toBeTruthy();
   await page.screenshot({ path: ".tools/fit-large-display.png" });
   await page.setViewportSize({ width: 3840, height: 2160 });
-  await page.getByLabel("Display size", { exact: true }).selectOption("2");
+  await setDisplaySize(page, "2");
   await expect
     .poll(async () => (await plot.boundingBox())!.width)
     .toBeGreaterThan(2900);
@@ -467,7 +503,7 @@ test("large displays use the window and display scaling preserves fit and clean 
   expect(residual.y + residual.height).toBeLessThan(2160);
   await page.screenshot({ path: ".tools/fit-4k-display.png" });
   await page.setViewportSize({ width: 980, height: 720 });
-  await page.getByLabel("Display size", { exact: true }).selectOption("1");
+  await setDisplaySize(page, "1");
   await expect(page.locator(".fit-status")).toHaveText("Fitted");
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
@@ -525,7 +561,7 @@ for (const scale of ["1.25", "1.5", "2"])
   }) => {
     await page.setViewportSize({ width: 1800, height: 1200 });
     await openDemo(page);
-    await page.getByLabel("Display size", { exact: true }).selectOption(scale);
+    await setDisplaySize(page, scale);
     const plot = page.getByRole("img", { name: "Data and fitted curve" });
     await plot.scrollIntoViewIfNeeded();
     const circles = plot.locator("circle");
@@ -898,7 +934,7 @@ test("data review stays reachable on a short screen at enlarged display sizes", 
   await page.setViewportSize({ width: 1120, height: 720 });
   await openDemo(page);
   for (const scale of ["1", "1.5", "2"]) {
-    await page.getByLabel("Display size", { exact: true }).selectOption(scale);
+    await setDisplaySize(page, scale);
     await page.getByRole("button", { name: "Data…" }).click();
     const panel = page.getByRole("dialog", { name: "Data" });
     const box = await panel.boundingBox();
@@ -1471,6 +1507,10 @@ test("copied CSV and pasted reports start with dataset names and keep comments a
   await panel.getByRole("button", { name: "Use these data" }).click();
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.locator(".fit-status")).toHaveText("Fitted");
+  await page.locator(".fit-settings-menu summary").click();
+  await page
+    .getByRole("button", { name: "Technical report", exact: true })
+    .click();
   await page.getByRole("button", { name: "Copy report", exact: true }).click();
   const fileReport = await page.evaluate(() => navigator.clipboard.readText());
   expect(fileReport.split("\r\n")[0]).toBe("Dataset\texperiment.csv");
@@ -1630,7 +1670,7 @@ test("Print works without a fit and keeps the entire framed graph inside scaled 
   await page.setViewportSize({ width: 1120, height: 720 });
   await openDemo(page);
   for (const scale of ["1", "1.25", "1.5", "2"]) {
-    await page.getByLabel("Display size", { exact: true }).selectOption(scale);
+    await setDisplaySize(page, scale);
     await page.getByRole("button", { name: "Print", exact: true }).click();
     const preview = page.getByRole("dialog", {
       name: "Print report",
@@ -1673,7 +1713,7 @@ test("Print works without a fit and keeps the entire framed graph inside scaled 
       .getByRole("button", { name: "Close preview", exact: true })
       .click();
   }
-  await page.getByLabel("Display size", { exact: true }).selectOption("1");
+  await setDisplaySize(page, "1");
   await page.getByRole("button", { name: "Print", exact: true }).click();
   await page.emulateMedia({ media: "print" });
   await page.pdf({
@@ -1835,14 +1875,12 @@ test("axis units are editable beside assignments and label every screen and prin
   await panel.getByRole("button", { name: "Use these data" }).click();
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
-  for (const plot of [
-    page.getByRole("img", { name: "Data and fitted curve" }),
-    page.getByRole("img", { name: "Residual plot" }),
-  ]) {
-    await expect(plot.locator(".fit-axis-label").first()).toHaveText(
-      "Time [ms]",
-    );
-  }
+  await expect(
+    page
+      .getByRole("img", { name: "Residual plot" })
+      .locator(".fit-axis-label")
+      .first(),
+  ).toHaveText("Time [ms]");
   await expect(
     page
       .getByRole("img", { name: "Data and fitted curve" })
@@ -1859,12 +1897,11 @@ test("axis units are editable beside assignments and label every screen and prin
   const report = page.getByRole("dialog", { name: "Print report" });
   await expect(
     report.getByRole("heading", { name: "Residuals", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(report.locator(".fit-axis-label")).toHaveText([
-    "Time [ms]",
     "Height [cm]",
     "Time [ms]",
-    "[cm]",
+    "Residual [cm]",
   ]);
 });
 

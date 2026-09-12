@@ -1,3 +1,13 @@
+.fit-axis-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 4px 2px 0;
+}
+.fit-axis-controls .y-axis-controls {
+  margin: 0;
+}
 .y-axis-controls {
   position: relative;
   margin: 0 4px 2px auto;
@@ -16,6 +26,7 @@
   top: 100%;
   z-index: 10;
   width: 245px;
+  max-width: calc(94vw / var(--fit-scale, 1));
   box-sizing: border-box;
   padding: 10px;
   border: 1px solid #a7becf;
@@ -31,6 +42,16 @@
   width: 100%;
   box-sizing: border-box;
 }
+.y-axis-panel .axis-log-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0;
+}
+.y-axis-panel .axis-log-control input {
+  width: auto;
+  margin: 0;
+}
 .y-axis-panel button {
   font-size: 11px;
   padding: 4px 7px;
@@ -44,6 +65,7 @@
   margin-bottom: 0;
 }
 @media print {
+  .fit-axis-controls,
   .y-axis-controls {
     display: none !important;
   }

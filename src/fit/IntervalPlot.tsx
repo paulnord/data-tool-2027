@@ -8,13 +8,12 @@ import type {
 } from "../core/fit/intervals";
 import { predict } from "../core/fit/solve";
 import { plotScale, plotPath, linearDomain } from "./plotScale";
-export const intervalColors = [
-  "#2875a4",
-  "#b45b20",
-  "#7854a0",
-  "#187a68",
-  "#a03856",
-];
+import {
+  appearanceColors,
+  appearanceStyle,
+  PlotMarker,
+  usePlotAppearance,
+} from "./PlotAppearance";
 export function IntervalPlot({
   request,
   intervals,
@@ -22,7 +21,7 @@ export function IntervalPlot({
   active,
   domain,
   residual = false,
-  colors = intervalColors,
+  colors: requestedColors,
   onRange,
   onBoundary,
 }: {
@@ -36,6 +35,8 @@ export function IntervalPlot({
   onRange?: (range: IntervalRange) => void;
   onBoundary?: (interval: number, end: number, value: number) => void;
 }) {
+  const appearance = usePlotAppearance();
+  const colors = requestedColors ?? appearanceColors(appearance);
   const width = 600,
     height = residual ? 170 : 290,
     left = 72,
@@ -132,6 +133,7 @@ export function IntervalPlot({
         />
       )}
       <svg
+        style={appearanceStyle(appearance)}
         data-y-min={yDomain[0]}
         data-y-max={yDomain[1]}
         role="img"
@@ -246,7 +248,11 @@ export function IntervalPlot({
             />
           )}
           {points.map((p, i) => (
-            <g key={i} fill={colors[p.interval] ?? "#9baab6"}>
+            <g
+              key={i}
+              fill={colors[p.interval] ?? "var(--plot-outside-color, #9baab6)"}
+              color={colors[p.interval] ?? "var(--plot-outside-color, #9baab6)"}
+            >
               {sigma > 0 && (
                 <line
                   x1={x(p.x)}
@@ -257,7 +263,7 @@ export function IntervalPlot({
                   opacity=".4"
                 />
               )}
-              <circle cx={x(p.x)} cy={y(p.y)} r={2.7} />
+              <PlotMarker x={x(p.x)} y={y(p.y)} r={2.7} />
             </g>
           ))}
           {curves.map((c, i) => (

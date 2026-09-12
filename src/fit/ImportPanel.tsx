@@ -29,6 +29,8 @@ export function ImportPanel({
   onApply,
   analysis,
   onOpen,
+  examples,
+  onOpenExample,
   externalError,
   reviewing = false,
   fileName,
@@ -40,6 +42,8 @@ export function ImportPanel({
   onClose: () => void;
   analysis?: TableAnalysis;
   onOpen?: () => void;
+  examples?: readonly (readonly [string, string, string])[];
+  onOpenExample?: (fileName: string, text: string) => void;
   externalError?: string;
   onApply: (value: TableAnalysis, replacement?: boolean) => void;
 }) {
@@ -81,7 +85,7 @@ export function ImportPanel({
   const [sourceFileName, setSourceFileName] = useState<string | null>(
     fileName ?? analysis?.request.source.fileName ?? null,
   );
-  const [loadPending, setLoadPending] = useState(false);
+  const [pendingLoad, setPendingLoad] = useState<(() => void) | null>(null);
   const suggestion = useRef(suggestImport(text ?? "")).current;
   const [raw, setRaw] = useState(text ?? "");
   const [delimiter, setDelimiter] = useState(suggestion.delimiter);
@@ -512,12 +516,32 @@ export function ImportPanel({
         {onOpen && (
           <button
             onClick={() => {
-              if (past.length) setLoadPending(true);
+              if (past.length) setPendingLoad(() => onOpen);
               else onOpen();
             }}
           >
             Load file…
           </button>
+        )}
+        {examples && onOpenExample && (
+          <details className="fit-examples-menu">
+            <summary>Examples</summary>
+            <div className="fit-examples-list" role="menu">
+              {examples.map(([label, fileName, text]) => (
+                <button
+                  key={fileName}
+                  role="menuitem"
+                  onClick={() => {
+                    const load = () => onOpenExample(fileName, text);
+                    if (past.length) setPendingLoad(() => load);
+                    else load();
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </details>
         )}
         <button
           onClick={() => {
@@ -578,18 +602,19 @@ export function ImportPanel({
           </button>
         </div>
       </div>
-      {loadPending && (
+      {pendingLoad && (
         <p role="alert">
           Replace the table draft with new data?{" "}
           <button
             onClick={() => {
-              setLoadPending(false);
-              onOpen?.();
+              const load = pendingLoad;
+              setPendingLoad(null);
+              load();
             }}
           >
             Discard draft and load
           </button>{" "}
-          <button onClick={() => setLoadPending(false)}>Keep table</button>
+          <button onClick={() => setPendingLoad(null)}>Keep table</button>
         </p>
       )}
       <p>

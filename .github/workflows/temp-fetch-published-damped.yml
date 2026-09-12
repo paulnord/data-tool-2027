@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euxo pipefail
           rm -rf source
-          git rm .github/workflows/temp-fetch-published-damped.yml scripts/temp-generate-damped-published.py
+          git rm -f .github/workflows/temp-fetch-published-damped.yml scripts/temp-generate-damped-published.py
           git add examples/data/published tests/fit/publishedSessions.test.ts
           git config user.name 'paulnord'
           git config user.email 'Paul.Nord@valpo.edu'

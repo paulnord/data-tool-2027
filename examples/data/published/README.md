@@ -8,6 +8,8 @@ These examples connect ordinary CSV files with published measurements and explic
 | ASASSN-14li X-ray | Published fit values not reproduced; cause unresolved | [X-ray](asassn14li-xray.md) |
 | Chromium Rydberg series | Close with precise fixed R; solver sensitivity remains | [Chromium](cri-rydberg.md) |
 | BESIII p pbar pi0 continuum | Clean reproduction of published nonlinear power-law parameters, errors and chi-square | [BESIII continuum](besiii-ppbarpi0-continuum.md) |
+| YMnO3 Z-mode spin precession | Published raw trace; damped-sine fit recovers period, phase and near-30 K relaxation time | [YMnO3 precession](ymno3-spin-precession.md) |
+| DyFeO3 coherent spin wave | Published raw reflection trace; late-time damped fit gives 221 GHz and lifetime consistent with the paper's ~85 ps comparison | [DyFeO3 spin wave](dyfeo3-spin-wave.md) |
 | PWN luminosity / spin-down power | Close using explicit symmetric log errors | [PWN / spin-down](pwn-luminosity-vs-edot.md) |
 | PWN luminosity / light-cylinder field | Close using explicit symmetric log errors | [PWN / field](pwn-luminosity-vs-blc.md) |
 | Pulsar luminosity / spin-down power | Published statistic not reproduced | [Pulsar / spin-down](pulsar-luminosity-vs-edot.md) |
@@ -28,6 +30,8 @@ To resolve an unexplained discrepancy, compare the exact equations, units, refer
 ## Statistical conventions
 
 Unless a page explicitly says otherwise, the reproduced calculation minimizes sum((y−model(x))/sigma_y)² with independent supplied Y standard deviations. X is held fixed. Reduced chi-square is that sum divided by the number of selected observations minus the number of free parameters. Excluded observations do not contribute to Data Tool's fit statistic.
+
+The YMnO3 and DyFeO3 time-domain source files do not provide pointwise standard uncertainties. Their configured sessions instead use equal unknown scatter estimated from residuals; parameter errors are therefore conditional equal-scatter estimates rather than propagated published per-point errors.
 
 The tabulated standard errors retain the absolute supplied uncertainty scale. Some external routines instead multiply covariance by reduced chi-square, multiplying standard errors by its square root. Those are different conventions, not automatically conflicting calculations. Nonlinear standard errors are local approximations. Common systematic errors, shared background subtraction and correlations are not automatically estimated by a diagonal-error fit. Large reduced chi-square can indicate model inadequacy, underestimated uncertainties or unaccounted correlations; very small values can reflect smoothing or conservative errors.
 

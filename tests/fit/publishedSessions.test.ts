@@ -20,15 +20,14 @@ it.each(files)(
       suggestion.headerRows,
     );
     const chamber = file.includes("ion-chamber");
-    const sigmaCol = file.includes("photon-index") ? 3 : 2;
     expect(session.request.dataset.rows).toHaveLength(rows.length);
     session.request.dataset.rows.forEach((row, i) => {
       expect(row.x).toBe(Number(rows[i][chamber ? 5 : 0]));
       expect(row.y).toBe(Number(rows[i][1]));
       const u = session.request.uncertainty;
-      expect(u.kind).toBe("supplied-per-row");
       if (u.kind === "supplied-per-row")
-        expect(u.sigmaByRow[row.id]).toBe(Number(rows[i][sigmaCol]));
+        expect(u.sigmaByRow[row.id]).toBe(Number(rows[i][2]));
+      else expect(u.kind).toBe("unknown-equal");
     });
     const result = fit(session.request, session.settings);
     expect(result.coefficients.every(Number.isFinite)).toBe(true);

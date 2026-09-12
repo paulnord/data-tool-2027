@@ -27,7 +27,9 @@ it.each(files)(
       const u = session.request.uncertainty;
       expect(["supplied-per-row", "unknown-equal"]).toContain(u.kind);
       if (u.kind === "supplied-per-row")
-        expect(u.sigmaByRow[row.id]).toBe(Number(rows[i][file.includes("photon-index") ? 3 : 2]));
+        expect(u.sigmaByRow[row.id]).toBe(
+          Number(rows[i][file.includes("photon-index") ? 3 : 2]),
+        );
     });
     const result = fit(session.request, session.settings);
     expect(result.coefficients.every(Number.isFinite)).toBe(true);

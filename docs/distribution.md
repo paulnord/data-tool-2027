@@ -16,15 +16,13 @@ Retain the inherited license and extraction history, and keep the Tracker integr
 
 The [OSP project page](https://www.compadre.org/osp/webdocs/About.cfm) provides its staff contact route. No OSP submission or endorsement has been requested. The project remains an independent development draft.
 
-
 ## Automated desktop previews
 
 Run **Actions → Desktop release → Run workflow** in the public repository. The workflow runs scientific and browser checks alongside builds of Windows x64 NSIS, universal macOS DMG (Intel and Apple Silicon), and Linux x64 DEB/AppImage on native GitHub runners. Each platform runs the Rust host tests. Packages are attached to a draft release. Publish only after all validation and packaging jobs pass.
 
 The Mac deployment target is macOS 12.3 or newer because the frontend uses modern WebKit APIs such as structuredClone; this is a build target, not a claim that every OS version has been tested. Linux packages are built on Ubuntu 22.04 and require a compatible desktop/WebKit environment. Windows uses WebView2. ARM Windows and ARM Linux are not part of this first matrix.
 
-The workflow now targets v0.2.0; choose a new version and tag before publishing another release. Signing/notarization credentials are not configured. Do not label these previews as signed production installers.
-
+The workflow now targets v0.3.0; choose a new version and tag before publishing another release. Signing/notarization credentials are not configured. Do not label these previews as signed production installers.
 
 ## First published preview
 
@@ -32,6 +30,6 @@ The workflow now targets v0.2.0; choose a new version and tag before publishing 
 
 Before a future release run, create its draft release at the full source commit SHA through an authorized maintainer account, then use that tag in the workflow. This avoids the workflow token's restriction on creating releases/tags at commits containing workflow changes. Keep the draft until checks and packaging pass. The optional build_packages input allows validation-only runs after test changes.
 
-## Version 0.2
+## Version 0.3
 
-[Download v0.2.0](https://github.com/paulnord/data-tool-2027/releases/tag/v0.2.0) or [run in a browser](https://paulnord.github.io/data-tool-2027/). The [release notes](releases/v0.2.0.md) describe the current features and limitations. Desktop packaging waits for numerical and browser validation before producing installers.
+[Download v0.3.0](https://github.com/paulnord/data-tool-2027/releases/tag/v0.3.0) or [run in a browser](https://paulnord.github.io/data-tool-2027/). The [release notes](releases/v0.3.0.md) describe the current features and limitations, and the [program specification](program-specification.md) records the contract for a future rebuild. Desktop packaging waits for numerical and browser validation before producing installers.

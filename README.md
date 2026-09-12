@@ -2,9 +2,11 @@
 
 **[Open in your browser — Chromebook and other computers](https://paulnord.github.io/data-tool-2027/)** · [Download example files](https://paulnord.github.io/data-tool-2027/examples.zip) · [Browser instructions](docs/chromebook.md)
 
-[Download version 0.2 for Windows, Mac or Linux](https://github.com/paulnord/data-tool-2027/releases/tag/v0.2.0). See the [0.2 release notes](docs/releases/v0.2.0.md) for changes, signing and platform-testing limitations.
+[Download version 0.3 for Windows, Mac or Linux](https://github.com/paulnord/data-tool-2027/releases/tag/v0.3.0). See the [0.3 release notes](docs/releases/v0.3.0.md) for changes, signing and platform-testing limitations.
 
-A general-purpose application for graphing and fitting numerical data locally. Import or paste measurements, declare units and uncertainties, fit models, inspect residuals and confidence bands, and export CSV or a printable vector report.
+A general-purpose application for graphing and fitting numerical data locally. Import or paste measurements, declare units and uncertainties, fit models, inspect residuals and confidence bands, and export CSV, SVG, PNG, PDF, or a printable report.
+
+The [program specification](docs/program-specification.md) describes the version 0.3 behavior, scientific and file-format guarantees, acceptance criteria, and proposed improvements for a future rebuild. It separates implemented features from future work, including localization.
 
 The program uses established least-squares methods with explicit uncertainty assumptions, rank and convergence diagnostics, and independent numerical validation. See [numerical methods and validation](docs/numerical-methods.md) for the algorithms, statistical conventions, references and supported scope.
 
@@ -27,7 +29,9 @@ npm run test:integration
 
 Node 22.12+ and Rust are needed for development; Tauri uses the system webview. The ignored `.tools/` directory in this working copy holds independent local toolchains. The browser development server uses port 5174 so it can run beside Tracker. The app is local-only: no backend, telemetry or data uploads.
 
-**Data…** opens the editable source table. Units sit beneath column headings; `Time (s)` and `Height (m)` are supported CSV headings. **Export CSV…** saves the table; **Save session** retains the full analysis. **Print → PDF → Save as PDF** uses the Mac print dialog and preserves vector graph artwork and text.
+**Data…** opens the editable source table. Units sit beneath column headings; `Time (s)` and `Height (m)` are supported CSV headings. **Export CSV…** saves the table; **Save session** retains the single-fit analysis. **Export graph** in the main toolbar downloads SVG, PNG, or a cropped vector PDF; the PDF can be included directly in a LaTeX paper. **Print** opens the complete single-fit report preview, with visible page boundaries and a **Full-page graph** option. That option rotates the figure on the first portrait sheet; keep the printer set to Portrait.
+
+Undo, Redo, Display, and Settings are grouped on the left of the toolbar; Data, Save session, Copy report, Print, and Export graph are on the right. Display controls interface size, colors, marker size, and marker style. Settings selects copy-report sections, including the parameter correlation matrix. These view and output choices do not change the observations or fit.
 
 Open standard Tracker `.trk`/`.trz` files to review saved point-mass positions, with calibration and original pixel columns preserved. Physical time requires an explicit uniform-timing choice; unsupported project features require a Tracker data export. See [Tracker project import](docs/tracker-import.md) and [example datasets](docs/classroom-exercises.md). Published examples include [per-dataset fit comparisons and reproduction instructions](examples/data/published/README.md).
 
@@ -37,7 +41,7 @@ See [Tracker integration](docs/integration.md), [architecture](docs/architecture
 
 This repository preserves the source project's license; see [LICENSE](LICENSE).
 
-**Log X** and **Log Y** independently select logarithmic axes; leave both unchecked for linear axes. Linear ticks use standard D3 1–2–5 spacing, with roughly six major divisions and zero labeled whenever it lies in view. **Y axis** above each data graph offers zoom, explicit minimum/maximum limits and Auto. Automatic Y limits follow plotted values with modest padding; zero is not forced into view. Axis labels and ticks retain the original units. This changes only the display: fitting still uses the original observations and uncertainties. Residual Y stays linear, with the same X scale as the data plot. Nonpositive observations are hidden on affected logarithmic axes with a notice; they are not automatically excluded from fitting. Intervals reaching zero are clipped at the lower graph edge. Graph mode and view range apply to printing and are window preferences, not saved session fields.
+The matching **X axis** and **Y axis** triangles above a single-fit graph contain each axis's log option, zoom, explicit minimum/maximum limits, and Auto. Choose Auto on both axes to reset their ranges. Linear ticks use standard D3 1–2–5 spacing, with roughly six major divisions and zero labeled whenever it lies in view. Automatic Y limits follow plotted values with modest padding; zero is not forced into view. Axis labels and ticks retain the original units. This changes only the display: fitting still uses the original observations and uncertainties. Residual Y stays linear, with the same X scale as the data plot. Nonpositive observations are hidden on affected logarithmic axes with a notice; they are not automatically excluded from fitting. Intervals reaching zero are clipped at the lower graph edge. Graph mode and view range apply to printing and exports and are window preferences, not saved session fields.
 
 Choose **Analysis → Collision · before and after** for four position components against shared time. Drag shared before/after boundaries, fit all eight lines, and use the usual Copy report and Print buttons. Position uncertainties have explicit estimate/supplied modes. Switching analyses preserves both setups for the same source table. Try `examples/data/collision.csv`. This draft does not yet save collision setup in sessions; see [scope and rollback notes](docs/collision-draft.md).
 

@@ -11,7 +11,7 @@ export function emptyRequest(
     snapshotId,
     source: {
       application: "Data Tool 2027",
-      version: "0.2.0",
+      version: "0.3.0",
       context: null,
       fileName: null,
     },

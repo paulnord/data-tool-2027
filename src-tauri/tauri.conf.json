@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Data Tool 2027",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "org.opensourcephysics.datatool2027",
   "build": {
     "beforeBuildCommand": "npm run build",

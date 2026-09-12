@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { unzipSync } from "fflate";
 
-test("hosted application fits locally and downloads a reusable session at Chromebook screen size", async ({
+test("hosted application fits locally and downloads reusable sessions and vector PDFs at Chromebook screen size", async ({
   page,
   context,
 }) => {
@@ -42,6 +42,26 @@ test("hosted application fits locally and downloads a reusable session at Chrome
     .click();
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.locator(".fit-status")).toHaveText("Fitted");
+  const fontResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.endsWith(".ttf"),
+  );
+  const pendingPdf = page.waitForEvent("download");
+  await page.locator(".fit-header .fit-export-menu summary").click();
+  await page
+    .getByRole("menuitem", { name: "PDF vector graphic", exact: true })
+    .click();
+  const [font, pdfDownload] = await Promise.all([fontResponse, pendingPdf]);
+  expect(font.ok()).toBe(true);
+  expect(new URL(font.url()).pathname).toMatch(
+    /^\/data-tool-2027\/assets\/DejaVuSans-[^/]+\.ttf$/,
+  );
+  expect(pdfDownload.suggestedFilename()).toMatch(/\.pdf$/);
+  const pdf = (await readFile((await pdfDownload.path())!)).toString("latin1");
+  expect(pdf.startsWith("%PDF-")).toBe(true);
+  expect(pdf.match(/\/Type\s*\/Page\b/g)).toHaveLength(1);
+  expect(pdf).not.toMatch(/\/Subtype\s*\/Image\b/);
+  expect(pdf).toContain("/FontFile2");
+  expect(pdf).toContain("/ToUnicode");
   expect(
     workers.some((url) => url.includes("/data-tool-2027/assets/fit.worker-")),
   ).toBe(true);

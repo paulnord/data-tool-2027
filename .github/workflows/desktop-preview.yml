@@ -64,51 +64,52 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: "-"
         with:
-          tagName: v0.2.0
-          releaseName: Data Tool 2027 0.2
+          tagName: v0.3.0
+          releaseName: Data Tool 2027 0.3
           releaseBody: |
-            Data Tool 2027 **0.2.0** is a general-purpose application for graphing and fitting numerical data locally.
+            # Data Tool 2027 0.3.0
 
-            **[Run in your browser — including Chromebooks](https://paulnord.github.io/data-tool-2027/)** · **[Download example files](https://github.com/paulnord/data-tool-2027/releases/download/v0.2.0/examples.zip)**
+            Version 0.3 makes graph inspection, figure export, and printed reports easier to use, and documents the program for a future implementation.
 
-            No account is required. Fitting runs locally; measurements are not uploaded. Internet is needed to open or reload the browser app. Save your session before closing the tab.
+            **[Open the browser app](https://paulnord.github.io/data-tool-2027/)** · **[Download example files](https://github.com/paulnord/data-tool-2027/releases/download/v0.3.0/examples.zip)** · **[Program specification](https://github.com/paulnord/data-tool-2027/blob/v0.3.0/docs/program-specification.md)**
+
+            All fitting and export conversion happen locally. No account, telemetry, or measurement upload is required. The browser app requires a connection to open or reload; save your work before closing it.
+
+            ## Changes since 0.2
+
+            - The main toolbar groups labeled Undo and Redo buttons with Display and Settings on the left. Data, Save session, Copy report, Print, and Export graph are on the right.
+            - Display provides shared color palettes, marker sizes, and marker styles. Solid markers have no white halo; open circles have transparent centers. The same appearance carries through the graphs, reports, and exports.
+            - Matching X-axis and Y-axis menus contain log scales, zoom, explicit limits, and Auto. The bottom range-control row is removed to give the graphs more space. Confidence-band assumptions sit beside the checkbox without shifting the plots when toggled.
+            - Data and residual frames have equal widths, a narrow gap, and a shared X axis. The residual plot remains shorter than the data plot.
+            - Every single-fit print-preview sheet has visible boundaries and a page number. Preview and printing use the same measured page divisions. Full-page graph mode can be switched inside the preview: both plots rotate together on the first portrait Letter sheet, with upright report content afterward. Keep the printer orientation at Portrait.
+            - Export graph downloads editable SVG, high-resolution PNG, and a cropped vector PDF with an embedded Unicode font. PDF is suitable for direct LaTeX/Overleaf inclusion. Collision and multi-interval exports use the active visible graphs.
+            - Copy-report settings select statistics, parameter correlations, observations/residuals, and source notes. Compact and technical presets are available. Printed reports include the parameter correlation matrix.
+            - Published damped-oscillator sessions from PR #4 are included, with their source data and documentation. Data loading also exposes the available built-in and published examples.
+            - A new program specification records workflows, scientific and compatibility contracts, acceptance criteria, current limitations, and proposed improvements for a future rebuild. Localization is proposed; translations are not yet included.
 
             ## Desktop downloads
 
-            | Your computer | Download | Installation |
-            | --- | --- | --- |
-            | **Mac — Intel or Apple Silicon** | [Download for Mac](https://github.com/paulnord/data-tool-2027/releases/download/v0.2.0/Data.Tool.2027_0.2.0_universal.dmg) | Open the disk image and drag the app to Applications. Targets macOS 12.3 or newer. |
-            | **Windows — 64-bit Intel or AMD** | [Download for Windows](https://github.com/paulnord/data-tool-2027/releases/download/v0.2.0/Data.Tool.2027_0.2.0_x64-setup.exe) | Run the installer. Uses Microsoft WebView2. |
-            | **Linux — 64-bit Intel or AMD, Debian/Ubuntu family** | [Download Linux DEB](https://github.com/paulnord/data-tool-2027/releases/download/v0.2.0/Data.Tool.2027_0.2.0_amd64.deb) | Install with your package manager. Built on Ubuntu 22.04. |
-            | **Linux — 64-bit Intel or AMD, AppImage option** | [Download Linux AppImage](https://github.com/paulnord/data-tool-2027/releases/download/v0.2.0/Data.Tool.2027_0.2.0_amd64.AppImage) | Make executable, then run. Requires compatible desktop libraries and FUSE support. |
+            | Platform | Installer |
+            | --- | --- |
+            | Mac, Intel or Apple Silicon | [Universal DMG](https://github.com/paulnord/data-tool-2027/releases/download/v0.3.0/Data.Tool.2027_0.3.0_universal.dmg) |
+            | Windows, 64-bit Intel or AMD | [Windows setup](https://github.com/paulnord/data-tool-2027/releases/download/v0.3.0/Data.Tool.2027_0.3.0_x64-setup.exe) |
+            | Linux, 64-bit Intel or AMD | [DEB](https://github.com/paulnord/data-tool-2027/releases/download/v0.3.0/Data.Tool.2027_0.3.0_amd64.deb) or [AppImage](https://github.com/paulnord/data-tool-2027/releases/download/v0.3.0/Data.Tool.2027_0.3.0_amd64.AppImage) |
 
-            Choose one installer for your computer. The Linux downloads are alternatives. Windows ARM and Linux ARM packages are not included. GitHub's source archives are for developers, not installers.
+            The Mac app targets macOS 12.3 or newer and is ad-hoc signed, not Apple-notarized. The Windows installer is unsigned and uses WebView2. Linux packages are built on Ubuntu 22.04 and require compatible desktop libraries; AppImage may require FUSE. Windows ARM and Linux ARM installers are not included. GitHub source archives are for developers.
 
-            **Signing:** the Mac app is ad-hoc signed and **not Apple-notarized**; the Windows installer is unsigned. Operating-system or institutional security policies may block installation. The browser version is available without installing a desktop app.
+            ## Scientific and compatibility scope
 
-            ## Changes since the first desktop preview
+            Requests and acknowledgments remain v1; `.trksess` session v1, v2, and v3 remain readable. Appearance and axis preferences do not alter the observations, uncertainty assumptions, or fit. Parameter correlations derive from the fitted covariance; no covariance between independently fitted intervals is estimated.
 
-            - Twelve published datasets, each with CSV data, a configured `.trksess` analysis and documentation. The `published` folder includes ASASSN-14li light curves, chromium Rydberg energies, BESIII cross sections, pulsar/PWN correlations, ion-chamber response, radioactive decay and smoothed water viscosity.
-            - Explicit comparisons between reproduced fits and published results, including differences in weighting, data selection and uncertainty conventions. Unresolved discrepancies are identified without attributing an error to the authors.
-            - Automatic vertical axes follow plotted values with modest padding, without forcing zero into view. Clean tick marks, manual Y limits and zoom, and separate Log X / Log Y checkboxes improve graph inspection.
-            - Up to five manually selected fitting intervals. Fit controls sit beside interval selection; supplied Millikan data retains its missing observations and declared units.
-            - Long source notes use a numbered appendix, with visible sheet boundaries in preview and explicit print page breaks. Data and residual plots share the same printed width and horizontal scale. Compact summaries and fit-detail sections have clearer print layouts.
-            - Source columns survive uncertainty changes, exclusions and fitting. Unit entry preserves case, such as `m` and `mH`.
-            - A general-purpose numerical-methods guide explains capabilities, validation, uncertainty assumptions and scope, with NIST, Bevington, GUM, EA-4/02 and AAPT references.
-
-            ## Using and saving your data
-
-            Choose **Data → Load file**, then browse the Examples directory or open your own file. A CSV retains data without preselecting a fit; a `.trksess` file includes analysis settings. Published examples are in the **published** subfolder. Inspect the graph, fit explicitly, and review residuals and uncertainty assumptions.
-
-            Single-fit sessions and source CSVs can be saved. Multi-interval and collision setups remain in-memory drafts: copy or print those reports before closing. Separate fits do not estimate covariance between intervals. X-error fitting and complete systematic uncertainty budgets are outside the implemented fit model. Nonlinear convergence and local uncertainty approximations require review.
-
-            The existing Tracker request/ack v1 protocol and `.trksess` v1–v3 compatibility are preserved. Tracker remains a separate application.
+            Single-fit sessions and source CSVs can be saved. Collision and multi-interval configurations remain in-memory drafts: copy or print those reports before closing. X-error regression, general correlated-error fitting, and complete systematic uncertainty budgets are outside the implemented model. Nonlinear convergence and locally approximated uncertainty require review. Confidence bands describe the pointwise fitted mean, not prediction intervals.
 
             ## Validation
 
-            The release is checked with numerical regression and coverage tests, browser workflows, the hosted web build, and native host tests on the three packaging platforms. The test PDF keeps the Rydberg summary together and preserves all comments across numbered notes pages. Interactive Windows/Linux desktop operation and every printer/OS combination are not claimed as tested.
+            Release gates cover numerical regression and coverage tests, end-to-end browser workflows, the production web build under its hosted URL prefix, and native host tests. Print validation checks actual frame alignment, rotated portrait pages, table boundaries, and preservation of long source notes. Download tests inspect SVG/PNG/PDF content, scientific labels, marker coordinates, and active-analysis selection.
 
-            [Dataset documentation](https://github.com/paulnord/data-tool-2027/blob/v0.2.0/examples/data/published/README.md) · [Numerical methods](https://github.com/paulnord/data-tool-2027/blob/v0.2.0/docs/numerical-methods.md) · [Tracker integration](https://github.com/paulnord/data-tool-2027/blob/v0.2.0/docs/integration.md) · [License](https://github.com/paulnord/data-tool-2027/blob/v0.2.0/LICENSE)
+            The desktop workflow runs host tests and packages on macOS, Windows, and Linux. Automated checks and rendered-output inspection do not establish interactive compatibility with every operating system, printer, or institution's installation policy.
+
+            [Numerical methods](https://github.com/paulnord/data-tool-2027/blob/v0.3.0/docs/numerical-methods.md) · [Tracker integration](https://github.com/paulnord/data-tool-2027/blob/v0.3.0/docs/integration.md) · [Published datasets](https://github.com/paulnord/data-tool-2027/blob/v0.3.0/examples/data/published/README.md) · [License](https://github.com/paulnord/data-tool-2027/blob/v0.3.0/LICENSE)
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

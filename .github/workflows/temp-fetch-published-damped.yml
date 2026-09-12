@@ -27,6 +27,11 @@ jobs:
           mkdir -p source/dyfeo3
           unzip -q source/dyfeo3-source.zip -d source/dyfeo3
           find source/dyfeo3 -maxdepth 3 -type f -print | sort > source/dyfeo3-file-list.txt
+          for n in 1 2 3 4; do
+            curl -fL --retry 3 --retry-delay 2 \
+              "https://pmc.ncbi.nlm.nih.gov/articles/PMC7611635/bin/EMS127177-supplement-Source_Data_Figure_${n}.xlsx" \
+              -o "source/dyfeo3-source-figure-${n}.xlsx"
+          done
       - name: Upload source data
         uses: actions/upload-artifact@v4
         with:

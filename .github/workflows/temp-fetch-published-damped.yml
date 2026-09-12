@@ -1,0 +1,36 @@
+name: Temporary fetch published damped-oscillator source data
+
+on:
+  push:
+    branches:
+      - published-damped-oscillators
+    paths:
+      - .github/workflows/temp-fetch-published-damped.yml
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch public source data
+        run: |
+          set -euxo pipefail
+          mkdir -p source
+          curl -fL --retry 3 --retry-delay 2 \
+            'https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41467-020-19749-y/MediaObjects/41467_2020_19749_MOESM6_ESM.xlsx' \
+            -o source/ymno3-source.xlsx
+          curl -fL --retry 3 --retry-delay 2 \
+            'https://zenodo.org/records/4716539/files/Source%20Data.zip?download=1' \
+            -o source/dyfeo3-source.zip
+          mkdir -p source/dyfeo3
+          unzip -q source/dyfeo3-source.zip -d source/dyfeo3
+          find source/dyfeo3 -maxdepth 3 -type f -print | sort > source/dyfeo3-file-list.txt
+      - name: Upload source data
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-damped-source-data
+          path: source
+          if-no-files-found: error
+          retention-days: 1

@@ -1,4 +1,4 @@
-name: Temporary fetch published damped-oscillator source data
+name: Temporary generate published damped-oscillator examples
 
 on:
   push:
@@ -8,34 +8,58 @@ on:
       - .github/workflows/temp-fetch-published-damped.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  fetch:
+  generate:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch public source data
+      - uses: actions/checkout@v4
+        with:
+          ref: published-damped-oscillators
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: npm
+      - name: Install analysis dependencies
+        run: python -m pip install --quiet numpy scipy openpyxl
+      - name: Fetch publisher source data
         run: |
           set -euxo pipefail
-          mkdir -p source
+          rm -rf source
+          mkdir source
           curl -fL --retry 3 --retry-delay 2 \
             'https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41467-020-19749-y/MediaObjects/41467_2020_19749_MOESM6_ESM.xlsx' \
             -o source/ymno3-source.xlsx
           curl -fL --retry 3 --retry-delay 2 \
             'https://zenodo.org/records/4716539/files/Source%20Data.zip?download=1' \
             -o source/dyfeo3-source.zip
-          mkdir -p source/dyfeo3
-          unzip -q source/dyfeo3-source.zip -d source/dyfeo3
-          find source/dyfeo3 -maxdepth 3 -type f -print | sort > source/dyfeo3-file-list.txt
-          for n in 1 2 3 4; do
-            curl -fL --retry 3 --retry-delay 2 \
-              "https://pmc.ncbi.nlm.nih.gov/articles/PMC7611635/bin/EMS127177-supplement-Source_Data_Figure_${n}.xlsx" \
-              -o "source/dyfeo3-source-figure-${n}.xlsx"
-          done
-      - name: Upload source data
-        uses: actions/upload-artifact@v4
-        with:
-          name: published-damped-source-data
-          path: source
-          if-no-files-found: error
-          retention-days: 1
+      - name: Generate examples from source deposits
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/temp-generate-damped-published.py')
+          text = p.read_text()
+          start = text.index('# Let the generic configured-session test accept')
+          end = text.index('readme_path = PUB / "README.md"')
+          p.write_text(text[:start] + text[end:])
+          PY
+          python scripts/temp-generate-damped-published.py
+      - name: Validate app and sessions
+        run: |
+          npm ci
+          npm test
+          npm run build
+      - name: Commit generated examples and remove temporary machinery
+        run: |
+          set -euxo pipefail
+          rm -rf source
+          git rm .github/workflows/temp-fetch-published-damped.yml scripts/temp-generate-damped-published.py
+          git add examples/data/published tests/fit/publishedSessions.test.ts
+          git config user.name 'paulnord'
+          git config user.email 'Paul.Nord@valpo.edu'
+          git commit -m 'Add published antiferromagnetic damped oscillators'
+          git push origin HEAD:published-damped-oscillators

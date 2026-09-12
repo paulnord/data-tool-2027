@@ -1,5 +1,12 @@
 /// <reference types="vite/client" />
 
+import {
+  exportPngSize,
+  exportSizePixels,
+  validateExportSizing,
+  type ExportSizing,
+} from "./exportSizing";
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 // Copy presentation, never page layout rules. In particular, an external SVG
@@ -156,6 +163,39 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Canvas encoders normally write 96 dpi. Supply the chosen physical resolution
+// so image editors and publication systems recover the requested figure size.
+async function pngWithResolution(blob: Blob, dpi: number): Promise<Blob> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const physical = new Uint8Array(21);
+  const view = new DataView(physical.buffer);
+  view.setUint32(0, 9);
+  physical.set([112, 72, 89, 115], 4); // pHYs
+  const pixelsPerMetre = Math.round(dpi / 0.0254);
+  view.setUint32(8, pixelsPerMetre);
+  view.setUint32(12, pixelsPerMetre);
+  physical[16] = 1; // metre units
+  let crc = 0xffffffff;
+  for (const byte of physical.subarray(4, 17)) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++)
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  view.setUint32(17, (crc ^ 0xffffffff) >>> 0);
+  const parts: BlobPart[] = [bytes.slice(0, 8)];
+  const source = new DataView(bytes.buffer);
+  for (let offset = 8; offset + 12 <= bytes.length;) {
+    const length = source.getUint32(offset);
+    const end = offset + length + 12;
+    if (end > bytes.length) throw new Error("The PNG image is incomplete.");
+    const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
+    if (type !== "pHYs") parts.push(bytes.slice(offset, end));
+    if (type === "IHDR") parts.push(physical);
+    offset = end;
+  }
+  return new Blob(parts, { type: "image/png" });
+}
+
 let pdfFont: Promise<string> | undefined;
 async function loadPdfFont(): Promise<string> {
   if (!pdfFont) {
@@ -188,9 +228,16 @@ export async function exportPlotGraph(
   plots: SVGSVGElement[],
   name: string,
   format: "svg" | "png" | "pdf",
+  sizing?: ExportSizing,
 ): Promise<void> {
+  if (sizing) {
+    const error = validateExportSizing(sizing);
+    if (error) throw new Error(error);
+  }
+  const pngSize = sizing && format === "png" ? exportPngSize(sizing) : null;
   await document.fonts.ready;
   const { root, width, height } = combinedGraph(plots, name);
+  const physicalSize = sizing ? exportSizePixels(sizing) : { width, height };
   const fileName =
     name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-").trim() || "fit-graph";
   if (format === "pdf") {
@@ -199,8 +246,8 @@ export async function exportPlotGraph(
       import("svg2pdf.js"),
       loadPdfFont(),
     ]);
-    const pdfWidth = width * 0.75,
-      pdfHeight = height * 0.75;
+    const pdfWidth = physicalSize.width * 0.75,
+      pdfHeight = physicalSize.height * 0.75;
     const pdf = new jsPDF({
       unit: "pt",
       format: [pdfWidth, pdfHeight],
@@ -227,6 +274,10 @@ export async function exportPlotGraph(
     download(pdf.output("blob"), `${fileName}.pdf`);
     return;
   }
+  if (sizing) {
+    root.setAttribute("width", `${sizing.widthMm}mm`);
+    root.setAttribute("height", `${sizing.heightMm}mm`);
+  }
   const source = new XMLSerializer().serializeToString(root);
   const svg = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
   if (format === "svg") {
@@ -244,8 +295,8 @@ export async function exportPlotGraph(
       16384 / Math.max(width, height),
     );
     const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(width * scale);
-    canvas.height = Math.ceil(height * scale);
+    canvas.width = pngSize?.width ?? Math.ceil(width * scale);
+    canvas.height = pngSize?.height ?? Math.ceil(height * scale);
     const context = canvas.getContext("2d");
     if (!context) throw new Error("This browser cannot create PNG images.");
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -253,7 +304,10 @@ export async function exportPlotGraph(
       canvas.toBlob(resolve, "image/png"),
     );
     if (!png) throw new Error("The PNG image could not be encoded.");
-    download(png, `${fileName}.png`);
+    download(
+      sizing ? await pngWithResolution(png, sizing.pngDpi) : png,
+      `${fileName}.png`,
+    );
   } finally {
     URL.revokeObjectURL(url);
   }

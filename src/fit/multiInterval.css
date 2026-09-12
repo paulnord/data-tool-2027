@@ -318,6 +318,12 @@
   .interval-graphs.curves-1 .interval-plot {
     max-height: 290px;
   }
+  .without-residuals .interval-graphs .interval-plot {
+    max-height: 330px;
+  }
+  .without-residuals .interval-graphs.curves-1 .interval-plot {
+    max-height: 460px;
+  }
 }
 .interval-equation-preview {
   font-family: monospace;

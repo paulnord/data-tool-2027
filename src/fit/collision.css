@@ -484,6 +484,18 @@
   .collision-charts article {
     padding: 6px;
   }
+  /* Keep the enlarged data graphs at full width while fitting the summary. */
+  .collision-dialog.without-residuals .collision-charts article {
+    padding: 4px;
+  }
+  .collision-dialog.without-residuals .collision-charts h2 {
+    margin: 0 0 4px;
+    font-size: 14px;
+  }
+  .collision-dialog.without-residuals .collision-summary th,
+  .collision-dialog.without-residuals .collision-summary td {
+    padding: 3px 5px;
+  }
   .collision-charts h3 {
     margin: 0 0 4px;
   }

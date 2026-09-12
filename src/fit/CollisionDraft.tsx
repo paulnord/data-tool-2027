@@ -1,5 +1,10 @@
 import SourceNotes from "./SourceNotes";
-import { YAxisControls, useYRange, type AxisRange } from "./YAxisControls";
+import {
+  AxisControls,
+  YAxisControls,
+  useYRange,
+  type AxisRange,
+} from "./YAxisControls";
 import { FitErrorMessage } from "./FitErrorMessage";
 import Assumptions from "./Assumptions";
 import {
@@ -24,7 +29,8 @@ import {
   type CollisionChannel,
 } from "../core/fit/collision";
 import type { FitRequest } from "../core/fit/schema";
-import { plotScale } from "./plotScale";
+import { automaticDomain, plotScale } from "./plotScale";
+import type { ExportPlotSize } from "./exportSizing";
 import {
   appearanceStyle,
   PlotMarker,
@@ -83,15 +89,27 @@ function CollisionPlot({
   channel,
   config,
   residual = false,
+  height: requestedHeight,
   timeDomain,
+  timeBounds = timeDomain,
   onBoundary,
+  onXRange,
+  xCustom = false,
+  renderSize,
+  forcedYRange,
 }: {
   request: FitRequest;
   channel?: CollisionChannel;
   config: CollisionConfig;
   residual?: boolean;
+  height?: number;
   timeDomain: [number, number];
+  timeBounds?: [number, number];
   onBoundary?: (index: number, value: number) => void;
+  onXRange?: (range: AxisRange | null) => void;
+  xCustom?: boolean;
+  renderSize?: ExportPlotSize;
+  forcedYRange?: AxisRange;
 }) {
   const appearance = usePlotAppearance();
   const rows = request.dataset.rows.filter((r) => r.x !== null && r.y !== null);
@@ -131,20 +149,33 @@ function CollisionPlot({
         );
     }
   if (residual) values.push(0);
-  const [lo, hi] = rangeOf(values),
-    pad = (hi - lo) * 0.12;
   const [customY, setCustomY] = useYRange(
     `${request.dataset.yColumn.label}/${request.dataset.yColumn.unit}`,
   );
-  const yDomain: AxisRange = customY ?? [lo - pad, hi + pad];
+  const yDomain: AxisRange = forcedYRange ?? customY ?? automaticDomain(values);
   const sx = plotScale(domain, false),
     sy = plotScale(yDomain, false);
-  const width = 560,
-    height = residual ? 145 : 245,
-    left = 65,
-    right = 18,
-    top = 15,
-    bottom = 42;
+  const fontSize = renderSize?.fontSizePx ?? 11;
+  const width = renderSize?.width ?? 560,
+    height = renderSize?.height ?? requestedHeight ?? (residual ? 145 : 245),
+    left = renderSize
+      ? (renderSize.leftMarginPx ?? Math.max(58, fontSize * 5.2))
+      : 65,
+    right = renderSize ? Math.max(12, fontSize) : 18,
+    top = renderSize ? Math.max(10, fontSize * 0.9) : 15,
+    bottom = renderSize ? fontSize * 3.2 : 42;
+  const xTicks = renderSize
+    ? Math.max(
+        2,
+        Math.min(5, Math.floor((width - left - right) / (fontSize * 5))),
+      )
+    : 5;
+  const yTicks = renderSize
+    ? Math.max(
+        residual ? 3 : 2,
+        Math.min(6, Math.floor((height - top - bottom) / (fontSize * 2.3))),
+      )
+    : 6;
   const x = (v: number) => left + sx.fraction(v) * (width - left - right),
     y = (v: number) => top + (1 - sy.fraction(v)) * (height - top - bottom);
   const clipId = useId();
@@ -154,18 +185,40 @@ function CollisionPlot({
 
   return (
     <>
-      {!residual && (
-        <YAxisControls
-          label={request.dataset.yColumn.label}
-          domain={yDomain}
-          custom={!!customY}
-          onChange={setCustomY}
-        />
+      {!residual && !renderSize && (
+        <div className="fit-axis-controls">
+          {onXRange && (
+            <AxisControls
+              axis="X"
+              label={request.dataset.yColumn.label}
+              domain={domain}
+              custom={xCustom}
+              onChange={onXRange}
+            />
+          )}
+          <YAxisControls
+            label={request.dataset.yColumn.label}
+            domain={yDomain}
+            custom={!!customY}
+            onChange={setCustomY}
+          />
+        </div>
       )}
       <svg
-        style={appearanceStyle(appearance)}
+        style={{
+          ...appearanceStyle(appearance),
+          ...(renderSize && {
+            width,
+            height,
+            "--export-font-size": `${fontSize}px`,
+          }),
+        }}
+        data-x-min={domain[0]}
+        data-x-max={domain[1]}
+        data-x-scale="linear"
         data-y-min={yDomain[0]}
         data-y-max={yDomain[1]}
+        data-y-scale="linear"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label={`${request.dataset.yColumn.label} ${residual ? "residuals" : "versus time"}`}
@@ -204,7 +257,7 @@ function CollisionPlot({
             />
           </clipPath>
         </defs>
-        {sy.ticks(6).map((v) => (
+        {sy.ticks(yTicks).map((v) => (
           <g key={v}>
             <line
               x1={left}
@@ -213,14 +266,24 @@ function CollisionPlot({
               y2={y(v)}
               stroke="#dce5ed"
             />
-            <text x={left - 6} y={y(v) + 4} textAnchor="end">
-              {sy.label(v, 6)}
+            <text
+              data-axis-tick="y"
+              x={left - 6}
+              y={y(v) + (renderSize ? fontSize * 0.35 : 4)}
+              textAnchor="end"
+            >
+              {sy.label(v, yTicks)}
             </text>
           </g>
         ))}
-        {sx.ticks(5).map((v) => (
-          <text key={v} x={x(v)} y={height - 25} textAnchor="middle">
-            {sx.label(v, 5)}
+        {sx.ticks(xTicks).map((v) => (
+          <text
+            key={v}
+            x={x(v)}
+            y={renderSize ? height - bottom + fontSize * 1.4 : height - 25}
+            textAnchor="middle"
+          >
+            {sx.label(v, xTicks)}
           </text>
         ))}
         <g clipPath={`url(#${clipId})`}>
@@ -255,7 +318,7 @@ function CollisionPlot({
                   y2={y(p.y + sigma)}
                 />
               )}
-              <PlotMarker x={x(p.x)} y={y(p.y)} r={2.8}>
+              <PlotMarker x={x(p.x)} y={y(p.y)} r={renderSize ? 1.5 : 2.8}>
                 <title>{`${p.x}, ${p.y}`}</title>
               </PlotMarker>
             </g>
@@ -268,6 +331,7 @@ function CollisionPlot({
                 <line
                   key={phase}
                   className={`model ${phase}`}
+                  style={renderSize ? { strokeWidth: 1 } : undefined}
                   x1={x(segment.interval[0])}
                   x2={x(segment.interval[1])}
                   y1={y(
@@ -282,55 +346,62 @@ function CollisionPlot({
         </g>
         {!residual &&
           onBoundary &&
-          boundaryValues.map((value, index) => (
-            <g key={index} className="collision-boundary">
-              <line
-                x1={x(value)}
-                x2={x(value)}
-                y1={top}
-                y2={height - bottom}
-                stroke={
-                  index < 2
-                    ? "var(--plot-data-color, #2875a4)"
-                    : "var(--plot-fit-color, #b45b20)"
-                }
-                strokeDasharray="3 3"
-              />
-              <rect
-                x={x(value) - 7}
-                y={top}
-                width={14}
-                height={height - top - bottom}
-                fill="transparent"
-                role="slider"
-                tabIndex={0}
-                aria-label={`${request.dataset.yColumn.label}: ${boundaryNames[index]}`}
-                aria-valuemin={domain[0]}
-                aria-valuemax={domain[1]}
-                aria-valuenow={value}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  dragging.current = index;
-                  e.currentTarget.ownerSVGElement!.setPointerCapture(
-                    e.pointerId,
-                  );
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                    e.preventDefault();
-                    onBoundary(
-                      index,
-                      value +
-                        ((e.key === "ArrowLeft" ? -1 : 1) *
-                          (domain[1] - domain[0])) /
-                          100,
-                    );
-                  }
-                }}
-              />
-            </g>
-          ))}
+          boundaryValues.map(
+            (value, index) =>
+              value >= domain[0] &&
+              value <= domain[1] && (
+                <g key={index} className="collision-boundary">
+                  <line
+                    x1={x(value)}
+                    x2={x(value)}
+                    y1={top}
+                    y2={height - bottom}
+                    stroke={
+                      index < 2
+                        ? "var(--plot-data-color, #2875a4)"
+                        : "var(--plot-fit-color, #b45b20)"
+                    }
+                    strokeDasharray="3 3"
+                  />
+                  <rect
+                    x={x(value) - 7}
+                    y={top}
+                    width={14}
+                    height={height - top - bottom}
+                    fill="transparent"
+                    role="slider"
+                    tabIndex={0}
+                    aria-label={`${request.dataset.yColumn.label}: ${boundaryNames[index]}`}
+                    aria-valuemin={timeBounds[0]}
+                    aria-valuemax={timeBounds[1]}
+                    aria-valuenow={value}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      dragging.current = index;
+                      e.currentTarget.ownerSVGElement!.setPointerCapture(
+                        e.pointerId,
+                      );
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                        e.preventDefault();
+                        onBoundary(
+                          index,
+                          value +
+                            ((e.key === "ArrowLeft" ? -1 : 1) *
+                              (domain[1] - domain[0])) /
+                              100,
+                        );
+                      }
+                    }}
+                  />
+                </g>
+              ),
+          )}
         <rect
+          className="fit-plot-frame"
+          data-plot-frame="true"
+          style={renderSize ? { strokeWidth: 0.75 } : undefined}
           x={left}
           y={top}
           width={width - left - right}
@@ -338,12 +409,16 @@ function CollisionPlot({
           fill="none"
           stroke="#8295a5"
         />
-        <text x={(left + width - right) / 2} y={height - 6} textAnchor="middle">
+        <text
+          x={(left + width - right) / 2}
+          y={height - (renderSize ? fontSize * 0.4 : 6)}
+          textAnchor="middle"
+        >
           {request.dataset.xColumn.label} [
           {request.dataset.xColumn.unit ?? "units unspecified"}]
         </text>
         <text
-          transform={`translate(13 ${(height - bottom + top) / 2}) rotate(-90)`}
+          transform={`translate(${renderSize ? fontSize * 1.2 : 13} ${renderSize && residual ? height / 2 : (height - bottom + top) / 2}) rotate(-90)`}
           textAnchor="middle"
         >
           {residual ? "Residual" : request.dataset.yColumn.label} [
@@ -364,11 +439,17 @@ export default forwardRef<
   {
     source: TableAnalysis;
     open: boolean;
+    showResiduals?: boolean;
+    exportSizes?: ExportPlotSize[];
     analysisControl: ReactNode;
     onReady: (ready: boolean) => void;
   }
->(function CollisionDraft({ source, open, analysisControl, onReady }, ref) {
+>(function CollisionDraft(
+  { source, open, showResiduals = true, exportSizes, analysisControl, onReady },
+  ref,
+) {
   const defaults = useMemo(() => initial(source), [source]);
+  const liveGraphs = useRef<HTMLElement>(null);
   const [time, setTime] = useState(defaults.time),
     [columns, setColumns] = useState(defaults.columns);
   const [windows, setWindows] = useState(defaults.windows),
@@ -479,16 +560,20 @@ export default forwardRef<
       }
     },
   }));
-  const timeDomain = rangeOf(
+  const times =
     preview.requests[0]?.dataset.rows.flatMap((r) =>
       r.x === null ? [] : [r.x],
-    ) ?? [],
+    ) ?? [];
+  const timeBounds = rangeOf(times);
+  const [customX, setCustomX] = useYRange(
+    `${source.request.snapshotId}/${time}`,
   );
+  const timeDomain = customX ?? automaticDomain(times, false, 0.06);
   function moveBoundary(index: number, value: number) {
     const w = windows.map(Number),
-      gap = (timeDomain[1] - timeDomain[0]) * 1e-6;
-    const lower = index === 0 ? timeDomain[0] : w[index - 1] + gap;
-    const upper = index === 3 ? timeDomain[1] : w[index + 1] - gap;
+      gap = (timeBounds[1] - timeBounds[0]) * 1e-6;
+    const lower = index === 0 ? timeBounds[0] : w[index - 1] + gap;
+    const upper = index === 3 ? timeBounds[1] : w[index + 1] - gap;
     if (lower >= upper) return;
     invalidate();
     setWindows(
@@ -499,7 +584,8 @@ export default forwardRef<
   }
   return (
     <section
-      className={`collision-dialog ${includeDetails ? "print-details" : ""}`}
+      ref={liveGraphs}
+      className={`collision-dialog ${includeDetails ? "print-details" : ""} ${showResiduals ? "" : "without-residuals"}`}
       hidden={!open}
       aria-label="Collision analysis"
       onKeyDown={(e) => {
@@ -747,7 +833,11 @@ export default forwardRef<
                 channel={channels?.[i]}
                 config={config}
                 timeDomain={timeDomain}
+                timeBounds={timeBounds}
+                height={showResiduals ? 245 : 390}
                 onBoundary={moveBoundary}
+                xCustom={!!customX}
+                onXRange={setCustomX}
               />
             </article>
           ))}
@@ -768,24 +858,29 @@ export default forwardRef<
               aria-expanded={details}
               onClick={() => setDetails(!details)}
             >
-              {details ? "Hide" : "Show"} residuals and fit details
+              {details ? "Hide" : "Show"}{" "}
+              {showResiduals ? "residuals and " : ""}fit details
             </button>
             <section
               className={`collision-details ${details ? "expanded" : ""}`}
             >
-              <h2>Residuals and fit details</h2>
+              <h2>
+                {showResiduals ? "Residuals and fit details" : "Fit details"}
+              </h2>
               {channels.map((c, i) => (
                 <article key={i}>
                   <h3>
                     {slots[i]} · {c.request.dataset.yColumn.label}
                   </h3>
-                  <CollisionPlot
-                    request={c.request}
-                    channel={c}
-                    config={config}
-                    timeDomain={timeDomain}
-                    residual
-                  />
+                  {showResiduals && (
+                    <CollisionPlot
+                      request={c.request}
+                      channel={c}
+                      config={config}
+                      timeDomain={timeDomain}
+                      residual
+                    />
+                  )}
                   <table aria-label={`${slots[i]} fit details`}>
                     <thead>
                       <tr>
@@ -860,6 +955,45 @@ export default forwardRef<
           </>
         )}
       </div>
+      {exportSizes && (
+        <div className="fit-export-render" aria-hidden="true" inert>
+          {[
+            ...preview.requests.map((request, index) => ({
+              request,
+              index,
+              residual: false,
+            })),
+            ...(showResiduals && details && channels
+              ? channels.map((channel, index) => ({
+                  request: channel.request,
+                  index,
+                  residual: true,
+                }))
+              : []),
+          ].map(({ request, index, residual }, part) => {
+            const live = liveGraphs.current?.querySelectorAll<SVGSVGElement>(
+              ".collision-charts svg.collision-plot, .collision-details.expanded svg.collision-plot",
+            )[part];
+            const yRange: AxisRange | undefined = live
+              ? [Number(live.dataset.yMin), Number(live.dataset.yMax)]
+              : undefined;
+            return (
+              <CollisionPlot
+                key={part}
+                request={request}
+                channel={channels?.[index]}
+                config={config}
+                timeDomain={timeDomain}
+                timeBounds={timeBounds}
+                residual={residual}
+                renderSize={exportSizes[part]}
+                forcedYRange={yRange}
+                onBoundary={residual ? undefined : moveBoundary}
+              />
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 });

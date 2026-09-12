@@ -123,7 +123,10 @@ test("draw a range, select sine for contact, and use custom equations with case-
   });
   const box = (await plot.boundingBox())!;
   // Drag from x=0.026 to x=0.044 in the graph's 600-wide viewBox.
-  const px = (t: number) => box.x + (box.width * (72 + (t / 0.08) * 512)) / 600;
+  const xmin = Number(await plot.getAttribute("data-x-min"));
+  const xmax = Number(await plot.getAttribute("data-x-max"));
+  const px = (t: number) =>
+    box.x + (box.width * (72 + ((t - xmin) / (xmax - xmin)) * 512)) / 600;
   await page.mouse.move(px(0.026), box.y + box.height * 0.4);
   await page.mouse.down();
   await page.mouse.move(px(0.044), box.y + box.height * 0.4, { steps: 12 });

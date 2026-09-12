@@ -25,11 +25,13 @@ async function openBallToss(page: Page, fit = true) {
 }
 
 async function enableFullPage(page: Page) {
-  await page.locator(".fit-settings-menu summary").click();
-  await page
-    .getByLabel("Full-page graph when printing", { exact: true })
+  const preview = await openPrint(page);
+  await preview
+    .getByRole("checkbox", { name: "Full-page graph", exact: true })
     .check();
-  await page.locator(".fit-settings-menu summary").click();
+  await preview
+    .getByRole("button", { name: "Close preview", exact: true })
+    .click();
 }
 
 async function openPrint(page: Page) {
@@ -92,6 +94,15 @@ async function expectPlotPair(
         const [data, residual] = frames.map((frame) =>
           frame.getBoundingClientRect(),
         );
+        // Media changes can briefly collapse both frames; matching zero-sized
+        // rectangles is not evidence that the print layout has settled.
+        if (
+          !data ||
+          !residual ||
+          !(data.width > 0 && data.height > 0) ||
+          !(residual.width > 0 && residual.height > 0)
+        )
+          return Infinity;
         return isRotated
           ? Math.max(
               Math.abs(data.top - residual.top),
@@ -115,7 +126,7 @@ async function expectPlotPair(
           ? data.width / residual.width
           : data.height / residual.height,
         gapFraction: isRotated
-          ? (data.left - residual.right) / data.height
+          ? (residual.left - data.right) / data.height
           : (residual.top - data.bottom) / data.width,
       };
     }, rotated);
@@ -189,8 +200,8 @@ async function expectRotatedSheet(preview: Locator) {
   }
   expect(geometry.matrix.a).toBeCloseTo(0, 4);
   expect(geometry.matrix.d).toBeCloseTo(0, 4);
-  expect(geometry.matrix.b).toBeGreaterThan(0);
-  expect(geometry.matrix.c).toBeLessThan(0);
+  expect(geometry.matrix.b).toBeLessThan(0);
+  expect(geometry.matrix.c).toBeGreaterThan(0);
   expect(geometry.matrix.b).toBeCloseTo(-geometry.matrix.c, 4);
   expect(geometry.childOverflow).toBeLessThanOrEqual(1);
   await expect(preview.locator(".fit-print-graph-content table")).toHaveCount(
@@ -222,7 +233,7 @@ test("standard print preview keeps both frames aligned with a short residual and
   }
 });
 
-test("full-page graph rotates as one aligned figure on portrait paper and moves details to the next page", async ({
+test("full-page graph rotates counterclockwise as one aligned figure on portrait paper and moves details to the next page", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1366, height: 768 });
@@ -255,7 +266,7 @@ test("full-page graph rotates as one aligned figure on portrait paper and moves 
       await page.locator(".fit-settings-menu summary").click();
       await expect(
         page.getByLabel("Full-page graph when printing", { exact: true }),
-      ).not.toBeChecked();
+      ).toHaveCount(0);
       await page.locator(".fit-settings-menu summary").click();
       await openPrint(page);
       await expect(fullPage).not.toBeChecked();
@@ -304,13 +315,6 @@ test("full-page graph rotates as one aligned figure on portrait paper and moves 
     await preview
       .getByRole("button", { name: "Close preview", exact: true })
       .click();
-    if (scale === "1") {
-      await page.locator(".fit-settings-menu summary").click();
-      await expect(
-        page.getByLabel("Full-page graph when printing", { exact: true }),
-      ).toBeChecked();
-      await page.locator(".fit-settings-menu summary").click();
-    }
   }
 });
 

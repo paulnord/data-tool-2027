@@ -39,7 +39,10 @@ export function plotScale(domain: [number, number], log: boolean) {
 }
 
 /** Fit the display to finite plotted values; zero is not an implicit datum. */
-export function linearDomain(values: number[]): [number, number] {
+export function linearDomain(
+  values: number[],
+  padding = 0.12,
+): [number, number] {
   const finite = values.filter(Number.isFinite);
   if (!finite.length) return [0, 1];
   const lo = finite.reduce((a, b) => Math.min(a, b), Infinity);
@@ -48,7 +51,7 @@ export function linearDomain(values: number[]): [number, number] {
     lo === hi
       ? Math.abs(lo) * 0.01 || 1
       : Math.max(
-          hi * 0.12 - lo * 0.12,
+          hi * padding - lo * padding,
           Math.max(Math.abs(lo), Math.abs(hi)) * Number.EPSILON,
         );
   return [
@@ -67,6 +70,26 @@ export function positiveDomain(
   const hi = positive.reduce((a, b) => Math.max(a, b), -Infinity);
   if (lo !== hi) return [lo, hi];
   return lo <= Number.MAX_VALUE / 10 ? [lo, lo * 10] : [lo / 10, lo];
+}
+
+/** Automatic margins measured in display coordinates; manual limits bypass this. */
+export function automaticDomain(
+  values: number[],
+  log = false,
+  padding = 0.12,
+): [number, number] {
+  if (!log) return linearDomain(values, padding);
+  const logarithms = values
+    .filter((v) => Number.isFinite(v) && v > 0)
+    .map(Math.log10);
+  if (!logarithms.length) return [1, 10];
+  const logLo = logarithms.reduce((a, b) => Math.min(a, b), Infinity);
+  const logHi = logarithms.reduce((a, b) => Math.max(a, b), -Infinity);
+  const pad = logLo === logHi ? 0.5 : (logHi - logLo) * padding;
+  return [
+    Math.max(Number.MIN_VALUE, 10 ** (logLo - pad)),
+    Math.min(Number.MAX_VALUE, 10 ** (logHi + pad)),
+  ];
 }
 
 export function plotPath(

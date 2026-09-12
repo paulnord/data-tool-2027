@@ -1,6 +1,15 @@
 import SourceNotes from "./SourceNotes";
 import PrintPages from "./PrintPages";
 import DisplayMenu from "./DisplayMenu";
+import ExportSizeDialog from "./ExportSizeDialog";
+import {
+  DEFAULT_EXPORT_SIZING,
+  fitExportPlotMargins,
+  layoutExportPlots,
+  type ExportSizing,
+  type ExportPlotSize,
+} from "./exportSizing";
+import { flushSync } from "react-dom";
 import {
   appearanceStyle,
   defaultPlotAppearance,
@@ -18,8 +27,7 @@ import Assumptions from "./Assumptions";
 import CollisionDraft, { type CollisionActions } from "./CollisionDraft";
 import {
   plotScale,
-  linearDomain,
-  positiveDomain,
+  automaticDomain,
   plotPath,
   type GraphMode,
 } from "./plotScale";
@@ -51,7 +59,13 @@ import {
   type ReportSections,
   nameSavedSession,
 } from "../core/fit/report";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { isTauri, invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -219,13 +233,11 @@ function fresh(): State {
     settings: initialSettings("line"),
   };
 }
-function xBounds(state: State): AxisRange {
+function xBounds(state: State, log = false): AxisRange {
   const xs = state.request.dataset.rows.flatMap((row) =>
     row.x === null ? [] : [row.x],
   );
-  const lo = xs.reduce((a, b) => Math.min(a, b), Infinity);
-  const hi = xs.reduce((a, b) => Math.max(a, b), -Infinity);
-  return xs.length ? [lo, hi === lo ? lo + 1 : hi] : [0, 1];
+  return automaticDomain(xs, log, 0.06);
 }
 function Plot({
   state,
@@ -241,6 +253,7 @@ function Plot({
   showXAxis = true,
   idPrefix = "",
   printSize,
+  fixedYRange,
   yRange,
   onYRange,
   onXRange,
@@ -263,7 +276,13 @@ function Plot({
   showErrorBars?: boolean;
   showXAxis?: boolean;
   idPrefix?: string;
-  printSize?: { width: number; height: number };
+  printSize?: {
+    width: number;
+    height: number;
+    fontSizePx?: number;
+    leftMarginPx?: number;
+  };
+  fixedYRange?: AxisRange;
   yRange?: AxisRange | null;
   onYRange?: (range: AxisRange | null) => void;
   onXRange?: (range: AxisRange | null) => void;
@@ -281,7 +300,7 @@ function Plot({
   );
   const range: [number, number] =
     logX && requestedRange[0] <= 0
-      ? positiveDomain(positiveXs)
+      ? automaticDomain(positiveXs, true, 0.06)
       : requestedRange;
   const xScale = plotScale(range, logX);
   const plotRef = useRef<SVGSVGElement>(null);
@@ -410,28 +429,24 @@ function Plot({
     ...(!residual ? curve.map((p) => p.y).filter(Number.isFinite) : []),
     ...(band?.points.flatMap((p) => [p.lower, p.upper]) ?? []),
   ];
-  const residualExtent = ys.reduce((m, v) => Math.max(m, Math.abs(v)), 0.001);
-  const linearY = residual
+  const residualExtent =
+    ys.reduce((m, v) => Math.max(m, Math.abs(v)), 0) || 0.001;
+  const automaticY: AxisRange = residual
     ? [-residualExtent * 1.24, residualExtent * 1.24]
-    : linearDomain(plottedY);
-  const logDomain = positiveDomain(plottedY);
-  const logPad = (Math.log10(logDomain[1]) - Math.log10(logDomain[0])) * 0.12;
-  const ymin = logY
-    ? Math.max(Number.MIN_VALUE, 10 ** (Math.log10(logDomain[0]) - logPad))
-    : linearY[0];
-  const ymax = logY
-    ? Math.min(Number.MAX_VALUE, 10 ** (Math.log10(logDomain[1]) + logPad))
-    : linearY[1];
+    : automaticDomain(plottedY, logY);
   const yDomain: AxisRange =
-    !residual && yRange && (!logY || yRange[0] > 0) ? yRange : [ymin, ymax];
+    fixedYRange ??
+    (!residual && yRange && (!logY || yRange[0] > 0) ? yRange : automaticY);
   const yScale = plotScale(yDomain, logY);
   const hiddenCount = state.request.dataset.rows.filter(
     (r) =>
       r.x !== null &&
       r.y !== null &&
-      r.x >= requestedRange[0] &&
-      r.x <= requestedRange[1] &&
-      ((logX && r.x <= 0) || (logY && r.y <= 0)),
+      ((logX && r.x <= 0) ||
+        (r.x >= requestedRange[0] &&
+          r.x <= requestedRange[1] &&
+          logY &&
+          r.y <= 0)),
   ).length;
   const clippedIntervals =
     logY &&
@@ -442,10 +457,28 @@ function Plot({
   const { width, height } = idPrefix
     ? (printSize ?? { width: 720, height: residual ? 134 : 236 })
     : plotSize;
-  const left = 82,
-    right = 36,
-    top = 8,
-    bottom = showXAxis ? 52 : 6;
+  const exportFont = printSize?.fontSizePx;
+  const left = exportFont
+      ? (printSize?.leftMarginPx ?? Math.max(58, exportFont * 5.2))
+      : 82,
+    right = exportFont ? Math.max(12, exportFont) : 36,
+    top = exportFont ? Math.max(8, exportFont * 0.75) : 8,
+    bottom = showXAxis ? (exportFont ? exportFont * 3.2 : 52) : 6;
+  const errorCap = exportFont ? 2.5 : 5;
+  const xTickCount = exportFont
+    ? Math.max(
+        2,
+        Math.min(6, Math.floor((width - left - right) / (exportFont * 4))),
+      )
+    : 6;
+  const yTickCount = exportFont
+    ? Math.max(
+        residual ? 3 : 2,
+        Math.min(6, Math.floor((height - top - bottom) / (exportFont * 2.4))),
+      )
+    : idPrefix && residual
+      ? 3
+      : 6;
   const x = (v: number) => left + xScale.fraction(v) * (width - left - right),
     y = (v: number) => top + (1 - yScale.fraction(v)) * (height - top - bottom);
   function localPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
@@ -475,6 +508,17 @@ function Plot({
       .filter((row) => !row.included)
       .map((row) => row.id),
   ]);
+  const plotNotices = [
+    ...(!residual && showModel && curveCount === 0
+      ? [
+          "Curve unavailable at this period/view; zoom in or use a valid period.",
+        ]
+      : []),
+    ...(errorBars.unavailable > 0
+      ? ["Some error bars exceed the numeric range and cannot be drawn."]
+      : []),
+    ...(band?.reason ? [`Confidence band unavailable: ${band.reason}`] : []),
+  ];
   return (
     <>
       {(!idPrefix || !residual) && (hiddenCount > 0 || clippedIntervals) && (
@@ -517,7 +561,12 @@ function Plot({
         data-y-max={yDomain[1]}
         ref={plotRef}
         className="fit-plot"
-        style={appearanceStyle(appearance)}
+        style={{
+          ...appearanceStyle(appearance),
+          ...(exportFont
+            ? ({ "--export-font-size": `${exportFont}px` } as CSSProperties)
+            : {}),
+        }}
         viewBox={`0 0 ${width} ${height}`}
         width={idPrefix ? width : undefined}
         height={idPrefix ? height : undefined}
@@ -592,7 +641,7 @@ function Plot({
           <text
             className="fit-axis-label"
             x={(left + width - right) / 2}
-            y={height - 12}
+            y={height - (exportFont ? exportFont * 0.4 : 12)}
             textAnchor="middle"
           >
             {state.request.dataset.xColumn.label}
@@ -604,7 +653,7 @@ function Plot({
         )}
         <text
           className="fit-axis-label"
-          transform={`translate(16 ${(top + height - bottom) / 2}) rotate(-90)`}
+          transform={`translate(${exportFont ? exportFont * 1.2 : 16} ${exportFont && residual ? height / 2 : (top + height - bottom) / 2}) rotate(-90)`}
           textAnchor="middle"
         >
           {residual ? "Residual" : state.request.dataset.yColumn.label}
@@ -618,21 +667,21 @@ function Plot({
             {residual ? "Fit to show residuals" : "Paste or open data to begin"}
           </text>
         )}
-        {!residual && showModel && curveCount === 0 && (
-          <text className="fit-band-unavailable" x={left} y={height - 2}>
-            Curve unavailable at this period/view; zoom in or use a valid
-            period.
-          </text>
-        )}
-        {errorBars.unavailable > 0 && (
-          <text className="fit-band-unavailable" x={left} y={height - 2}>
-            Some error bars exceed the numeric range and cannot be drawn.
-          </text>
-        )}
-        {band?.reason && (
-          <text className="fit-band-unavailable" x={left} y={height - 2}>
-            Confidence band unavailable: {band.reason}
-          </text>
+        {plotNotices.map((notice) =>
+          exportFont ? (
+            <desc key={notice} data-plot-notice="true">
+              {notice}
+            </desc>
+          ) : (
+            <text
+              key={notice}
+              className="fit-band-unavailable"
+              x={left}
+              y={height - 2}
+            >
+              {notice}
+            </text>
+          ),
         )}
         <defs>
           <clipPath
@@ -646,7 +695,7 @@ function Plot({
             />
           </clipPath>
         </defs>
-        {yScale.ticks(idPrefix && residual ? 3 : 6).map((yy, i) => {
+        {yScale.ticks(yTickCount).map((yy, i) => {
           return (
             <g key={i}>
               <line
@@ -656,27 +705,35 @@ function Plot({
                 y2={y(yy)}
                 className="grid"
               />
-              <text x={left - 10} y={y(yy) + 4} textAnchor="end">
-                {yScale.label(yy, 6)}
+              <text
+                data-axis-tick="y"
+                x={left - 10}
+                y={y(yy) + 4}
+                textAnchor="end"
+              >
+                {yScale.label(yy, yTickCount)}
               </text>
             </g>
           );
         })}
         {showXAxis &&
-          xScale.ticks(6).map((xx, i) => {
+          xScale.ticks(xTickCount).map((xx, i) => {
             return (
               <text
                 key={i}
                 x={x(xx)}
-                y={height - 30}
+                y={
+                  exportFont ? height - bottom + exportFont * 1.4 : height - 30
+                }
                 textAnchor={i === 0 ? "start" : i === 5 ? "end" : "middle"}
               >
-                {xScale.label(xx, 6)}
+                {xScale.label(xx, xTickCount)}
               </text>
             );
           })}
         <rect
           className="fit-plot-frame"
+          data-plot-frame="true"
           x={left}
           y={top}
           width={width - left - right}
@@ -695,11 +752,11 @@ function Plot({
                   [
                     ...band.points.map((p) => ({
                       x: p.x,
-                      y: logY ? Math.max(ymin, p.upper) : p.upper,
+                      y: logY ? Math.max(yDomain[0], p.upper) : p.upper,
                     })),
                     ...[...band.points].reverse().map((p) => ({
                       x: p.x,
-                      y: logY ? Math.max(ymin, p.lower) : p.lower,
+                      y: logY ? Math.max(yDomain[0], p.lower) : p.lower,
                     })),
                   ],
                   x,
@@ -731,7 +788,7 @@ function Plot({
               data-sigma={bar.sigma}
               data-lower={bar.lower}
               data-upper={bar.upper}
-              d={`M${x(bar.x)},${y(logY ? Math.max(ymin, bar.lower) : bar.lower)} V${y(bar.upper)}${logY && bar.lower < ymin ? "" : ` M${x(bar.x) - 5},${y(bar.lower)} H${x(bar.x) + 5}`} M${x(bar.x) - 5},${y(bar.upper)} H${x(bar.x) + 5}`}
+              d={`M${x(bar.x)},${y(logY ? Math.max(yDomain[0], bar.lower) : bar.lower)} V${y(bar.upper)}${logY && bar.lower < yDomain[0] ? "" : ` M${x(bar.x) - errorCap},${y(bar.lower)} H${x(bar.x) + errorCap}`} M${x(bar.x) - errorCap},${y(bar.upper)} H${x(bar.x) + errorCap}`}
             />
           ))}
           {rows.map((r, i) => (
@@ -740,7 +797,7 @@ function Plot({
               data-row-id={r.id}
               x={x(r.x!)}
               y={y(ys[i])}
-              r={4}
+              r={exportFont ? 1.5 : 4}
               className={
                 excluded.has(r.id) || !r.included ? "point excluded" : "point"
               }
@@ -773,6 +830,7 @@ function PrintReport({
   range,
   showBand,
   showErrorBars,
+  showResiduals,
   fullPageGraph,
   onFullPageGraphChange,
   onClose,
@@ -786,6 +844,7 @@ function PrintReport({
   range: [number, number];
   showBand: boolean;
   showErrorBars: boolean;
+  showResiduals: boolean;
   fullPageGraph: boolean;
   onFullPageGraphChange: (enabled: boolean) => void;
   onClose: () => void;
@@ -793,7 +852,14 @@ function PrintReport({
   const dialog = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState("");
   const graphWidth = fullPageGraph ? 960 : 720;
-  const dataHeight = fullPageGraph ? (result ? 402 : 586) : 236;
+  const hasResidualPlot = showResiduals && !!result;
+  const dataHeight = fullPageGraph
+    ? hasResidualPlot
+      ? 402
+      : 586
+    : showResiduals
+      ? 236
+      : 370;
   const residualHeight = fullPageGraph ? 184 : 134;
   const printNumber = (value: number) =>
     value.toLocaleString("en-US", {
@@ -883,11 +949,11 @@ function PrintReport({
                   onToggle={() => {}}
                   showBand={showBand}
                   showErrorBars={showErrorBars}
-                  showXAxis={!result}
+                  showXAxis={!hasResidualPlot}
                   printSize={{ width: graphWidth, height: dataHeight }}
                   idPrefix="print-measure-"
                 />
-                {result && (
+                {hasResidualPlot && (
                   <Plot
                     mode={mode}
                     state={state}
@@ -1037,6 +1103,13 @@ function PrintReport({
 }
 export default function FitApp() {
   const [appearance, setAppearance] = useState(defaultPlotAppearance);
+  const [showResiduals, setShowResiduals] = useState(true);
+  const [exportSizing, setExportSizing] = useState<ExportSizing | null>(null);
+  const [exportSizeOpen, setExportSizeOpen] = useState(false);
+  const [exportRender, setExportRender] = useState<{
+    sizes: ExportPlotSize[];
+    yRanges: AxisRange[];
+  } | null>(null);
   const [reportSections, setReportSections] = useState<
     Required<ReportSections>
   >({
@@ -1048,6 +1121,9 @@ export default function FitApp() {
   const [fullPageGraph, setFullPageGraph] = useState(false);
   const chartRef = useRef<HTMLElement>(null);
   const settingsMenu = useRef<HTMLDetailsElement>(null);
+  const settingsPanel = useRef<HTMLDivElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPosition, setSettingsPosition] = useState<CSSProperties>({});
   const exportMenu = useRef<HTMLDetailsElement>(null);
   const bandNote = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -1103,8 +1179,7 @@ export default function FitApp() {
   const logY = mode === "log-y" || mode === "log-log";
   function changeLog(x: boolean, y: boolean) {
     if (x !== logX) {
-      setRange(xBounds(state));
-      setXCustom(false);
+      setXRange(null);
     }
     if (y !== logY) setYRange(null);
     setMode(x ? (y ? "log-log" : "log-x") : y ? "log-y" : "linear");
@@ -1133,9 +1208,9 @@ export default function FitApp() {
     [dirty, setDirty] = useState(false),
     [pending, setPending] = useState<State | null>(null),
     [closePending, setClosePending] = useState(false);
-  const [range, setRange] = useState<[number, number]>([0, 2]),
-    [tab, setTab] = useState<"results" | "rows">("results");
-  const [xCustom, setXCustom] = useState(false);
+  const [xRange, setXRange] = useState<AxisRange | null>(null);
+  const range = xRange ?? xBounds(state, logX);
+  const [tab, setTab] = useState<"results" | "rows">("results");
   const [busy, setBusy] = useState(false);
   const [sigmaDraft, setSigmaDraft] = useState<string | null>(null);
   const [sigmaTouched, setSigmaTouched] = useState(false);
@@ -1143,6 +1218,28 @@ export default function FitApp() {
     sigmaDraft !== null &&
     (!(Number(sigmaDraft) > 0) || !Number.isFinite(Number(sigmaDraft)));
   const [displayScale, setDisplayScale] = useState(1);
+  useLayoutEffect(() => {
+    if (!settingsOpen) return;
+    const position = () => {
+      if (!settingsMenu.current || !settingsPanel.current) return;
+      const anchor = settingsMenu.current.getBoundingClientRect();
+      const panel = settingsPanel.current.getBoundingClientRect();
+      const left = Math.max(
+        12,
+        Math.min(anchor.left, innerWidth - panel.width - 12),
+      );
+      setSettingsPosition({
+        left: (left - anchor.left) / displayScale,
+        maxHeight: Math.max(
+          80,
+          (innerHeight - anchor.bottom - 12) / displayScale - 6,
+        ),
+      });
+    };
+    position();
+    window.addEventListener("resize", position);
+    return () => window.removeEventListener("resize", position);
+  }, [settingsOpen, displayScale]);
   const activeWorker = useRef<Worker | null>(null);
   const past = useRef<State[]>([]),
     future = useRef<State[]>([]),
@@ -1217,10 +1314,9 @@ export default function FitApp() {
     setState(next);
     setDirty(true);
   }
-  function bounds(next: State) {
+  function bounds() {
     setYRange(null);
-    setXCustom(false);
-    setRange(xBounds(next));
+    setXRange(null);
   }
   function replace(next: State) {
     setManualState(null);
@@ -1233,7 +1329,7 @@ export default function FitApp() {
     setPending(null);
     past.current = [];
     future.current = [];
-    bounds(next);
+    bounds();
     setError("");
     setNotice("");
   }
@@ -1486,6 +1582,7 @@ export default function FitApp() {
     }
   }
   async function exportGraph(format: "svg" | "png" | "pdf") {
+    if (exportRender) return;
     exportMenu.current?.removeAttribute("open");
     const activePlots = multiOpen
       ? chartRef.current
@@ -1513,9 +1610,56 @@ export default function FitApp() {
         .replace(/[^a-z0-9]+/gi, "-")
         .replace(/^-|-$/g, "") || "fit-graph";
     try {
-      await exportPlotGraph(plots, name, format);
+      let outputPlots = plots;
+      if (exportSizing) {
+        const sizes = layoutExportPlots(
+          exportSizing,
+          plots.map((plot) =>
+            /residual/i.test(plot.getAttribute("aria-label") ?? ""),
+          ),
+        );
+        const yRanges = plots.map(
+          (plot) =>
+            [
+              Number(plot.getAttribute("data-y-min")),
+              Number(plot.getAttribute("data-y-max")),
+            ] as AxisRange,
+        );
+        flushSync(() => setExportRender({ sizes, yRanges }));
+        outputPlots = Array.from(
+          document.querySelectorAll<SVGSVGElement>(".fit-export-render svg"),
+        );
+        const yTickWidths = outputPlots.flatMap((plot) =>
+          Array.from(
+            plot.querySelectorAll<SVGTextElement>('[data-axis-tick="y"]'),
+          ).map((tick) => tick.getBBox().width),
+        );
+        const fittedSizes = fitExportPlotMargins(sizes, yTickWidths);
+        flushSync(() => setExportRender({ sizes: fittedSizes, yRanges }));
+        outputPlots = Array.from(
+          document.querySelectorAll<SVGSVGElement>(".fit-export-render svg"),
+        );
+      }
+      const notices = [
+        ...new Set(
+          outputPlots.flatMap((plot) =>
+            Array.from(plot.querySelectorAll("desc[data-plot-notice]"))
+              .map((description) => description.textContent?.trim() ?? "")
+              .filter(Boolean),
+          ),
+        ),
+      ];
+      await exportPlotGraph(
+        outputPlots,
+        name,
+        format,
+        exportSizing ?? undefined,
+      );
+      setNotice(["Graph exported.", ...notices].join(" "));
     } catch (error) {
       setError(`Graph export failed: ${String(error)}`);
+    } finally {
+      setExportRender(null);
     }
   }
   useEffect(() => {
@@ -1770,99 +1914,114 @@ export default function FitApp() {
               appearance={appearance}
               onAppearance={setAppearance}
             />
-            <details ref={settingsMenu} className="fit-settings-menu">
+            <details
+              ref={settingsMenu}
+              className="fit-settings-menu"
+              onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
+            >
               <summary>
                 Settings{" "}
                 <span className="fit-menu-arrow" aria-hidden="true">
                   ▾
                 </span>
               </summary>
-              <div className="fit-settings-popover">
-                <strong>Copy report sections</strong>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={reportSections.statistics}
-                    onChange={(e) =>
-                      setReportSections((s) => ({
-                        ...s,
-                        statistics: e.target.checked,
-                      }))
+              <div
+                ref={settingsPanel}
+                className="fit-settings-popover"
+                style={settingsPosition}
+              >
+                <fieldset>
+                  <legend>Graphs</legend>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showResiduals}
+                      onChange={(e) => setShowResiduals(e.target.checked)}
+                    />
+                    Show residual plots
+                  </label>
+                  <p>Applies to all graphs, printing, and exports.</p>
+                </fieldset>
+                <fieldset disabled={collisionOpen || multiOpen}>
+                  <legend>Copy report sections</legend>
+                  <p>Single-fit reports</p>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={reportSections.statistics}
+                      onChange={(e) =>
+                        setReportSections((s) => ({
+                          ...s,
+                          statistics: e.target.checked,
+                        }))
+                      }
+                    />
+                    Statistics
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={reportSections.correlation}
+                      onChange={(e) =>
+                        setReportSections((s) => ({
+                          ...s,
+                          correlation: e.target.checked,
+                        }))
+                      }
+                    />
+                    Parameter correlations
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={reportSections.observations}
+                      onChange={(e) =>
+                        setReportSections((s) => ({
+                          ...s,
+                          observations: e.target.checked,
+                        }))
+                      }
+                    />
+                    Observations and residuals
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={reportSections.provenance}
+                      onChange={(e) =>
+                        setReportSections((s) => ({
+                          ...s,
+                          provenance: e.target.checked,
+                        }))
+                      }
+                    />
+                    Source and notes
+                  </label>
+                  <button
+                    onClick={() =>
+                      setReportSections({
+                        statistics: true,
+                        correlation: true,
+                        observations: true,
+                        provenance: true,
+                      })
                     }
-                  />
-                  Statistics
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={reportSections.correlation}
-                    onChange={(e) =>
-                      setReportSections((s) => ({
-                        ...s,
-                        correlation: e.target.checked,
-                      }))
+                  >
+                    Technical report
+                  </button>
+                  <button
+                    onClick={() =>
+                      setReportSections({
+                        statistics: true,
+                        correlation: true,
+                        observations: false,
+                        provenance: false,
+                      })
                     }
-                  />
-                  Parameter correlations
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={reportSections.observations}
-                    onChange={(e) =>
-                      setReportSections((s) => ({
-                        ...s,
-                        observations: e.target.checked,
-                      }))
-                    }
-                  />
-                  Observations and residuals
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={reportSections.provenance}
-                    onChange={(e) =>
-                      setReportSections((s) => ({
-                        ...s,
-                        provenance: e.target.checked,
-                      }))
-                    }
-                  />
-                  Source and notes
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={fullPageGraph}
-                    onChange={(e) => setFullPageGraph(e.target.checked)}
-                  />
-                  Full-page graph when printing
-                </label>
-                <button
-                  onClick={() =>
-                    setReportSections({
-                      statistics: true,
-                      correlation: true,
-                      observations: true,
-                      provenance: true,
-                    })
-                  }
-                >
-                  Technical report
-                </button>
-                <button
-                  onClick={() =>
-                    setReportSections({
-                      statistics: true,
-                      correlation: true,
-                      observations: false,
-                      provenance: false,
-                    })
-                  }
-                >
-                  Compact report
-                </button>
+                  >
+                    Compact report
+                  </button>
+                </fieldset>
               </div>
             </details>
           </div>
@@ -1934,6 +2093,29 @@ export default function FitApp() {
                 <button role="menuitem" onClick={() => void exportGraph("pdf")}>
                   PDF vector graphic
                 </button>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    exportMenu.current?.removeAttribute("open");
+                    setExportSizeOpen(true);
+                  }}
+                >
+                  Figure size…
+                </button>
+                {exportSizing && (
+                  <>
+                    <p className="fit-export-size-summary">
+                      {exportSizing.widthMm} × {exportSizing.heightMm} mm ·{" "}
+                      {exportSizing.fontSizePt} pt labels
+                    </p>
+                    <button
+                      role="menuitem"
+                      onClick={() => setExportSizing(null)}
+                    >
+                      Use display size
+                    </button>
+                  </>
+                )}
               </div>
             </details>
           </nav>
@@ -1966,6 +2148,8 @@ export default function FitApp() {
             key={collisionRevision}
             source={collisionSource}
             open={collisionOpen}
+            showResiduals={showResiduals}
+            exportSizes={collisionOpen ? exportRender?.sizes : undefined}
             ref={collisionActions}
             analysisControl={analysisControl}
             onReady={setCollisionReady}
@@ -1976,9 +2160,43 @@ export default function FitApp() {
             key={`multi-${collisionRevision}`}
             source={collisionSource}
             open={multiOpen}
+            showResiduals={showResiduals}
+            exportSizes={multiOpen ? exportRender?.sizes : undefined}
             ref={multiActions}
             analysisControl={analysisControl}
             onReady={setMultiReady}
+          />
+        )}
+        {exportRender && !multiOpen && !collisionOpen && (
+          <div className="fit-export-render" aria-hidden="true" inert>
+            {exportRender.sizes.map((size, index) => (
+              <Plot
+                key={index}
+                state={state}
+                result={current}
+                mode={mode}
+                range={range}
+                residual={index > 0}
+                manual={manualState === state}
+                showBand={showBand}
+                showErrorBars={showErrorBars}
+                showXAxis={index === exportRender.sizes.length - 1}
+                onToggle={() => {}}
+                fixedYRange={exportRender.yRanges[index]}
+                printSize={size}
+                idPrefix="export-"
+              />
+            ))}
+          </div>
+        )}
+        {exportSizeOpen && (
+          <ExportSizeDialog
+            value={exportSizing ?? DEFAULT_EXPORT_SIZING}
+            onApply={(sizing) => {
+              setExportSizing(sizing);
+              setExportSizeOpen(false);
+            }}
+            onClose={() => setExportSizeOpen(false)}
           />
         )}
         {trackerProject && (
@@ -2004,6 +2222,7 @@ export default function FitApp() {
             range={range}
             showBand={showBand}
             showErrorBars={showErrorBars}
+            showResiduals={showResiduals}
             fullPageGraph={fullPageGraph}
             onFullPageGraphChange={setFullPageGraph}
             onClose={() => setPrintPreview(false)}
@@ -2035,7 +2254,7 @@ export default function FitApp() {
               if (dataPanel.editing && !replacement) {
                 const updated = { ...state, ...next };
                 change(updated);
-                bounds(updated);
+                bounds();
               } else {
                 dirtyRef.current = dirty || sigmaDraft !== null;
                 propose(
@@ -2079,7 +2298,10 @@ export default function FitApp() {
           style={collisionOpen || multiOpen ? { display: "none" } : undefined}
         >
           <main className="fit-workspace">
-            <section ref={chartRef} className="fit-chart">
+            <section
+              ref={chartRef}
+              className={`fit-chart${showResiduals ? "" : " is-data-only"}`}
+            >
               {current?.warnings
                 .filter(
                   (w) =>
@@ -2162,11 +2384,8 @@ export default function FitApp() {
                 result={current}
                 yRange={yRange}
                 onYRange={setYRange}
-                onXRange={(next) => {
-                  setRange(next ?? xBounds(state));
-                  setXCustom(!!next);
-                }}
-                xCustom={xCustom}
+                onXRange={setXRange}
+                xCustom={!!xRange}
                 onLogX={(value) => changeLog(value, logY)}
                 onLogY={(value) => changeLog(logX, value)}
                 range={range}
@@ -2176,16 +2395,18 @@ export default function FitApp() {
                 onSelect={selectRectangle}
                 showBand={showBand}
                 showErrorBars={showErrorBars}
-                showXAxis={false}
+                showXAxis={!showResiduals}
               />
-              <Plot
-                mode={mode}
-                state={state}
-                result={current}
-                range={range}
-                residual
-                onToggle={toggle}
-              />
+              {showResiduals && (
+                <Plot
+                  mode={mode}
+                  state={state}
+                  result={current}
+                  range={range}
+                  residual
+                  onToggle={toggle}
+                />
+              )}
             </section>
             <div className="fit-tabs">
               <button

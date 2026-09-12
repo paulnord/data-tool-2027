@@ -70,13 +70,13 @@
 }
 .fit-print-document.is-full-page .fit-print-graph-content {
   position: absolute;
-  top: 0;
-  left: 100%;
+  top: 100%;
+  left: 0;
   width: 960px;
   min-height: 720px;
   display: flow-root;
   transform-origin: top left;
-  transform: scale(var(--print-content-scale, 1)) rotate(90deg);
+  transform: scale(var(--print-content-scale, 1)) rotate(-90deg);
   font-size: 10pt;
   line-height: 1.25;
 }

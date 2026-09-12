@@ -130,7 +130,9 @@
   z-index: 5;
   right: 0;
   top: calc(100% + 6px);
-  width: 245px;
+  width: min(260px, calc(90vw / var(--fit-scale, 1)));
+  max-height: calc(78vh / var(--fit-scale, 1));
+  overflow: auto;
   padding: 10px;
   display: grid;
   gap: 8px;
@@ -193,18 +195,31 @@
   font-size: 12px;
   padding: 5px 8px;
 }
-.fit-settings-popover::before {
-  content: "Report output";
-  display: block;
-  padding-bottom: 3px;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.fit-settings-popover fieldset {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 0 0;
+  border: 0;
 }
-.fit-settings-popover strong {
-  display: none;
+.fit-settings-popover fieldset + fieldset {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.fit-settings-popover legend {
+  padding: 0 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.fit-settings-popover p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.fit-settings-popover fieldset:disabled label,
+.fit-settings-popover fieldset:disabled button {
+  opacity: 0.6;
 }
 .fit-settings-popover label {
   display: flex;
@@ -221,6 +236,34 @@
   border-top: 1px solid var(--line);
   border-radius: 0;
   padding-top: 8px;
+}
+.fit-export-size-summary {
+  margin: 4px 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.fit-export-render {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  pointer-events: none;
+}
+.fit-export-render svg {
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+.fit-export-render svg text {
+  font-size: var(--export-font-size, 12px) !important;
+}
+.fit-export-render .fit-plot .curve,
+.fit-export-render .collision-plot .model {
+  stroke-width: 1px;
+}
+.fit-export-render svg .fit-plot-frame {
+  stroke-width: 0.75px;
 }
 .fit-examples-menu summary {
   list-style: none;
@@ -1119,6 +1162,14 @@
 .fit-app {
   min-height: calc(100vh / var(--fit-scale, 1));
   container-type: inline-size;
+  --fit-data-plot-height: max(
+    198px,
+    calc((100vh / var(--fit-scale, 1) - 370px) * 0.64 + 42px)
+  );
+  --fit-residual-plot-height: max(
+    125px,
+    calc((100vh / var(--fit-scale, 1) - 370px) * 0.36)
+  );
 }
 .fit-layout {
   max-width: none;
@@ -1139,10 +1190,13 @@
   padding: 4px;
 }
 .fit-plot {
-  height: max(198px, calc((100vh / var(--fit-scale, 1) - 370px) * 0.64 + 42px));
+  height: var(--fit-data-plot-height);
 }
 .fit-plot[aria-label="Residual plot"] {
-  height: max(125px, calc((100vh / var(--fit-scale, 1) - 370px) * 0.36));
+  height: var(--fit-residual-plot-height);
+}
+.fit-chart.is-data-only .fit-plot {
+  height: calc(var(--fit-data-plot-height) + var(--fit-residual-plot-height));
 }
 .fit-chart-toolbar {
   display: flex;
@@ -1568,8 +1622,8 @@
 }
 .fit-print-dialog.full-page-graph .fit-print-graph-content {
   position: absolute;
-  top: 0;
-  left: 100%;
+  top: 100%;
+  left: 0;
   width: 10in;
   min-height: 7.5in;
   display: flow-root;
@@ -1577,7 +1631,7 @@
   transform: scale(
       calc(var(--print-sheet-scale, 1) * var(--print-content-scale, 1))
     )
-    rotate(90deg);
+    rotate(-90deg);
   font-size: 10pt;
   line-height: 1.25;
 }
@@ -1654,7 +1708,7 @@
     break-inside: avoid;
   }
   .fit-print-dialog.full-page-graph .fit-print-graph-content {
-    transform: scale(var(--print-content-scale, 1)) rotate(90deg);
+    transform: scale(var(--print-content-scale, 1)) rotate(-90deg);
   }
   .fit-print-dialog.full-page-graph .fit-print-details {
     break-before: page;

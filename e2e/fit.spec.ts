@@ -199,14 +199,16 @@ test("rectangle selection changes the fit subset and supports undo, restore and 
   // Select an upper portion of the trajectory, excluding points by both x and y.
   const a = point(230, 40),
     b = point(570, 135);
-  const expected = await plot.locator("circle").evaluateAll(
-    (circles) =>
-      circles.filter((c) => {
-        const x = Number(c.getAttribute("cx")),
-          y = Number(c.getAttribute("cy"));
-        return x >= 230 && x <= 570 && y >= 40 && y <= 135;
-      }).length,
-  );
+  const countInRectangle = () =>
+    plot.locator("circle").evaluateAll(
+      (circles) =>
+        circles.filter((c) => {
+          const x = Number(c.getAttribute("cx")),
+            y = Number(c.getAttribute("cy"));
+          return x >= 230 && x <= 570 && y >= 40 && y <= 135;
+        }).length,
+    );
+  const expected = await countInRectangle();
   expect(expected).toBeGreaterThan(3);
   expect(expected).toBeLessThan(61);
   await page.mouse.move(a.x, a.y);
@@ -220,11 +222,16 @@ test("rectangle selection changes the fit subset and supports undo, restore and 
   await expect(page.getByRole("status")).toHaveText("Fit complete");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(page.locator(".fit-source")).toContainText("61 / 61");
+  // Undo invalidates the fit, so Auto Y can change when the fitted curve and
+  // confidence band disappear. Reverse-drag against the points now displayed.
+  const reversedExpected = await countInRectangle();
   await page.mouse.move(b.x, b.y);
   await page.mouse.down();
   await page.mouse.move(a.x, a.y, { steps: 8 });
   await page.mouse.up();
-  await expect(page.locator(".fit-source")).toContainText(`${expected} / 61`);
+  await expect(page.locator(".fit-source")).toContainText(
+    `${reversedExpected} / 61`,
+  );
   await page
     .getByRole("button", { name: "Restore points", exact: true })
     .click();

@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
   plotScale,
+  automaticDomain,
   linearDomain,
   positiveDomain,
   plotPath,
@@ -73,5 +74,36 @@ it("automatic linear limits handle empty and constant plots", () => {
     expect(lo).toBeLessThan(value);
     expect(hi).toBeGreaterThan(value);
     expect([lo, hi].every(Number.isFinite)).toBe(true);
+  }
+});
+
+it("automatic axes leave equal visual margins on linear and logarithmic scales", () => {
+  for (const log of [false, true]) {
+    const values = [2, 5, 20];
+    const range = automaticDomain(values, log);
+    const scale = plotScale(range, log);
+    expect(scale.fraction(2)).toBeCloseTo(0.12 / 1.24);
+    expect(scale.fraction(20)).toBeCloseTo(1 - 0.12 / 1.24);
+    expect(values).toEqual([2, 5, 20]);
+  }
+});
+
+it("constant log data are centered and automatic log ranges remain positive and finite", () => {
+  for (const value of [0.001, 1, 54200]) {
+    const range = automaticDomain([value, value], true);
+    expect(plotScale(range, true).fraction(value)).toBeCloseTo(0.5);
+  }
+  expect(automaticDomain([NaN, -1, 0, Infinity], true)).toEqual([1, 10]);
+  for (const values of [
+    [Number.MIN_VALUE],
+    [Number.MAX_VALUE],
+    [Number.MIN_VALUE, Number.MAX_VALUE],
+  ]) {
+    const [lo, hi] = automaticDomain(values, true);
+    expect(lo).toBeGreaterThan(0);
+    expect(hi).toBeGreaterThan(lo);
+    expect([lo, hi].every(Number.isFinite)).toBe(true);
+    expect(lo).toBeLessThanOrEqual(Math.min(...values));
+    expect(hi).toBeGreaterThanOrEqual(Math.max(...values));
   }
 });

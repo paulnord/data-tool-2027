@@ -1,0 +1,58 @@
+.fit-export-size-dialog {
+  box-sizing: border-box;
+  width: min(470px, calc(92vw / var(--fit-scale, 1)));
+  max-height: calc(90vh / var(--fit-scale, 1));
+  overflow: auto;
+  border: 1px solid #8aaec3;
+  border-radius: 10px;
+  background: #edf6fc;
+  color: #19394b;
+  padding: 22px;
+}
+.fit-export-size-dialog::backdrop {
+  background: #102b4670;
+}
+.fit-export-size-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+}
+.fit-export-size-dialog p {
+  margin: 0 0 16px;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+.fit-export-size-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+.fit-export-size-preset {
+  margin-bottom: 16px;
+}
+.fit-export-size-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.fit-export-size-dialog input,
+.fit-export-size-dialog select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  font-weight: 400;
+}
+.fit-export-size-dialog .fit-export-size-summary {
+  color: #526979;
+}
+.fit-export-size-dialog .fit-export-size-warning,
+.fit-export-size-dialog [role="alert"] {
+  color: #8d3825;
+}
+.fit-export-size-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}

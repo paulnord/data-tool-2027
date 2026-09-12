@@ -36,6 +36,9 @@ import {
 } from "../core/fit/intervals";
 import { fitReportRows } from "../core/fit/report";
 import { IntervalPlot } from "./IntervalPlot";
+import { automaticDomain } from "./plotScale";
+import { useYRange } from "./YAxisControls";
+import type { ExportPlotSize } from "./exportSizing";
 import { appearanceColors, usePlotAppearance } from "./PlotAppearance";
 import { CustomEquationEditor } from "./CustomEquationEditor";
 import { FitErrorMessage } from "./FitErrorMessage";
@@ -93,11 +96,17 @@ export default forwardRef<
   {
     source: TableAnalysis;
     open: boolean;
+    showResiduals?: boolean;
+    exportSizes?: ExportPlotSize[];
     analysisControl: ReactNode;
     onReady: (ready: boolean) => void;
   }
->(function MultiInterval({ source, open, analysisControl, onReady }, ref) {
+>(function MultiInterval(
+  { source, open, showResiduals = true, exportSizes, analysisControl, onReady },
+  ref,
+) {
   const intervalColors = appearanceColors(usePlotAppearance());
+  const liveGraphs = useRef<HTMLDivElement>(null);
   const table = useMemo(() => tableForAnalysis(source), [source]);
   const width = table.cells.reduce((n, r) => Math.max(n, r.length), 0);
   const heading = (i: number) =>
@@ -188,9 +197,14 @@ export default forwardRef<
     );
   const low = xs.reduce((a, v) => Math.min(a, v), Infinity),
     high = xs.reduce((a, v) => Math.max(a, v), -Infinity);
-  const domain: IntervalRange = Number.isFinite(low + high)
-    ? [low, high === low ? low + 1 : high]
-    : [0, 1];
+  const dataDomain: IntervalRange =
+    Number.isFinite(low) && Number.isFinite(high)
+      ? [low, high === low ? low + 1 : high]
+      : [0, 1];
+  const [customX, setCustomX] = useYRange(
+    `${source.request.snapshotId}/${xColumn}`,
+  );
+  const domain = customX ?? automaticDomain(xs, false, 0.06);
   const selected = intervals[active],
     settings = selected.settings[curve] ?? selected.settings[0];
   const names = parameterNames(settings.model, settings.custom);
@@ -243,10 +257,10 @@ export default forwardRef<
   function boundary(index: number, end: number, value: number) {
     const range = intervals[index].range;
     if (!range) return;
-    const gap = (domain[1] - domain[0]) * 1e-6;
+    const gap = (dataDomain[1] - dataDomain[0]) * 1e-6;
     const bounded = Math.max(
-      end === 0 ? domain[0] : range[0] + gap,
-      Math.min(end === 0 ? range[1] - gap : domain[1], value),
+      end === 0 ? dataDomain[0] : range[0] + gap,
+      Math.min(end === 0 ? range[1] - gap : dataDomain[1], value),
     );
     selectRange(end === 0 ? [bounded, range[1]] : [range[0], bounded], index);
   }
@@ -369,7 +383,7 @@ export default forwardRef<
   }
   return (
     <section
-      className={`multi-interval ${includeDetails ? "with-fit-details" : ""}`}
+      className={`multi-interval ${includeDetails ? "with-fit-details" : ""} ${showResiduals ? "" : "without-residuals"}`}
       hidden={!open}
       aria-label="Multi-interval analysis"
       onKeyDown={(e) => {
@@ -780,7 +794,8 @@ export default forwardRef<
             checked={includeDetails}
             onChange={(e) => setIncludeDetails(e.target.checked)}
           />
-          Include residuals and diagnostics when printing
+          Include {showResiduals ? "residuals and " : ""}diagnostics when
+          printing
         </label>
         <p className="interval-draft-note">
           Draft: interval setup is kept while switching analyses. Copy or print
@@ -841,7 +856,10 @@ export default forwardRef<
               ))}
             </tbody>
           </table>
-          <div className={`interval-graphs curves-${columns.length}`}>
+          <div
+            ref={liveGraphs}
+            className={`interval-graphs curves-${columns.length}`}
+          >
             {preview.requests.map((request, i) => (
               <article key={i}>
                 <h2>{request.dataset.yColumn.label}</h2>
@@ -851,19 +869,25 @@ export default forwardRef<
                   results={results.map((r) => r?.[i] ?? null)}
                   active={active}
                   domain={domain}
+                  dataDomain={dataDomain}
+                  height={showResiduals ? 290 : 460}
                   onRange={selectRange}
                   onBoundary={boundary}
+                  xCustom={!!customX}
+                  onXRange={setCustomX}
                 />
-                <div className="interval-live-residual">
-                  <IntervalPlot
-                    request={request}
-                    intervals={intervals}
-                    results={results.map((r) => r?.[i] ?? null)}
-                    active={active}
-                    domain={domain}
-                    residual
-                  />
-                </div>
+                {showResiduals && (
+                  <div className="interval-live-residual">
+                    <IntervalPlot
+                      request={request}
+                      intervals={intervals}
+                      results={results.map((r) => r?.[i] ?? null)}
+                      active={active}
+                      domain={domain}
+                      residual
+                    />
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -1000,16 +1024,22 @@ export default forwardRef<
                         className="interval-result-diagnostics"
                         open={includeDetails || undefined}
                       >
-                        <summary>Residuals and diagnostics</summary>
-                        <IntervalPlot
-                          request={entry.request}
-                          colors={[intervalColors[index]]}
-                          intervals={[item]}
-                          results={[entry]}
-                          active={0}
-                          domain={domain}
-                          residual
-                        />
+                        <summary>
+                          {showResiduals
+                            ? "Residuals and diagnostics"
+                            : "Diagnostics"}
+                        </summary>
+                        {showResiduals && (
+                          <IntervalPlot
+                            request={entry.request}
+                            colors={[intervalColors[index]]}
+                            intervals={[item]}
+                            results={[entry]}
+                            active={0}
+                            domain={domain}
+                            residual
+                          />
+                        )}
                         <table>
                           <tbody>
                             {fitReportRows(
@@ -1051,6 +1081,37 @@ export default forwardRef<
           for further calculations.
         </footer>
       </main>
+      {exportSizes && (
+        <div className="fit-export-render" aria-hidden="true" inert>
+          {preview.requests.flatMap((request, i) =>
+            (showResiduals ? [false, true] : [false]).map((residual, part) => {
+              const index = i * (showResiduals ? 2 : 1) + part;
+              const live =
+                liveGraphs.current?.querySelectorAll<SVGSVGElement>(
+                  "svg.interval-plot",
+                )[index];
+              const yRange: IntervalRange | undefined = live
+                ? [Number(live.dataset.yMin), Number(live.dataset.yMax)]
+                : undefined;
+              return (
+                <IntervalPlot
+                  key={`${i}-${part}`}
+                  request={request}
+                  intervals={intervals}
+                  results={results.map((result) => result?.[i] ?? null)}
+                  active={active}
+                  domain={domain}
+                  dataDomain={dataDomain}
+                  residual={residual}
+                  renderSize={exportSizes[index]}
+                  forcedYRange={yRange}
+                  onBoundary={residual ? undefined : boundary}
+                />
+              );
+            }),
+          )}
+        </div>
+      )}
     </section>
   );
 });

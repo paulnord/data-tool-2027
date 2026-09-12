@@ -1,4 +1,4 @@
-import { YAxisControls, useYRange } from "./YAxisControls";
+import { AxisControls, YAxisControls, useYRange } from "./YAxisControls";
 import { useId, useRef, useState } from "react";
 import type { FitRequest } from "../core/fit/schema";
 import type {
@@ -8,6 +8,7 @@ import type {
 } from "../core/fit/intervals";
 import { predict } from "../core/fit/solve";
 import { plotScale, plotPath, linearDomain } from "./plotScale";
+import type { ExportPlotSize } from "./exportSizing";
 import {
   appearanceColors,
   appearanceStyle,
@@ -20,29 +21,56 @@ export function IntervalPlot({
   results,
   active,
   domain,
+  dataDomain = domain,
   residual = false,
+  height: requestedHeight,
   colors: requestedColors,
   onRange,
   onBoundary,
+  onXRange,
+  xCustom = false,
+  renderSize,
+  forcedYRange,
 }: {
   request: FitRequest;
   intervals: IntervalDefinition[];
   results: (IntervalFit | null)[];
   active: number;
   domain: IntervalRange;
+  dataDomain?: IntervalRange;
   residual?: boolean;
+  height?: number;
   colors?: string[];
   onRange?: (range: IntervalRange) => void;
   onBoundary?: (interval: number, end: number, value: number) => void;
+  onXRange?: (range: IntervalRange | null) => void;
+  xCustom?: boolean;
+  renderSize?: ExportPlotSize;
+  forcedYRange?: IntervalRange;
 }) {
   const appearance = usePlotAppearance();
   const colors = requestedColors ?? appearanceColors(appearance);
-  const width = 600,
-    height = residual ? 170 : 290,
-    left = 72,
-    right = 16,
-    top = 18,
-    bottom = 42;
+  const fontSize = renderSize?.fontSizePx ?? 11;
+  const width = renderSize?.width ?? 600,
+    height = renderSize?.height ?? requestedHeight ?? (residual ? 170 : 290),
+    left = renderSize
+      ? (renderSize.leftMarginPx ?? Math.max(58, fontSize * 5.2))
+      : 72,
+    right = renderSize ? Math.max(12, fontSize) : 16,
+    top = renderSize ? Math.max(10, fontSize * 0.9) : 18,
+    bottom = renderSize ? fontSize * 3.2 : 42;
+  const xTicks = renderSize
+    ? Math.max(
+        2,
+        Math.min(5, Math.floor((width - left - right) / (fontSize * 5))),
+      )
+    : 5;
+  const yTicks = renderSize
+    ? Math.max(
+        residual ? 3 : 2,
+        Math.min(6, Math.floor((height - top - bottom) / (fontSize * 2.3))),
+      )
+    : 6;
   const id = useId(),
     drag = useRef<{ start: number; interval?: number; end?: number } | null>(
       null,
@@ -104,16 +132,16 @@ export function IntervalPlot({
   const [customY, setCustomY] = useYRange(
     `${request.dataset.yColumn.label}/${request.dataset.yColumn.unit}`,
   );
-  const yDomain = customY ?? automaticY;
+  const yDomain = forcedYRange ?? customY ?? automaticY;
   const sy = plotScale(yDomain, false),
     y = (v: number) => top + (1 - sy.fraction(v)) * (height - top - bottom);
   const at = (element: SVGSVGElement, clientX: number) => {
     const box = element.getBoundingClientRect(),
       scale = Math.min(box.width / width, box.height / height);
     return Math.max(
-      domain[0],
+      dataDomain[0],
       Math.min(
-        domain[1],
+        dataDomain[1],
         sx.value(
           ((clientX - box.left - (box.width - width * scale) / 2) / scale -
             left) /
@@ -125,17 +153,39 @@ export function IntervalPlot({
   return (
     <>
       {!residual && onRange && (
-        <YAxisControls
-          label={request.dataset.yColumn.label}
-          domain={yDomain}
-          custom={!!customY}
-          onChange={setCustomY}
-        />
+        <div className="fit-axis-controls">
+          {onXRange && (
+            <AxisControls
+              axis="X"
+              label={request.dataset.yColumn.label}
+              domain={domain}
+              custom={xCustom}
+              onChange={onXRange}
+            />
+          )}
+          <YAxisControls
+            label={request.dataset.yColumn.label}
+            domain={yDomain}
+            custom={!!customY}
+            onChange={setCustomY}
+          />
+        </div>
       )}
       <svg
-        style={appearanceStyle(appearance)}
+        style={{
+          ...appearanceStyle(appearance),
+          ...(renderSize && {
+            width,
+            height,
+            "--export-font-size": `${fontSize}px`,
+          }),
+        }}
+        data-x-min={domain[0]}
+        data-x-max={domain[1]}
+        data-x-scale="linear"
         data-y-min={yDomain[0]}
         data-y-max={yDomain[1]}
+        data-y-scale="linear"
         role="img"
         aria-label={`${request.dataset.yColumn.label} ${residual ? "residuals" : "interval plot"}`}
         className="interval-plot"
@@ -187,6 +237,9 @@ export function IntervalPlot({
           </clipPath>
         </defs>
         <rect
+          className="fit-plot-frame"
+          data-plot-frame="true"
+          style={renderSize ? { strokeWidth: 0.75 } : undefined}
           x={left}
           y={top}
           width={width - left - right}
@@ -194,7 +247,7 @@ export function IntervalPlot({
           fill="#fff"
           stroke="#a7becf"
         />
-        {sx.ticks(5).map((v) => (
+        {sx.ticks(xTicks).map((v) => (
           <g key={v}>
             <line
               x1={x(v)}
@@ -203,12 +256,16 @@ export function IntervalPlot({
               y2={height - bottom}
               stroke="#e5edf3"
             />
-            <text x={x(v)} y={height - bottom + 17} textAnchor="middle">
-              {sx.label(v, 5)}
+            <text
+              x={x(v)}
+              y={height - bottom + (renderSize ? fontSize * 1.4 : 17)}
+              textAnchor="middle"
+            >
+              {sx.label(v, xTicks)}
             </text>
           </g>
         ))}
-        {sy.ticks(6).map((v) => (
+        {sy.ticks(yTicks).map((v) => (
           <g key={v}>
             <line
               x1={left}
@@ -217,8 +274,13 @@ export function IntervalPlot({
               y2={y(v)}
               stroke="#e5edf3"
             />
-            <text x={left - 7} y={y(v) + 4} textAnchor="end">
-              {sy.label(v, 6)}
+            <text
+              data-axis-tick="y"
+              x={left - 7}
+              y={y(v) + (renderSize ? fontSize * 0.35 : 4)}
+              textAnchor="end"
+            >
+              {sy.label(v, yTicks)}
             </text>
           </g>
         ))}
@@ -263,7 +325,7 @@ export function IntervalPlot({
                   opacity=".4"
                 />
               )}
-              <PlotMarker x={x(p.x)} y={y(p.y)} r={2.7} />
+              <PlotMarker x={x(p.x)} y={y(p.y)} r={renderSize ? 1.5 : 2.7} />
             </g>
           ))}
           {curves.map((c, i) => (
@@ -272,7 +334,7 @@ export function IntervalPlot({
               d={plotPath(c, x, y)}
               fill="none"
               stroke={colors[i]}
-              strokeWidth={2}
+              strokeWidth={renderSize ? 1 : 2}
               strokeDasharray={[undefined, "7 3", "3 3", "10 3 2 3", "2 3"][i]}
             />
           ))}
@@ -291,57 +353,65 @@ export function IntervalPlot({
           onBoundary &&
           intervals.flatMap(
             (s, i) =>
-              s.range?.map((v, end) => (
-                <g className="interval-handle" key={`${i}-${end}`}>
-                  <line
-                    x1={x(v)}
-                    x2={x(v)}
-                    y1={top}
-                    y2={height - bottom}
-                    stroke={colors[i]}
-                    strokeWidth={i === active ? 2 : 1}
-                  />
-                  <rect
-                    role="slider"
-                    tabIndex={0}
-                    aria-label={`${request.dataset.yColumn.label}: ${s.name} ${end === 0 ? "from" : "to"}`}
-                    aria-valuenow={v}
-                    aria-valuemin={domain[0]}
-                    aria-valuemax={domain[1]}
-                    x={x(v) - 7}
-                    y={top}
-                    width={14}
-                    height={height - top - bottom}
-                    fill="transparent"
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      const svg = e.currentTarget.ownerSVGElement!;
-                      drag.current = { start: v, interval: i, end };
-                      svg.setPointerCapture(e.pointerId);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight")
-                        return;
-                      e.preventDefault();
-                      onBoundary(
-                        i,
-                        end,
-                        v +
-                          ((e.key === "ArrowLeft" ? -1 : 1) *
-                            (domain[1] - domain[0])) /
-                            100,
-                      );
-                    }}
-                  />
-                </g>
-              )) ?? [],
+              s.range?.map(
+                (v, end) =>
+                  v >= domain[0] &&
+                  v <= domain[1] && (
+                    <g className="interval-handle" key={`${i}-${end}`}>
+                      <line
+                        x1={x(v)}
+                        x2={x(v)}
+                        y1={top}
+                        y2={height - bottom}
+                        stroke={colors[i]}
+                        strokeWidth={renderSize ? 0.75 : i === active ? 2 : 1}
+                      />
+                      <rect
+                        role="slider"
+                        tabIndex={0}
+                        aria-label={`${request.dataset.yColumn.label}: ${s.name} ${end === 0 ? "from" : "to"}`}
+                        aria-valuenow={v}
+                        aria-valuemin={dataDomain[0]}
+                        aria-valuemax={dataDomain[1]}
+                        x={x(v) - 7}
+                        y={top}
+                        width={14}
+                        height={height - top - bottom}
+                        fill="transparent"
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          const svg = e.currentTarget.ownerSVGElement!;
+                          drag.current = { start: v, interval: i, end };
+                          svg.setPointerCapture(e.pointerId);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key !== "ArrowLeft" && e.key !== "ArrowRight")
+                            return;
+                          e.preventDefault();
+                          onBoundary(
+                            i,
+                            end,
+                            v +
+                              ((e.key === "ArrowLeft" ? -1 : 1) *
+                                (domain[1] - domain[0])) /
+                                100,
+                          );
+                        }}
+                      />
+                    </g>
+                  ),
+              ) ?? [],
           )}
-        <text x={(left + width - right) / 2} y={height - 5} textAnchor="middle">
+        <text
+          x={(left + width - right) / 2}
+          y={height - (renderSize ? fontSize * 0.4 : 5)}
+          textAnchor="middle"
+        >
           {request.dataset.xColumn.label} [{request.dataset.xColumn.unit ?? "?"}
           ]
         </text>
         <text
-          transform={`translate(14 ${(top + height - bottom) / 2}) rotate(-90)`}
+          transform={`translate(${renderSize ? fontSize * 1.2 : 14} ${renderSize && residual ? height / 2 : (top + height - bottom) / 2}) rotate(-90)`}
           textAnchor="middle"
         >
           {residual ? "Residual" : request.dataset.yColumn.label} [

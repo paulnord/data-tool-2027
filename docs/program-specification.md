@@ -38,6 +38,8 @@ Each numerical observation is a finite IEEE-754 binary64 value or an explicit mi
 
 The source table retains its textual cells, headings, column mappings, unit declarations, and row identities separately from the selected numerical X/Y snapshot. Extra columns and textual information remain available when a user changes assignments. Display rounding MUST NOT replace stored numerical values or source cell text. A CSV export may update headings to express current units; a session retains the richer analysis information.
 
+Observation tables, graph tooltips, and copied fit reports use human-readable row numbers: the 1-based position in the complete observation list, excluding headings. Excluded or missing observations leave gaps in fitted-result tables instead of renumbering the fit subset. Internal UUIDs and imported row IDs remain unchanged for selection, undo, and session compatibility; they are not displayed as row labels.
+
 ### 2.2 Units and provenance
 
 Units are explicit, case-sensitive labels. Unknown units remain unknown. Labels such as `m`, `mH`, `ms`, and `1` are not interchangeable: `1` can explicitly denote dimensionless, and an empty entry means unspecified. Unit fields MUST disable capitalization, autocorrection, spell-checking, and autocomplete. Editing a unit label does not rescale observations. There is no general unit conversion or dimensional-analysis engine.
@@ -66,19 +68,25 @@ Loading is a staged operation. A user first reviews the source table, header row
 
 Current table operations include rectangular selection, Shift selection, column selection, copying/pasting blocks, direct text editing, clearing cells, deleting rows/columns through the context menu, adding columns, and table undo/redo. Changes to column position must keep assignments attached to their intended data. Header rows are explicit; a final parenthesized heading suffix such as `Time (s)` may declare a unit. Ambiguous heading alignment is presented for correction rather than silently guessing away a data column.
 
+Keyboard row navigation and Shift-selection continue across table pages without losing focus. Shortcut guidance covers Command and Control keyboards. Undo in an editable text field stays in that field; analysis undo/redo is available once in the main toolbar. Temporary menus close on outside click or Escape without discarding the surrounding data draft.
+
 The current interchange request limit is 100,000 rows. Ordinary text file import is limited to 20 MB. Tracker archive import is bounded separately as described below. A limit failure must identify the problem without partially applying data.
 
-**Examples and contribution-policy discrepancy:** v0.3 contains an **Examples** selector inside the Data workspace, added during the browser workflow changes. It opens bundled ordinary files through the same import/review path, including published-data `.trksess` examples and synthetic data files. This actual interface conflicts with the current `AGENTS.md` instruction that examples be opened through the file chooser and that no example-selection menus be added. A rebuild must resolve that policy explicitly; it must not treat this feature inventory as permission to override repository policy. In either design, examples remain ordinary inspectable files and startup stays empty.
+**Examples:** the Data workspace has an Examples selector for bundled ordinary files, including published-data `.trksess` sessions. Synthetic data and Published data are separate visible categories with item counts and an explicit scrolling cue. Each choice uses the ordinary import/review path, and startup stays empty. The user explicitly requested this selector and its September 2026 reorganization. That task-specific authorization takes precedence over the general no-menu wording still present in `AGENTS.md`; this specification records the implemented behavior without rewriting the contribution policy.
 
 ### 3.2 Fit and inspect
 
 Select the analysis/model, inspect its equation and parameter table, enter or fix values, choose the uncertainty treatment, select observations, and explicitly press **Fit selected observations**. Selecting a nonlinear model can suggest starting values; that is not an optimization or evidence of convergence.
+
+Parameter values and the supplied sine period accept incremental decimal/scientific notation, including an incomplete minus sign or exponent while typing. Only finite valid values reach the analysis state. Fit, save, copy, and print are disabled during an incomplete entry; Escape restores the last valid value, and leaving an invalid field restores that value with an explanation.
 
 The graph and fit controls remain visible together at ordinary desktop dimensions. The user sees a clear state such as ready, fitting, manual preview, fitted, or results stale. Parameter edits may produce an explicitly labeled manual preview; they MUST NOT masquerade as a new optimized result. Fits run in workers. Cancelled, failed, or superseded computations cannot overwrite a newer analysis or result.
 
 Individual point inclusion and graph-region selection are reversible and retain exact observations. Current graph gestures select a region, Shift-drag adds, and Option/Alt-drag excludes. Numerical coordinate selection, row identities, and missing values must stay consistent across data and residual displays. Selection after inspection is recorded as a boolean flag and its inferential limitation disclosed; v0.3 does not save a complete chronological selection-history log.
 
 The results expose parameter values, fixed/free state, units, standard errors and marginal intervals when available, sample count, rank, degrees of freedom, residual statistics, inference status, warnings, and parameter correlations. Observations and residuals remain inspectable. A user should be able to understand why an uncertainty or statistic is unavailable without interpreting an internal exception trace.
+
+Known unavailable-statistic codes are explained in ordinary language in the interface, printed tables, and copied reports. The underlying result codes remain unchanged. Snapshot identifiers are available under a collapsed technical disclosure rather than mixed into the normal source description.
 
 ### 3.3 Save, reopen, and report
 
@@ -139,7 +147,7 @@ Parameter correlation is derived from covariance as `Cij/sqrt(Cii*Cjj)`. It is a
 
 ### 4.3 Custom equation editing
 
-The editor accepts a right-hand-side expression, an independent-variable identifier, and 1–8 parameters ordered by first occurrence. Existing built-ins can be converted with **Edit as custom equation**, retaining current values and fixed controls. New parameter names receive an initial value and unknown unit; retained names retain their settings. **Apply equation** validates and commits the draft, invalidates the old fit and accepted assumptions; discarding edits restores the applied equation. Fit and Save are disabled while uncommitted equation edits exist.
+The editor accepts a right-hand-side expression, an independent-variable identifier, and 1–8 parameters ordered by first occurrence. Existing built-ins can be converted with **Edit as custom equation**, retaining current values and fixed controls. New parameter names receive an initial value and unknown unit; retained names retain their settings. **Apply equation** validates and commits the draft, invalidates the old fit and accepted assumptions; discarding edits restores the applied equation. Fit, Save, Copy report, Print, and graph export are disabled in the single-fit workspace while uncommitted equation edits exist; the graph status identifies the pending equation.
 
 The expression parser MUST remain a restricted AST interpreter, never JavaScript evaluation. It supports explicit arithmetic and the documented functions/constants, with automatic differentiation. No assignments, property access, random functions, or code execution are accepted. Current bounds include 1,000 characters, 256 tokens, 48 parser nesting levels, and 64-character identifiers. Function/domain rules, precedence, radians, and the exact language are specified in [custom-equations.md](custom-equations.md).
 
@@ -151,7 +159,7 @@ A conservative structural test routes affine dependence on free parameters to QR
 
 The main toolbar groups **Undo**, **Redo**, **Display**, and **Settings** on the left. Its file/output group on the right is **Data…**, **Save session**, **Copy report**, **Print**, and **Export graph**. Undo/redo have visible text and recognizable arrows rather than indistinguishable tiny icons. Availability must reflect actual undo history and valid operations. The current multi-interval draft disables main analysis history.
 
-**Display** holds interface size and graph appearance together. **Settings** separates global graph visibility from single-fit copy-report sections. **Show residual plots** defaults on; the full-page print preference is available only in Print preview. Axis-specific choices live beside the relevant graph, not in a second general-purpose settings layer. Menus close on outside click or Escape; keyboard dismissal returns focus to their trigger where implemented. Popovers must remain reachable on a small laptop at enlarged interface scale.
+**Display** holds interface size and graph appearance together. **Settings** separates global graph visibility from single-fit copy-report sections. **Show residual plots** defaults on; the full-page print preference is available only in Print preview. Axis-specific choices live beside the relevant graph, not in a second general-purpose settings layer. Menus close on outside click or Escape; keyboard dismissal returns focus to their trigger. Action menus support arrow-key navigation. Modal shortcuts stay within the active dialog; closing Data, Figure size, or Print preview restores a visible invoking control. Help text follows interface scale. Popovers must remain reachable on a small laptop at enlarged interface scale.
 
 These groupings express a product principle for a rebuild: put the common action where the user first looks, then expose detail in context. Do not add another permanent toolbar or specialized options panel for every dataset, model, output destination, or teaching scenario.
 
@@ -168,6 +176,8 @@ Markers remain centered on exact observation coordinates, retain point identitie
 Matching **X axis** and **Y axis** triangle menus in every analysis mode expose zoom controls, minimum/maximum limits, and **Auto**. Single-fit menus also offer logarithmic scales; the multi-interval and collision drafts remain linear. Auto restores only that axis’s automatic range, not the fit or observation selection. X view changes propagate to all related data and residual graphs, printed output, and exports. Scientific interval endpoints and the raw-data bounds used by selection controls remain unchanged. Manual limits are used exactly, without automatic padding, and invalid limits remain editable with a specific message.
 
 For nonconstant values, automatic X ranges add 6% of the data span at each end; automatic data-graph Y ranges add 12% of the plotted span at each end. Y ranges include the displayed curve, band, and error bars where present. On logarithmic axes, padding is measured in log coordinates so positive extrema have comparable visual breathing room. Constant values receive a centered range in the relevant axis coordinates; empty and extreme numeric cases have finite fallback/bounded ranges. Zero is not an implicit datum on the data axes. Residual ranges include their zero reference; single-fit residual ranges are symmetric about zero. Whole markers should remain inside automatic plot frames.
+
+Single-fit and multi-interval fitted curves distinguish the span supported by actual fitted observations from short extrapolated ends. Extensions reach up to 10% beyond that span, remain clipped to the current viewport, and use thinner, fainter dashed strokes. Positive spans on logarithmic X axes measure extension length in log coordinates; spans crossing zero use their physical X width without changing the fit's support. Interior excluded observations do not split a curve into extra extensions. Confidence bands stop at the fitted span, and residuals remain actual observations. Damped oscillations show a dotted guide at the fitted offset **b**, with a compact value label (and interval number when needed). Automatic Y limits include b and the supported curve but exclude extrapolated tails. Print and graph exports preserve these marks, aligned frames and shared axes.
 
 Nonpositive observations hidden by a log display and clipped uncertainty intervals are disclosed; hidden observations remain scientifically included unless explicitly excluded. View changes never silently redefine the fit sample.
 
@@ -225,6 +235,10 @@ The **Analysis** selector also offers collision and multi-interval workspaces. T
 
 Select one X and one to four Y columns, then define up to five named intervals. Ranges start empty. A user selects an interval, drags a graph range, adjusts boundary handles or exact limits, selects an equation, edits per-curve starting/fixed values, and explicitly fits that interval. Boundary handles support keyboard arrows. Each interval shares its equation across curves but fits each curve independently. All single-curve equations, including custom equations, are available.
 
+Built-in nonlinear starting estimates use each series' included observations within its selected interval, in the selected X units. Selecting a model before defining a range defers useful estimates until observations are available. Untouched estimates follow range or column changes; manually edited starting values or fixed flags are preserved for that series until explicit model reselection. These estimates do not trigger optimization or guarantee convergence.
+
+Reducing the interval count hides extra intervals without discarding their setup or results; restoring the count restores them. Pending custom equations survive switching intervals. A valid interval can be fitted while another has an unfinished range.
+
 Intervals include endpoints and may overlap. Missing observations are handled per curve. The graph shows the full data, intervals, and valid fitted segments, with residuals on shared X. Axes in this draft are linear. Changing one interval's scientific settings invalidates that interval; column or uncertainty changes invalidate all affected results. Changing X also clears ranges. Superseded worker work cannot reappear.
 
 This mode offers residual-estimated scatter or one positive common sigma per curve. It does not inherit single-fit row exclusions or per-row uncertainties. Relevant known-false source assumptions still block inference. There are no linked parameters, enforced continuity, automatic event detection, derived charge/force/impulse quantities, or cross-fit covariance, including where intervals reuse the same observations.
@@ -239,7 +253,7 @@ Per-column unknown scatter or supplied common sigma is supported; single-fit per
 
 ### 7.3 Draft persistence boundary
 
-Switching analyses preserves setups/results while the source table is unchanged. Editing/replacing source observations resets dependent drafts. **Save session is disabled for both draft workspaces** and explains that the setup is not saved. Users can copy/print results and switch to a single fit to save the source table. A rebuild MUST NOT quietly insert draft state into v1/v2/v3 files, claim that a downloaded session saved these setups, or interpret independent fits as a joint fit.
+Switching analyses preserves setups/results while the source table is unchanged. Editing/replacing source observations resets dependent drafts. **Save session is disabled for both draft workspaces** and explains that the setup is not saved. Users can copy/print results and switch to a single fit to save the source table. Unsaved draft work activates close/replacement protection, and saving only the source does not clear it. Applying edited data asks before discarding interval work. A rebuild MUST NOT quietly insert draft state into v1/v2/v3 files, claim that a downloaded session saved these setups, or interpret independent fits as a joint fit.
 
 The single-fit measured paper preview described above is not presently a universal print engine for these two drafts. Their separate print layouts and native pagination require their own validation.
 
@@ -334,3 +348,5 @@ Possible future methods—general parameter bounds, robust regression, X-error f
 | `schemas/`, `examples/data/`, `tests/`, `e2e/`                       | Interoperability contracts, ordinary reproducible/example files, independent scientific and interaction evidence.                   |
 
 The next implementation is successful when a user can confidently move from exact local observations to a scientifically qualified result and a usable paper figure with fewer surprises—and an independent maintainer can verify why the result, file, and figure are correct.
+
+The [September 2026 usability audit](usability-audit-2026-09-12.md) records reproducible findings, local corrections, verification, and remaining design decisions, including the distinction between saved fit provenance and later source-note edits in draft workspaces.

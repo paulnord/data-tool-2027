@@ -97,6 +97,20 @@
 .fit-display-menu {
   position: relative;
 }
+/* Menu commands share a left edge; text-align alone does not align flex items. */
+.fit-app
+  :is(
+    .fit-settings-popover,
+    .fit-display-popover,
+    .fit-export-popover,
+    .fit-examples-list,
+    .fit-column-menu,
+    .y-axis-panel
+  )
+  button {
+  justify-content: flex-start;
+  text-align: left;
+}
 .fit-settings-menu summary,
 .fit-display-menu summary {
   list-style: none;
@@ -167,13 +181,14 @@
   padding: 6px;
 }
 .fit-display-popover fieldset {
-  padding: 12px 0 0;
+  padding: 12px 0 0 8px;
   margin: 16px 0 0;
   border: 0;
   border-top: 1px solid var(--line);
   min-width: 0;
 }
 .fit-display-popover legend {
+  margin-left: -8px;
   padding: 0 6px 0 0;
   font-size: 12px;
   font-weight: 600;
@@ -200,7 +215,7 @@
   gap: 8px;
   min-width: 0;
   margin: 0;
-  padding: 8px 0 0;
+  padding: 8px 0 0 8px;
   border: 0;
 }
 .fit-settings-popover fieldset + fieldset {
@@ -208,6 +223,7 @@
   border-top: 1px solid var(--line);
 }
 .fit-settings-popover legend {
+  margin-left: -8px;
   padding: 0 6px 0 0;
   font-size: 12px;
   font-weight: 600;
@@ -287,35 +303,74 @@
   border-color: var(--accent);
   background: #edf5ef;
 }
-.fit-examples-list {
+.fit-examples-popover {
   position: absolute;
-  z-index: 5;
-  right: 0;
+  z-index: 30;
+  left: 0;
   top: calc(100% + 6px);
-  min-width: 205px;
-  max-height: min(70vh, 440px);
-  overflow-y: auto;
+  width: 350px;
+  max-height: 440px;
+  overflow: hidden;
   padding: 6px;
-  display: grid;
-  gap: 2px;
+  display: flex;
+  flex-direction: column;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 7px;
   box-shadow: 0 8px 24px rgb(32 49 47 / 16%);
 }
+.fit-example-categories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 0 auto;
+  gap: 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.fit-example-categories button {
+  padding: 6px 8px;
+  font-size: 12px;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.fit-example-categories button[aria-selected="true"] {
+  background: #dcebf6;
+  border-color: #6f96b2;
+  color: #19394b;
+}
+.fit-example-count {
+  font-weight: normal;
+}
+.fit-examples-list {
+  min-height: 0;
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  padding-top: 5px;
+}
 .fit-examples-list button {
   border: 0;
   border-radius: 4px;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
-.fit-examples-heading {
-  padding: 6px 8px 3px;
+.fit-example-scroll-hint {
+  flex: 0 0 auto;
+  padding: 5px 8px 0;
+  margin: 0;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 11px;
+}
+.fit-example-scroll-hint[aria-hidden="true"] {
+  visibility: hidden;
 }
 .fit-layout {
   display: grid;
@@ -1291,6 +1346,15 @@
   text-align: left;
   font-size: 11px;
 }
+.fit-export-popover .fit-export-sizing-action {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 4px 4px;
+}
+.fit-export-popover .fit-export-size-summary {
+  margin-left: 16px;
+}
 .fit-band-controls label {
   white-space: normal;
 }
@@ -1409,7 +1473,36 @@
 }
 
 .fit-import-dialog h2 {
-  margin: 0 0 14px;
+  margin: 0;
+}
+.fit-data-header {
+  position: sticky;
+  top: -20px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -20px -20px 12px;
+  padding: 8px 20px;
+  background: #edf6fc;
+  border-bottom: 1px solid #cbdde9;
+}
+.fit-data-header .fit-data-actions button {
+  padding: 6px 12px;
+}
+.fit-data-intro {
+  margin: 10px 0 4px;
+}
+.fit-editing-help {
+  color: #415e70;
+  font-size: 12px;
+}
+.fit-editing-help summary {
+  cursor: pointer;
+}
+.fit-editing-help p {
+  margin: 7px 0;
 }
 .fit-import-source {
   color: #526979;
@@ -1447,14 +1540,19 @@
 .fit-import-options summary {
   cursor: pointer;
 }
-.fit-use-data {
+.fit-app .fit-use-data {
   background: #225d86;
   color: white;
   padding: 9px 18px;
   border: 1px solid #225d86;
   border-radius: 5px;
 }
-.fit-use-data:disabled {
+.fit-app .fit-use-data:hover:enabled {
+  background: #194b6e;
+  color: white;
+  border-color: #194b6e;
+}
+.fit-app .fit-use-data:disabled {
   opacity: 0.5;
 }
 
@@ -1468,8 +1566,12 @@
 .fit-grid-toolbar input {
   width: 55px;
 }
+.fit-data-toolbar {
+  gap: 6px;
+}
 .fit-paste-grid {
   max-height: 40vh;
+  scroll-margin-top: 64px;
 }
 .fit-paste-grid td {
   padding: 0;
@@ -1567,8 +1669,11 @@
   position: absolute;
   top: 100%;
   left: 0;
-  z-index: 5;
-  min-width: 170px;
+  z-index: 30;
+  width: 210px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 6px;
   background: white;
   border: 1px solid #7893a8;
@@ -1579,6 +1684,7 @@
   width: 100%;
   text-align: left;
   margin: 3px 0;
+  white-space: normal;
 }
 
 .fit-print-dialog {
@@ -1807,7 +1913,7 @@
     break-inside: avoid;
   }
   .fit-print-results td:not(:first-child) {
-    white-space: nowrap;
+    white-space: normal;
   }
 }
 

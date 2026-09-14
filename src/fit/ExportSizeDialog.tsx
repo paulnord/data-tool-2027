@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useModalDialog } from "./useModalDialog";
+import { useRef, useState } from "react";
 import {
   EXPORT_SIZE_LIMITS,
   exportPngSize,
@@ -29,13 +30,7 @@ export default function ExportSizeDialog({
         : "custom",
   );
   const [error, setError] = useState("");
-  useEffect(() => {
-    const previouslyFocused = document.activeElement;
-    dialog.current?.showModal();
-    return () => {
-      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
-    };
-  }, []);
+  useModalDialog(dialog, ".fit-export-menu > summary");
 
   const sizing: ExportSizing = {
     widthMm: Number(width),

@@ -31,7 +31,7 @@ for (const [model, parameter, truth] of cases)
       ),
     ).toBeCloseTo(truth, 1);
     await expect(
-      page.locator(".fit-help").filter({ hasText: "starting estimates" }),
+      page.locator(".fit-help").filter({ hasText: "fitted parameters" }),
     ).toBeVisible();
     await page.getByLabel(`Fix ${parameter}`, { exact: true }).check();
     await page

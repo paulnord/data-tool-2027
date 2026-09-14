@@ -74,6 +74,20 @@ it("keeps valid channels when one interval lacks enough data, and respects missi
   expect(result[1].before.error).toBeTruthy();
   expect(result[1].after.result).not.toBeNull();
 });
+it("explains unavailable uncertainty in reports while preserving result codes", () => {
+  const source = analysisFromTable(table, "test"),
+    channels = collisionFits(source, { ...config, conditional: false }),
+    before = JSON.stringify(channels),
+    report = collisionReport(channels);
+  expect(report).toContain(
+    "Required inference assumptions are unconfirmed or contradicted",
+  );
+  expect(report).not.toContain("unsupported-assumptions");
+  expect(channels[0].before.result?.standardErrors[1].reason).toBe(
+    "unsupported-assumptions",
+  );
+  expect(JSON.stringify(channels)).toBe(before);
+});
 it("rejects overlapping intervals, repeated columns and invalid uncertainties", () => {
   const source = analysisFromTable(table, "test");
   expect(() => collisionFits(source, { ...config, after: [1.6, 4] })).toThrow(

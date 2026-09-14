@@ -65,6 +65,14 @@ describe("physical figure sizing", () => {
     const plots = layoutExportPlots(DEFAULT_EXPORT_SIZING, [false, true]);
     const compact = fitExportPlotMargins(plots, [8, 20]);
     const scientific = fitExportPlotMargins(plots, [8, 64]);
+    const twoLineTitle = fitExportPlotMargins(plots, [8, 20], [1, 2]);
+    expect(twoLineTitle[0].leftMarginPx).toBe(twoLineTitle[1].leftMarginPx);
+    expect(twoLineTitle[0].leftMarginPx).toBeGreaterThan(
+      compact[0].leftMarginPx!,
+    );
+    expect(
+      twoLineTitle.map(({ leftMarginPx: _margin, ...size }) => size),
+    ).toEqual(plots);
     expect(scientific[0].leftMarginPx).toBe(scientific[1].leftMarginPx);
     expect(scientific[0].leftMarginPx).toBeGreaterThan(
       compact[0].leftMarginPx!,

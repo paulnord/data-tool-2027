@@ -127,9 +127,12 @@ test("appearance updates both plots and printing without changing a fitted sessi
     ).toEqual(changed);
   }
   await page.emulateMedia({ media: "print" });
-  expect(
-    await markerAppearance(preview.locator(".point[data-row-id]").nth(20)),
-  ).toEqual(changed);
+  // Print media repaginates the preview; re-resolve markers after that redraw.
+  await expect
+    .poll(() =>
+      markerAppearance(preview.locator(".point[data-row-id]").nth(20)),
+    )
+    .toEqual(changed);
 });
 
 test("every alternative marker still picks the exact observation at enlarged display size", async ({

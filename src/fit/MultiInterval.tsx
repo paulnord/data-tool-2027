@@ -17,12 +17,15 @@ import {
 import {
   initialSettings,
   parameterNames,
+  type FitRequest,
   type FitSettings,
 } from "../core/fit/schema";
 import { customFromModel } from "../core/fit/customFromModel";
 import {
   nonlinearModelIds,
   nonlinearModels,
+  isNonlinearModel,
+  suggestedParameters,
 } from "../core/fit/nonlinearModels";
 import {
   checkIntervalRanges,
@@ -40,7 +43,11 @@ import { automaticDomain } from "./plotScale";
 import { useYRange } from "./YAxisControls";
 import type { ExportPlotSize } from "./exportSizing";
 import { appearanceColors, usePlotAppearance } from "./PlotAppearance";
-import { CustomEquationEditor } from "./CustomEquationEditor";
+import {
+  CustomEquationEditor,
+  type EquationDraft,
+} from "./CustomEquationEditor";
+import { EditableNumber } from "./EditableNumber";
 import { FitErrorMessage } from "./FitErrorMessage";
 import Assumptions from "./Assumptions";
 import "./multiInterval.css";
@@ -100,9 +107,18 @@ export default forwardRef<
     exportSizes?: ExportPlotSize[];
     analysisControl: ReactNode;
     onReady: (ready: boolean) => void;
+    onDirty?: () => void;
   }
 >(function MultiInterval(
-  { source, open, showResiduals = true, exportSizes, analysisControl, onReady },
+  {
+    source,
+    open,
+    showResiduals = true,
+    exportSizes,
+    analysisControl,
+    onReady,
+    onDirty,
+  },
   ref,
 ) {
   const intervalColors = appearanceColors(usePlotAppearance());
@@ -120,7 +136,8 @@ export default forwardRef<
     [columns, setColumns] = useState([table.y]);
   const [sigmas, setSigmas] = useState([""]),
     [noise, setNoise] = useState("estimate");
-  const [intervals, setIntervals] = useState<IntervalDefinition[]>(() => [
+  const [intervalCount, setIntervalCount] = useState(2);
+  const [intervalSlots, setIntervals] = useState<IntervalDefinition[]>(() => [
     newInterval(0, 1),
     newInterval(1, 1),
   ]);
@@ -128,7 +145,7 @@ export default forwardRef<
     ["", ""],
     ["", ""],
   ]);
-  const [results, setResults] = useState<(IntervalFit[] | null)[]>([
+  const [resultSlots, setResults] = useState<(IntervalFit[] | null)[]>([
     null,
     null,
   ]);
@@ -138,9 +155,20 @@ export default forwardRef<
     [includeDetails, setIncludeDetails] = useState(false);
   const [busy, setBusy] = useState<number | null>(null),
     [error, setError] = useState(""),
-    [notice, setNotice] = useState(""),
-    [equationPending, setEquationPending] = useState(false);
+    [notice, setNotice] = useState("");
+  const [equationDrafts, setEquationDrafts] = useState<
+    Record<number, EquationDraft>
+  >({});
+  const [invalidNumbers, setInvalidNumbers] = useState<Set<string>>(new Set());
+  const intervals = intervalSlots.slice(0, intervalCount);
+  const results = resultSlots.slice(0, intervalCount);
   const worker = useRef<Worker | null>(null);
+  // Only automatically supplied starts follow the selected data/range. Any
+  // parameter or fixed-value edit creates a new settings object and opts that
+  // data series out until the user explicitly chooses another equation.
+  const automaticStarts = useRef(new WeakSet<FitSettings>());
+  const dirtyCallback = useRef(onDirty);
+  dirtyCallback.current = onDirty;
   function cancel() {
     worker.current?.terminate();
     worker.current = null;
@@ -148,6 +176,7 @@ export default forwardRef<
   }
   useEffect(() => () => worker.current?.terminate(), []);
   function invalidate(index?: number) {
+    onDirty?.();
     cancel();
     setResults((old) =>
       old.map((r, i) => (index === undefined || index === i ? null : r)),
@@ -182,9 +211,67 @@ export default forwardRef<
       }
     }
   }, [source, xColumn, columns, sigmas, noise]);
+  function suggestIntervalStarts(
+    item: IntervalDefinition,
+    requests: FitRequest[],
+  ): IntervalDefinition {
+    const range = item.range;
+    if (!range || !range.every(Number.isFinite) || range[0] >= range[1])
+      return item;
+    let changed = false;
+    const settings = item.settings.map((settings, i) => {
+      const request = requests[i];
+      if (
+        !request ||
+        !isNonlinearModel(settings.model) ||
+        !automaticStarts.current.has(settings)
+      )
+        return settings;
+      const rows = request.dataset.rows.filter(
+        (row) =>
+          row.included &&
+          row.x !== null &&
+          row.y !== null &&
+          row.x >= range[0] &&
+          row.x <= range[1],
+      );
+      if (rows.length < 2) return settings;
+      const values = suggestedParameters(
+        settings.model,
+        { ...request, dataset: { ...request.dataset, rows } },
+        [],
+      );
+      if (
+        !values.every(Number.isFinite) ||
+        settings.parameters.every(
+          (parameter, j) => parameter.value === values[j],
+        )
+      )
+        return settings;
+      changed = true;
+      const next = {
+        ...settings,
+        parameters: settings.parameters.map((parameter, j) => ({
+          ...parameter,
+          value: values[j],
+        })),
+      };
+      automaticStarts.current.add(next);
+      return next;
+    });
+    return changed ? { ...item, settings } : item;
+  }
+  useEffect(() => {
+    setIntervals((old) => {
+      const next = old.map((item) =>
+        suggestIntervalStarts(item, preview.requests),
+      );
+      return next.some((item, i) => item !== old[i]) ? next : old;
+    });
+  }, [preview.requests]);
   let rangeError = "";
   try {
-    checkIntervalRanges(intervals);
+    checkIntervalRanges([intervals[active]]);
   } catch (e) {
     rangeError = (e as Error).message;
   }
@@ -207,7 +294,14 @@ export default forwardRef<
   const domain = customX ?? automaticDomain(xs, false, 0.06);
   const selected = intervals[active],
     settings = selected.settings[curve] ?? selected.settings[0];
+  const equationDraft = equationDrafts[active];
+  const equationPending =
+    settings.model === "custom" &&
+    !!equationDraft &&
+    (equationDraft.expression !== settings.custom!.expression ||
+      equationDraft.variable !== settings.custom!.variable);
   const names = parameterNames(settings.model, settings.custom);
+  const numericInvalid = invalidNumbers.size > 0;
   const ready = results.some((r) => r?.some((f) => f.result));
   useEffect(() => onReady(ready), [ready, onReady]);
   useImperativeHandle(ref, () => ({
@@ -231,12 +325,13 @@ export default forwardRef<
   }));
   function updateInterval(next: IntervalDefinition, index = active) {
     invalidate(index);
-    setIntervals((old) => old.map((v, i) => (i === index ? next : v)));
+    const initialized = suggestIntervalStarts(next, preview.requests);
+    setIntervals((old) => old.map((v, i) => (i === index ? initialized : v)));
   }
   const pending = useCallback(
     (value: boolean) => {
-      setEquationPending(value);
       if (value) {
+        dirtyCallback.current?.();
         worker.current?.terminate();
         worker.current = null;
         setBusy(null);
@@ -275,10 +370,18 @@ export default forwardRef<
     });
   }
   function chooseModel(model: FitSettings["model"]) {
-    setEquationPending(false);
+    setEquationDrafts((old) => {
+      const next = { ...old };
+      delete next[active];
+      return next;
+    });
     updateInterval({
       ...selected,
-      settings: columns.map(() => initialSettings(model)),
+      settings: columns.map(() => {
+        const settings = initialSettings(model);
+        if (isNonlinearModel(model)) automaticStarts.current.add(settings);
+        return settings;
+      }),
     });
   }
   function changeSettings(next: FitSettings) {
@@ -293,9 +396,32 @@ export default forwardRef<
       settings: selected.settings.map((s) => ({ ...s, [field]: value })),
     });
   }
+  function numberInput(key: string) {
+    return {
+      onInvalidChange: (invalid: boolean) => {
+        setInvalidNumbers((old) => {
+          if (old.has(key) === invalid) return old;
+          const next = new Set(old);
+          if (invalid) next.add(key);
+          else next.delete(key);
+          return next;
+        });
+        if (invalid) invalidate(active);
+      },
+      onRestoreInvalid: () =>
+        setNotice("Incomplete number restored to its previous value."),
+    };
+  }
   function fitSelected() {
-    if (preview.error || rangeError || equationPending || !selected.range)
+    if (
+      preview.error ||
+      rangeError ||
+      equationPending ||
+      numericInvalid ||
+      !selected.range
+    )
       return;
+    onDirty?.();
     cancel();
     setError("");
     setNotice("");
@@ -328,7 +454,13 @@ export default forwardRef<
       cancel();
       setError(e.message || "Fit worker failed");
     };
-    w.postMessage({ source, config, index });
+    // Each fit is independent. An unfinished range in another interval must
+    // not prevent this valid interval from being fitted.
+    w.postMessage({
+      source,
+      config: { ...config, intervals: [selected] },
+      index: 0,
+    });
   }
   function curveCount(count: number) {
     invalidate();
@@ -345,41 +477,55 @@ export default forwardRef<
     setIntervals((old) =>
       old.map((item) => ({
         ...item,
-        settings: next.map(
-          (_, i) =>
-            item.settings[i] ?? {
-              ...structuredClone(item.settings[0]),
-              ...(item.settings[0].custom
-                ? {
-                    custom: {
-                      ...item.settings[0].custom,
-                      units: item.settings[0].custom.units.map(() => ""),
-                    },
-                  }
-                : {}),
-            },
-        ),
+        settings: next.map((_, i) => {
+          if (item.settings[i]) return item.settings[i];
+          const settings = {
+            ...structuredClone(item.settings[0]),
+            ...(item.settings[0].custom
+              ? {
+                  custom: {
+                    ...item.settings[0].custom,
+                    units: item.settings[0].custom.units.map(() => ""),
+                  },
+                }
+              : {}),
+          };
+          if (automaticStarts.current.has(item.settings[0]))
+            automaticStarts.current.add(settings);
+          return settings;
+        }),
       })),
     );
   }
   function countIntervals(count: number) {
+    onDirty?.();
     cancel();
-    setEquationPending(false);
     setActive(Math.min(active, count - 1));
+    setIntervalCount(count);
     setIntervals((old) =>
       Array.from(
-        { length: count },
+        { length: Math.max(count, old.length) },
         (_, i) => old[i] ?? newInterval(i, columns.length),
       ),
     );
     setRangeDrafts((old) =>
-      Array.from({ length: count }, (_, i) => old[i] ?? ["", ""]),
+      Array.from(
+        { length: Math.max(count, old.length) },
+        (_, i) => old[i] ?? ["", ""],
+      ),
     );
     setResults((old) =>
-      Array.from({ length: count }, (_, i) => old[i] ?? null),
+      Array.from(
+        { length: Math.max(count, old.length) },
+        (_, i) => old[i] ?? null,
+      ),
     );
     setError("");
-    setNotice("");
+    setNotice(
+      count < intervalCount
+        ? "Additional intervals are hidden. Increase the count to restore their setup and results."
+        : "",
+    );
   }
   return (
     <section
@@ -505,7 +651,6 @@ export default forwardRef<
               style={{ borderColor: intervalColors[i] }}
               onClick={() => {
                 setActive(i);
-                setEquationPending(false);
               }}
             >
               {item.name || `Interval ${i + 1}`}
@@ -520,7 +665,8 @@ export default forwardRef<
             !!preview.error ||
             !!rangeError ||
             !selected.range ||
-            equationPending
+            equationPending ||
+            numericInvalid
           }
           onClick={fitSelected}
         >
@@ -551,13 +697,14 @@ export default forwardRef<
             aria-label="Interval name"
             value={selected.name}
             maxLength={60}
-            onChange={(e) =>
+            onChange={(e) => {
+              onDirty?.();
               setIntervals((old) =>
                 old.map((s, i) =>
                   i === active ? { ...s, name: e.target.value } : s,
                 ),
-              )
-            }
+              );
+            }}
           />
         </label>
         <p className="interval-instruction">
@@ -612,6 +759,11 @@ export default forwardRef<
             key={active}
             definition={settings.custom!}
             onPending={pending}
+            draft={equationDrafts[active]}
+            onDraftChange={(draft) => {
+              onDirty?.();
+              setEquationDrafts((old) => ({ ...old, [active]: draft }));
+            }}
             onApply={(custom) => {
               updateInterval({
                 ...selected,
@@ -643,19 +795,17 @@ export default forwardRef<
             {(["periodMin", "periodMax"] as const).map((field, i) => (
               <label key={field}>
                 {i === 0 ? "Minimum period" : "Maximum period"}
-                <input
+                <EditableNumber
+                  key={`${active}-${field}`}
                   aria-label={
                     i === 0
                       ? "Interval minimum period"
                       : "Interval maximum period"
                   }
-                  type="number"
-                  step="any"
-                  value={settings[field]}
-                  onChange={(e) => {
-                    if (Number.isFinite(e.target.valueAsNumber))
-                      changeShared(field, e.target.valueAsNumber);
-                  }}
+                  value={settings[field]!}
+                  isValid={(value) => value > 0}
+                  {...numberInput(`${active}-${field}`)}
+                  onChange={(value) => changeShared(field, value)}
                 />
               </label>
             ))}
@@ -664,30 +814,25 @@ export default forwardRef<
         {settings.model === "sine" && (
           <label>
             Supplied period
-            <input
+            <EditableNumber
+              key={`${active}-sinePeriod`}
               aria-label="Interval supplied period"
-              type="number"
-              step="any"
-              value={settings.sinePeriod}
-              onChange={(e) => {
-                if (Number.isFinite(e.target.valueAsNumber))
-                  changeShared("sinePeriod", e.target.valueAsNumber);
-              }}
+              value={settings.sinePeriod!}
+              isValid={(value) => value > 0}
+              {...numberInput(`${active}-sinePeriod`)}
+              onChange={(value) => changeShared("sinePeriod", value)}
             />
           </label>
         )}
         {["exponential", "power-law"].includes(settings.model) && (
           <label>
             Supplied {settings.model === "exponential" ? "rate" : "exponent"}
-            <input
+            <EditableNumber
+              key={`${active}-shape`}
               aria-label="Interval supplied shape"
-              type="number"
-              step="any"
-              value={settings.shape}
-              onChange={(e) => {
-                if (Number.isFinite(e.target.valueAsNumber))
-                  changeShared("shape", e.target.valueAsNumber);
-              }}
+              value={settings.shape!}
+              {...numberInput(`${active}-shape`)}
+              onChange={(value) => changeShared("shape", value)}
             />
           </label>
         )}
@@ -729,24 +874,31 @@ export default forwardRef<
             Each data series is fitted separately. Values here are starting
             values; fitted values appear beside the graphs.
           </p>
+          {isNonlinearModel(settings.model) && (
+            <p>
+              Starting estimates use this data series within the selected
+              interval. Editing a value or fixing a parameter preserves your
+              starts when the range changes. Try different starts if needed;
+              nonlinear fits can have more than one solution.
+            </p>
+          )}
           {names.map((name, i) => (
             <div className="interval-parameter" key={name}>
               <label>
                 {name}
-                <input
+                <EditableNumber
+                  key={`${active}-${curve}-${name}`}
                   aria-label={`${name} interval value`}
-                  type="number"
-                  step="any"
                   value={settings.parameters[i].value}
-                  onChange={(e) => {
-                    if (Number.isFinite(e.target.valueAsNumber))
-                      changeSettings({
-                        ...settings,
-                        parameters: settings.parameters.map((p, j) =>
-                          i === j ? { ...p, value: e.target.valueAsNumber } : p,
-                        ),
-                      });
-                  }}
+                  {...numberInput(`${active}-${curve}-${name}`)}
+                  onChange={(value) =>
+                    changeSettings({
+                      ...settings,
+                      parameters: settings.parameters.map((p, j) =>
+                        i === j ? { ...p, value } : p,
+                      ),
+                    })
+                  }
                 />
               </label>
               <label>

@@ -212,7 +212,7 @@
   margin-top: 20px;
   white-space: pre-wrap;
 }
-@media (max-width: 850px) {
+@container (max-width: 850px) {
   .collision-dialog {
     padding: 12px;
   }
@@ -332,7 +332,7 @@
   align-self: start;
   position: sticky;
   top: 60px;
-  max-height: calc(100vh - 75px);
+  max-height: calc(100vh / var(--fit-scale, 1) - 75px);
   overflow: auto;
 }
 .collision-dialog .collision-setup label {
@@ -389,7 +389,7 @@
 .collision-toolbar h1 {
   font-size: 18px;
 }
-@media (max-width: 850px) {
+@container (max-width: 850px) {
   .collision-dialog {
     grid-template-columns: minmax(0, 1fr);
   }

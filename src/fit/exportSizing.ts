@@ -117,13 +117,15 @@ export function layoutExportPlots(
 export function fitExportPlotMargins(
   sizes: ExportPlotSize[],
   yTickWidths: number[],
+  yTitleLineCounts: number[] = [],
 ): ExportPlotSize[] {
   if (!sizes.length) return sizes;
   const fontSize = Math.max(...sizes.map((size) => size.fontSizePx));
   const widestTick = Math.max(0, ...yTickWidths.filter(Number.isFinite));
   // The embedded PDF font has wider numerals than common browser sans fonts.
   // Keep that reserve separate from the title area and the tick/frame gap.
-  const labelArea = Math.max(25, fontSize * 1.6);
+  const titleLines = Math.max(1, ...yTitleLineCounts);
+  const labelArea = Math.max(25, fontSize * (1.6 + (titleLines - 1) * 1.2));
   const leftMarginPx = Math.max(
     58,
     fontSize * 5.2,

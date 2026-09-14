@@ -152,6 +152,62 @@ function combinedGraph(plots: SVGSVGElement[], name: string) {
   return { root, width, height };
 }
 
+/** Refuse a figure that would crop an axis title; never shrink publication text. */
+function validateAxisTitleBounds(
+  plots: SVGSVGElement[],
+  pdfFontFamily?: string,
+) {
+  for (const plot of plots) {
+    const viewport = plot.viewBox.baseVal,
+      inverse = plot.getScreenCTM()?.inverse();
+    if (!inverse) throw new Error("The graph is not ready to export.");
+    for (const label of plot.querySelectorAll<SVGTextElement>(
+      "text[data-axis-label]",
+    )) {
+      let measured = label;
+      if (pdfFontFamily) {
+        measured = label.cloneNode(true) as SVGTextElement;
+        measured.style.fontFamily = pdfFontFamily;
+        measured.style.fontSize = getComputedStyle(label).fontSize;
+        measured.style.fontWeight = "normal";
+        measured.style.fontStyle = "normal";
+        measured.style.visibility = "hidden";
+        plot.append(measured);
+      }
+      try {
+        const box = measured.getBBox(),
+          transform = label.getScreenCTM();
+        if (!transform) throw new Error("The graph is not ready to export.");
+        const matrix = inverse.multiply(transform),
+          corners = [
+            new DOMPoint(box.x, box.y),
+            new DOMPoint(box.x + box.width, box.y),
+            new DOMPoint(box.x, box.y + box.height),
+            new DOMPoint(box.x + box.width, box.y + box.height),
+          ].map((point) => point.matrixTransform(matrix));
+        const horizontal = corners.some(
+            (point) =>
+              point.x < viewport.x - 0.1 ||
+              point.x > viewport.x + viewport.width + 0.1,
+          ),
+          vertical = corners.some(
+            (point) =>
+              point.y < viewport.y - 0.1 ||
+              point.y > viewport.y + viewport.height + 0.1,
+          );
+        if (horizontal || vertical) {
+          const dimension = horizontal ? "Width" : "Height";
+          throw new Error(
+            `The ${label.dataset.axisLabel?.toUpperCase()} axis label does not fit this figure. Increase ${dimension}, shorten the label, or reduce Label size.`,
+          );
+        }
+      } finally {
+        if (measured !== label) measured.remove();
+      }
+    }
+  }
+}
+
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -236,15 +292,17 @@ export async function exportPlotGraph(
   }
   const pngSize = sizing && format === "png" ? exportPngSize(sizing) : null;
   await document.fonts.ready;
+  const pdfFontData = format === "pdf" ? await loadPdfFont() : undefined;
+  if (sizing)
+    validateAxisTitleBounds(plots, pdfFontData ? "DataToolExport" : undefined);
   const { root, width, height } = combinedGraph(plots, name);
   const physicalSize = sizing ? exportSizePixels(sizing) : { width, height };
   const fileName =
     name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-").trim() || "fit-graph";
   if (format === "pdf") {
-    const [{ jsPDF }, { svg2pdf }, font] = await Promise.all([
+    const [{ jsPDF }, { svg2pdf }] = await Promise.all([
       import("jspdf"),
       import("svg2pdf.js"),
-      loadPdfFont(),
     ]);
     const pdfWidth = physicalSize.width * 0.75,
       pdfHeight = physicalSize.height * 0.75;
@@ -255,7 +313,7 @@ export async function exportPlotGraph(
       compress: true,
       putOnlyUsedFonts: true,
     });
-    pdf.addFileToVFS("DataToolExport.ttf", font);
+    pdf.addFileToVFS("DataToolExport.ttf", pdfFontData!);
     pdf.addFont("DataToolExport.ttf", "DataToolExport", "normal");
     for (const text of root.querySelectorAll<SVGElement>("text,tspan")) {
       text.style.fontFamily = "DataToolExport";

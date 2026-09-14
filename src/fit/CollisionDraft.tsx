@@ -29,8 +29,10 @@ import {
   type CollisionChannel,
 } from "../core/fit/collision";
 import type { FitRequest } from "../core/fit/schema";
+import { statisticReasonText } from "../core/fit/diagnosticText";
 import { automaticDomain, plotScale } from "./plotScale";
 import type { ExportPlotSize } from "./exportSizing";
+import { YAxisTitle } from "./YAxisTitle";
 import {
   appearanceStyle,
   PlotMarker,
@@ -84,6 +86,15 @@ function initial(source: TableAnalysis) {
   };
 }
 
+function validCollisionRanges(config: CollisionConfig) {
+  return (
+    [...config.before, ...config.after].every(Number.isFinite) &&
+    config.before[0] < config.before[1] &&
+    config.after[0] < config.after[1] &&
+    config.before[1] < config.after[0]
+  );
+}
+
 function CollisionPlot({
   request,
   channel,
@@ -112,6 +123,7 @@ function CollisionPlot({
   forcedYRange?: AxisRange;
 }) {
   const appearance = usePlotAppearance();
+  const validIntervals = validCollisionRanges(config);
   const rows = request.dataset.rows.filter((r) => r.x !== null && r.y !== null);
   const domain = timeDomain;
   const points = residual
@@ -127,9 +139,11 @@ function CollisionPlot({
         x: r.x!,
         y: r.y!,
         phase:
-          r.x! >= config.before[0] && r.x! <= config.before[1]
+          validIntervals && r.x! >= config.before[0] && r.x! <= config.before[1]
             ? "before"
-            : r.x! >= config.after[0] && r.x! <= config.after[1]
+            : validIntervals &&
+                r.x! >= config.after[0] &&
+                r.x! <= config.after[1]
               ? "after"
               : "gap",
       }));
@@ -287,16 +301,17 @@ function CollisionPlot({
           </text>
         ))}
         <g clipPath={`url(#${clipId})`}>
-          {(["before", "after"] as const).map((phase) => (
-            <rect
-              key={phase}
-              className={`interval ${phase}`}
-              x={x(config[phase][0])}
-              y={top}
-              width={x(config[phase][1]) - x(config[phase][0])}
-              height={height - top - bottom}
-            />
-          ))}
+          {validIntervals &&
+            (["before", "after"] as const).map((phase) => (
+              <rect
+                key={phase}
+                className={`interval ${phase}`}
+                x={x(config[phase][0])}
+                y={top}
+                width={x(config[phase][1]) - x(config[phase][0])}
+                height={height - top - bottom}
+              />
+            ))}
           {residual && (
             <line
               x1={left}
@@ -345,6 +360,7 @@ function CollisionPlot({
             })}
         </g>
         {!residual &&
+          validIntervals &&
           onBoundary &&
           boundaryValues.map(
             (value, index) =>
@@ -410,6 +426,7 @@ function CollisionPlot({
           stroke="#8295a5"
         />
         <text
+          data-axis-label="x"
           x={(left + width - right) / 2}
           y={height - (renderSize ? fontSize * 0.4 : 6)}
           textAnchor="middle"
@@ -417,13 +434,14 @@ function CollisionPlot({
           {request.dataset.xColumn.label} [
           {request.dataset.xColumn.unit ?? "units unspecified"}]
         </text>
-        <text
-          transform={`translate(${renderSize ? fontSize * 1.2 : 13} ${renderSize && residual ? height / 2 : (height - bottom + top) / 2}) rotate(-90)`}
-          textAnchor="middle"
-        >
-          {residual ? "Residual" : request.dataset.yColumn.label} [
-          {request.dataset.yColumn.unit ?? "units unspecified"}]
-        </text>
+        <YAxisTitle
+          label={residual ? "Residual" : request.dataset.yColumn.label}
+          unit={request.dataset.yColumn.unit ?? "units unspecified"}
+          x={renderSize ? fontSize * 1.2 : 13}
+          y={renderSize && residual ? height / 2 : (height - bottom + top) / 2}
+          splitUnit={!!renderSize && residual}
+          fontSize={fontSize}
+        />
       </svg>
     </>
   );
@@ -443,9 +461,18 @@ export default forwardRef<
     exportSizes?: ExportPlotSize[];
     analysisControl: ReactNode;
     onReady: (ready: boolean) => void;
+    onDirty?: () => void;
   }
 >(function CollisionDraft(
-  { source, open, showResiduals = true, exportSizes, analysisControl, onReady },
+  {
+    source,
+    open,
+    showResiduals = true,
+    exportSizes,
+    analysisControl,
+    onReady,
+    onDirty,
+  },
   ref,
 ) {
   const defaults = useMemo(() => initial(source), [source]);
@@ -488,19 +515,37 @@ export default forwardRef<
       return { requests: collisionRequests(source, config), error: "" };
     } catch (e) {
       let requests: FitRequest[] = [];
+      const invalidSigma = config.sigmas.some(
+        (sigma) => sigma !== null && (!Number.isFinite(sigma) || sigma <= 0),
+      );
       try {
+        // Range validation belongs to fitting. These temporary valid ranges
+        // only let us recover the unchanged full observation snapshots; the
+        // graph still receives the user's actual config and hides invalid
+        // interval shading/handles until the draft limits are repaired.
         requests = collisionRequests(source, {
           ...config,
-          sigmas: [null, null, null, null],
+          sigmas: invalidSigma ? [null, null, null, null] : config.sigmas,
+          before: [0, 1],
+          after: [2, 3],
         });
       } catch {
-        /* Invalid columns or intervals have no preview. */
+        /* Invalid column assignments cannot provide a numerical preview. */
       }
-      return { requests, error: e instanceof Error ? e.message : String(e) };
+      return {
+        requests,
+        error:
+          requests.length && invalidSigma
+            ? "Enter a positive uncertainty for all four position columns, or choose Estimate scatter from residuals."
+            : e instanceof Error
+              ? e.message
+              : String(e),
+      };
     }
   }, [source, time, columns, windows, sigmas, conditional, noise]);
   useEffect(() => () => worker.current?.terminate(), []);
   function invalidate() {
+    onDirty?.();
     worker.current?.terminate();
     worker.current = null;
     setBusy(false);
@@ -668,7 +713,7 @@ export default forwardRef<
                     step="any"
                     aria-label={`${slot} uncertainty`}
                     value={sigmas[i]}
-                    placeholder="Estimate"
+                    placeholder="Required"
                     onChange={(e) => {
                       invalidate();
                       setSigmas(
@@ -942,7 +987,11 @@ export default forwardRef<
                         [
                           c[phase].result?.inference,
                           ...(c[phase].result?.warnings ?? []),
-                          c[phase].result?.standardErrors[1].reason,
+                          c[phase].result?.standardErrors[1].reason
+                            ? statisticReasonText(
+                                c[phase].result?.standardErrors[1].reason,
+                              )
+                            : null,
                         ]
                           .filter(Boolean)
                           .join(" ")

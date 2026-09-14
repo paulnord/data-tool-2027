@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useModalDialog } from "./useModalDialog";
+import { useRef, useState } from "react";
 import { trackerAnalysis, type TrackerProject } from "../import/tracker";
 
 export default function TrackerImport({
@@ -15,9 +16,7 @@ export default function TrackerImport({
   const [uniform, setUniform] = useState(false);
   const [error, setError] = useState("");
   const track = project.tracks[index];
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
+  useModalDialog(dialog, ".fit-data-trigger");
   return (
     <dialog
       ref={dialog}

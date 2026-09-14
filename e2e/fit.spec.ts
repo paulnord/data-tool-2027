@@ -41,17 +41,19 @@ test("fit window: known-scatter data, constraints, exclusions, save/reopen and i
     "(fixed)",
   );
   await page.getByRole("button", { name: "Observations & exclusions" }).click();
-  await page.getByLabel("Include row-3", { exact: true }).uncheck();
+  await page.getByLabel("Include row 3", { exact: true }).uncheck();
   await expect(page.locator(".fit-source")).toContainText("60 / 61");
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(page.getByLabel("Include row-3", { exact: true })).toBeChecked();
+  await page
+    .getByRole("button", { name: "Undo analysis change", exact: true })
+    .click();
+  await expect(page.getByLabel("Include row 3", { exact: true })).toBeChecked();
   await page
     .getByLabel("Noise model", { exact: true })
     .selectOption("unknown-equal");
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await page.getByRole("button", { name: "Fit diagnostics" }).click();
   await expect(page.locator(".fit-diagnostics")).toContainText(
-    "Q unavailable: unknown-noise-scale",
+    "Q unavailable: No absolute y uncertainty was supplied",
   );
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save session" }).click();
@@ -149,7 +151,7 @@ test("copied report separates scalar statistics and keeps normal data tables", a
     .click();
   await page.getByRole("button", { name: "Copy report", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText(
-    "Report copied: statistics in two columns",
+    "Report copied with the selected sections",
   );
   const text = await page.evaluate(() => navigator.clipboard.readText());
   const sections = text
@@ -220,7 +222,9 @@ test("rectangle selection changes the fit subset and supports undo, restore and 
   await expect(page.locator(".fit-status")).toHaveText("Results stale");
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Undo analysis change", exact: true })
+    .click();
   await expect(page.locator(".fit-source")).toContainText("61 / 61");
   // Undo invalidates the fit, so Auto Y can change when the fitted curve and
   // confidence band disappear. Reverse-drag against the points now displayed.
@@ -446,9 +450,13 @@ test("Shift-drag joins separated regions and Alt-drag excludes a bad region", as
   expect(await selected()).toEqual(left);
   await drag(500, 720, "Shift");
   expect(await selected()).toEqual([...left, ...right]);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Undo analysis change", exact: true })
+    .click();
   expect(await selected()).toEqual(left);
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Redo analysis change", exact: true })
+    .click();
   expect(await selected()).toEqual([...left, ...right]);
   await drag(70, 250, "Alt");
   expect(await selected()).toEqual(right);
@@ -644,7 +652,9 @@ test("uncertainty editing permits unfinished numbers and commits one validated c
   await input.press("Enter");
   await fitButton.click();
   await expect(page.locator(".fit-status")).toHaveText("Fitted");
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Undo analysis change", exact: true })
+    .click();
   await expect(input).toHaveValue("0.02");
   await input.fill("");
   await input.press("Tab");
@@ -880,9 +890,13 @@ test("CSV preview, corrections, pasted cells, undo and original snapshot round t
     .click();
   await editor.getByRole("button", { name: "Use these data" }).click();
   await expect(page.locator(".fit-source")).toContainText("2 / 2");
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Undo analysis change", exact: true })
+    .click();
   await expect(page.locator(".fit-source")).toContainText("3 / 3");
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Redo analysis change", exact: true })
+    .click();
   const downloaded = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save session" }).click();
   const bytes = await readFile((await (await downloaded).path())!);
@@ -903,7 +917,7 @@ test("CSV preview, corrections, pasted cells, undo and original snapshot round t
     .click();
   await expect(page.locator(".fit-source")).toContainText("2 / 2");
   await expect(
-    page.getByText("Original snapshot preserved", { exact: false }),
+    page.getByText("Original data preserved", { exact: false }),
   ).toBeVisible();
 });
 
@@ -1846,12 +1860,27 @@ test("long print comments remain intact and continue after the fit summary", asy
     )
     .toBe(lines.join("\n"));
   await page.emulateMedia({ media: "print" });
-  const summary = await preview.locator(".fit-print-results").boundingBox();
-  const notes = await preview
-    .locator(".report-notes-page")
-    .first()
-    .boundingBox();
-  expect(notes!.y).toBeGreaterThan(summary!.y + summary!.height);
+  // Switching media can briefly collapse the page contents. Verify the final
+  // geometry, including every fragment when the result tables span pages.
+  await expect
+    .poll(async () => {
+      const summaries = await preview
+        .locator(".fit-print-results")
+        .evaluateAll((nodes) =>
+          nodes.map((node) => {
+            const rect = node.getBoundingClientRect();
+            return { height: rect.height, bottom: rect.bottom };
+          }),
+        );
+      const notes = await preview
+        .locator(".report-notes-page")
+        .first()
+        .boundingBox();
+      if (!notes || !summaries.length || summaries.some((s) => s.height <= 0))
+        return -Infinity;
+      return notes.y - Math.max(...summaries.map((s) => s.bottom));
+    })
+    .toBeGreaterThan(0);
   await page.pdf({
     path: ".tools/fit-report-long-comments.pdf",
     format: "Letter",

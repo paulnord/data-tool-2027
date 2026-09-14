@@ -13,7 +13,7 @@
   grid-row: 1;
   position: sticky;
   top: 60px;
-  max-height: calc(100vh - 75px);
+  max-height: calc(100vh / var(--fit-scale, 1) - 75px);
   overflow: auto;
   background: #edf4fa;
   padding: 14px;
@@ -192,7 +192,7 @@
 .interval-result-diagnostics {
   margin: 10px 0;
 }
-@media (max-width: 850px) {
+@container (max-width: 850px) {
   .multi-interval {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -203,6 +203,9 @@
   }
   .interval-workspace {
     grid-row: 2;
+  }
+  .interval-graphs {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media print {

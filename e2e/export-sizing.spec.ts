@@ -1,6 +1,110 @@
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
+test("single-column exports keep residual units intact inside every plot viewport", async ({
+  page,
+}, testInfo) => {
+  await openData(page, "published/dyfeo3-spin-wave.trksess");
+  await page.getByRole("button", { name: "Fit selected observations" }).click();
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  const before = await page.locator(".parameter-result").allTextContents();
+  await applySize(page, 85, 60);
+  const svg = await downloadGraph(page, "svg", testInfo, "residual-units");
+  await downloadGraph(page, "png", testInfo, "residual-units");
+  await downloadGraph(page, "pdf", testInfo, "residual-units");
+  expect(await page.locator(".parameter-result").allTextContents()).toEqual(
+    before,
+  );
+  await expect(page.getByRole("status")).toContainText("Graph exported.");
+  await applySize(page, 50, 40, 14);
+  await page.locator(".fit-export-menu summary").click();
+  await page
+    .getByRole("menuitem", { name: "SVG vector graphic", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText("Graph export failed");
+  await expect(page.getByRole("status")).not.toContainText("Graph exported.");
+  const viewer = await page.context().newPage();
+  await viewer.setContent(svg.toString("utf8"));
+  const titles = viewer.locator(
+    'svg[aria-label="Residual plot"] [data-axis-label="y"]',
+  );
+  await expect(titles).toHaveText("Residual [arb. u.]");
+  await expect(titles.locator("tspan")).toHaveCount(2);
+  const bounds = await viewer
+    .locator("svg")
+    .first()
+    .evaluate((root) =>
+      [...root.querySelectorAll<SVGSVGElement>(":scope > svg")].flatMap(
+        (plot) => {
+          const viewport = plot.viewBox.baseVal,
+            inverse = plot.getScreenCTM()!.inverse();
+          return [
+            ...plot.querySelectorAll<SVGTextElement>("text[data-axis-label]"),
+          ].map((text) => {
+            const box = text.getBBox(),
+              matrix = inverse.multiply(text.getScreenCTM()!);
+            const points = [
+              new DOMPoint(box.x, box.y),
+              new DOMPoint(box.x + box.width, box.y),
+              new DOMPoint(box.x, box.y + box.height),
+              new DOMPoint(box.x + box.width, box.y + box.height),
+            ].map((point) => point.matrixTransform(matrix));
+            return {
+              text: text.textContent,
+              overflow: Math.max(
+                0,
+                ...points.flatMap((point) => [
+                  -point.x,
+                  point.x - viewport.width,
+                  -point.y,
+                  point.y - viewport.height,
+                ]),
+              ),
+            };
+          });
+        },
+      ),
+    );
+  for (const title of bounds)
+    expect(title.overflow, title.text ?? "Axis title").toBeLessThanOrEqual(0.1);
+  await viewer.close();
+});
+
+test("an axis title that cannot fit is explained instead of exported with missing text", async ({
+  page,
+}) => {
+  const session = JSON.parse(
+    await readFile("examples/data/published/dyfeo3-spin-wave.trksess", "utf8"),
+  );
+  session.request.dataset.yColumn.label =
+    "A deliberately long measured optical rotation signal axis title";
+  await page.goto("/");
+  await page.locator("input[type=file]").setInputFiles({
+    name: "long-title.trksess",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(session)),
+  });
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Fit selected observations" }).click();
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  await applySize(page, 85, 60);
+  const downloads: string[] = [];
+  page.on("download", (download) =>
+    downloads.push(download.suggestedFilename()),
+  );
+  await page.locator(".fit-export-menu summary").click();
+  await page
+    .getByRole("menuitem", { name: "SVG vector graphic", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Y axis label does not fit",
+  );
+  await expect(page.getByRole("alert")).toContainText("Increase Height");
+  expect(downloads).toEqual([]);
+});
+
 async function openData(page: Page, file = "ball-toss.trksess") {
   await page.goto("/");
   await page.locator("input[type=file]").setInputFiles(`examples/data/${file}`);
@@ -93,7 +197,7 @@ async function inspectSvg(page: Page, bytes: Buffer) {
             markerCount: plot.querySelectorAll("[data-marker-shape]").length,
             modelStrokeWidths: [
               ...plot.querySelectorAll<SVGPathElement>(
-                "path:not([data-marker-shape]):not([data-sigma])",
+                'path:not([data-marker-shape]):not([data-sigma]):not([data-fit-part="extrapolation"])',
               ),
             ]
               .filter(
@@ -101,6 +205,15 @@ async function inspectSvg(page: Page, bytes: Buffer) {
                   path.style.fill === "none" && path.style.stroke !== "none",
               )
               .map((path) => Number.parseFloat(path.style.strokeWidth)),
+            extensions: [
+              ...plot.querySelectorAll<SVGPathElement>(
+                '[data-fit-part="extrapolation"]',
+              ),
+            ].map((path) => ({
+              width: Number.parseFloat(path.style.strokeWidth),
+              dash: path.style.strokeDasharray,
+              opacity: Number.parseFloat(path.style.opacity),
+            })),
             labels: [...plot.querySelectorAll<SVGTextElement>("text")].map(
               (label) => ({
                 text: label.textContent,
@@ -146,6 +259,12 @@ function expectPhysicalSvg(
     // than the stylesheet: screen rules must not override export widths.
     for (const stroke of plot.modelStrokeWidths)
       expect((stroke * 72) / 96).toBeCloseTo(0.75, 5);
+    for (const extension of plot.extensions) {
+      expect((extension.width * 72) / 96).toBeCloseTo(0.5625, 5);
+      expect(extension.dash).not.toBe("none");
+      expect(extension.dash).not.toBe("");
+      expect(extension.opacity).toBeCloseTo(0.65, 5);
+    }
     for (const label of plot.labels)
       expect(label.fontSize).toBeCloseTo((font * 96) / 72, 3);
   }

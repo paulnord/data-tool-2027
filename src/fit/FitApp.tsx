@@ -1,6 +1,12 @@
 import SourceNotes from "./SourceNotes";
+import { useModalDialog } from "./useModalDialog";
+import { InterfaceScaleContext } from "./InterfaceScale";
+import { moveMenuFocus, openMenuFromKey } from "./menuKeyboard";
 import PrintPages from "./PrintPages";
 import DisplayMenu from "./DisplayMenu";
+import { EditableNumber } from "./EditableNumber";
+import { YAxisTitle } from "./YAxisTitle";
+import { sampleFittedCurve, extensionDash } from "./fitCurve";
 import ExportSizeDialog from "./ExportSizeDialog";
 import {
   DEFAULT_EXPORT_SIZING,
@@ -21,6 +27,10 @@ import { exportPlotGraph } from "./graphExport";
 import { AxisControls, YAxisControls, type AxisRange } from "./YAxisControls";
 import MultiInterval, { type MultiIntervalActions } from "./MultiInterval";
 import { FitErrorMessage } from "./FitErrorMessage";
+import {
+  statisticReasonText,
+  errorStructureText,
+} from "../core/fit/diagnosticText";
 import { customFromModel } from "../core/fit/customFromModel";
 import { CustomEquationEditor } from "./CustomEquationEditor";
 import Assumptions from "./Assumptions";
@@ -291,6 +301,9 @@ function Plot({
   onLogY?: (log: boolean) => void;
 }) {
   const appearance = usePlotAppearance();
+  const rowNumbers = new Map(
+    state.request.dataset.rows.map((row, index) => [row.id, index + 1]),
+  );
   const logX = mode === "log-x" || mode === "log-log";
   const logY = !residual && (mode === "log-y" || mode === "log-log");
   const positiveXs = state.request.dataset.rows.flatMap((r) =>
@@ -388,20 +401,26 @@ function Plot({
     !showModel || cycles > 800 || !Number.isFinite(cycles)
       ? 0
       : Math.max(160, Math.ceil(cycles * 40));
-  const curve = Array.from({ length: curveCount }, (_, i) => {
-    const t = xScale.value(i / (curveCount - 1));
-    return {
-      x: t,
-      y: predict(
-        t,
-        state.settings.model,
-        coeff,
-        state.settings.sinePeriod,
-        state.settings.shape,
-        state.settings.custom,
-      ),
-    };
-  });
+  const fittedCurve =
+    !residual && showModel && result
+      ? sampleFittedCurve(state.settings, result, range, logX)
+      : null;
+  const curve =
+    fittedCurve?.fitted ??
+    Array.from({ length: curveCount }, (_, i) => {
+      const t = xScale.value(i / (curveCount - 1));
+      return {
+        x: t,
+        y: predict(
+          t,
+          state.settings.model,
+          coeff,
+          state.settings.sinePeriod,
+          state.settings.shape,
+          state.settings.custom,
+        ),
+      };
+    });
   const band =
     !residual && showBand && result
       ? meanConfidenceBand(
@@ -428,6 +447,9 @@ function Plot({
     ...visibleErrorBars.flatMap((bar) => [bar.lower, bar.upper]),
     ...(!residual ? curve.map((p) => p.y).filter(Number.isFinite) : []),
     ...(band?.points.flatMap((p) => [p.lower, p.upper]) ?? []),
+    ...(fittedCurve?.baseline !== null && fittedCurve?.baseline !== undefined
+      ? [fittedCurve.baseline]
+      : []),
   ];
   const residualExtent =
     ys.reduce((m, v) => Math.max(m, Math.abs(v)), 0) || 0.001;
@@ -509,7 +531,9 @@ function Plot({
       .map((row) => row.id),
   ]);
   const plotNotices = [
-    ...(!residual && showModel && curveCount === 0
+    ...(!residual &&
+    showModel &&
+    (fittedCurve ? fittedCurve.samplingUnavailable : curveCount === 0)
       ? [
           "Curve unavailable at this period/view; zoom in or use a valid period.",
         ]
@@ -517,7 +541,9 @@ function Plot({
     ...(errorBars.unavailable > 0
       ? ["Some error bars exceed the numeric range and cannot be drawn."]
       : []),
-    ...(band?.reason ? [`Confidence band unavailable: ${band.reason}`] : []),
+    ...(band?.reason
+      ? [`Confidence band unavailable: ${statisticReasonText(band.reason)}`]
+      : []),
   ];
   return (
     <>
@@ -640,6 +666,7 @@ function Plot({
         {showXAxis && (
           <text
             className="fit-axis-label"
+            data-axis-label="x"
             x={(left + width - right) / 2}
             y={height - (exportFont ? exportFont * 0.4 : 12)}
             textAnchor="middle"
@@ -651,17 +678,14 @@ function Plot({
               : ""}
           </text>
         )}
-        <text
-          className="fit-axis-label"
-          transform={`translate(${exportFont ? exportFont * 1.2 : 16} ${exportFont && residual ? height / 2 : (top + height - bottom) / 2}) rotate(-90)`}
-          textAnchor="middle"
-        >
-          {residual ? "Residual" : state.request.dataset.yColumn.label}
-          {logY ? " (log scale)" : ""}
-          {state.request.dataset.yColumn.unit
-            ? ` [${state.request.dataset.yColumn.unit}]`
-            : ""}
-        </text>
+        <YAxisTitle
+          label={`${residual ? "Residual" : state.request.dataset.yColumn.label}${logY ? " (log scale)" : ""}`}
+          unit={state.request.dataset.yColumn.unit}
+          x={exportFont ? exportFont * 1.2 : 16}
+          y={exportFont && residual ? height / 2 : (top + height - bottom) / 2}
+          splitUnit={!!exportFont && residual}
+          fontSize={exportFont}
+        />
         {((residual && !result) || (!residual && !hasData)) && (
           <text className="fit-empty-plot" x="50%" y="50%" textAnchor="middle">
             {residual ? "Fit to show residuals" : "Paste or open data to begin"}
@@ -765,6 +789,65 @@ function Plot({
               }
             />
           )}
+          {fittedCurve && (
+            <desc>
+              Fainter dashed ends extrapolate the model up to ten percent beyond
+              the fitted observations. They are not additional measurements.
+              {fittedCurve.baseline !== null
+                ? " The dotted b guide marks the fitted mean position, not the sample average."
+                : ""}
+            </desc>
+          )}
+          {fittedCurve?.baseline !== null &&
+            fittedCurve?.baseline !== undefined &&
+            fittedCurve.baseline >= yDomain[0] &&
+            fittedCurve.baseline <= yDomain[1] &&
+            fittedCurve.support &&
+            (() => {
+              const baseline = fittedCurve.baseline;
+              const start =
+                fittedCurve.before[0]?.x ?? fittedCurve.fitted[0]?.x;
+              const end =
+                fittedCurve.after.at(-1)?.x ?? fittedCurve.fitted.at(-1)?.x;
+              if (start === undefined || end === undefined) return null;
+              const labelSize = exportFont ?? 12;
+              const label = `b = ${baseline.toPrecision(4)}`;
+              const labelWidth = label.length * labelSize * 0.65;
+              return (
+                <g className="fit-mean-guide" style={{ pointerEvents: "none" }}>
+                  <line
+                    data-mean-position={baseline}
+                    x1={x(start)}
+                    x2={x(end)}
+                    y1={y(baseline)}
+                    y2={y(baseline)}
+                    stroke="var(--plot-fit-color)"
+                    strokeWidth={exportFont ? 0.65 : 1}
+                    strokeDasharray="1 4"
+                    opacity={0.8}
+                  >
+                    <title>{`Fitted mean position: b = ${number(baseline)} ${state.request.dataset.yColumn.unit ?? ""}`}</title>
+                  </line>
+                  <text
+                    x={Math.min(
+                      width - right - 4,
+                      Math.max(left + labelWidth + 4, x(end)),
+                    )}
+                    y={Math.max(
+                      top + labelSize,
+                      Math.min(height - bottom - 4, y(baseline) - 5),
+                    )}
+                    textAnchor="end"
+                    style={{
+                      fill: "var(--plot-fit-color)",
+                      fontSize: labelSize,
+                    }}
+                  >
+                    {label}
+                  </text>
+                </g>
+              );
+            })()}
           {residual && result ? (
             <line
               x1={left}
@@ -774,7 +857,39 @@ function Plot({
               className="zero"
             />
           ) : !residual && showModel ? (
-            <path d={plotPath(curve, x, y)} className="curve" />
+            <>
+              <path
+                d={plotPath(curve, x, y)}
+                className="curve"
+                data-fit-part={result ? "fitted" : "manual"}
+              />
+              {fittedCurve &&
+                [fittedCurve.before, fittedCurve.after].map(
+                  (tail, index) =>
+                    tail.length > 0 && (
+                      <path
+                        key={index}
+                        d={plotPath(tail, x, y)}
+                        className="fit-extrapolation"
+                        data-fit-part="extrapolation"
+                        data-extrapolation-side={
+                          index === 0 ? "before" : "after"
+                        }
+                        strokeDasharray={extensionDash()}
+                        style={{
+                          fill: "none",
+                          stroke: "var(--plot-fit-color)",
+                          strokeWidth: exportFont ? 0.75 : 1.5,
+                          opacity: 0.65,
+                        }}
+                      >
+                        <title>
+                          Model extrapolation beyond fitted observations
+                        </title>
+                      </path>
+                    ),
+                )}
+            </>
           ) : null}
           {visibleErrorBars.map((bar) => (
             <path
@@ -805,7 +920,7 @@ function Plot({
                 if (!onSelect && !suppressClick.current) onToggle(r.id);
               }}
             >
-              <title>{`${r.id}: ${r.x}, ${ys[i]}`}</title>
+              <title>{`Row ${rowNumbers.get(r.id)}: ${r.x}, ${ys[i]} (${excluded.has(r.id) || !r.included ? "excluded from fit" : "included in fit"})`}</title>
             </PlotMarker>
           ))}
           {rubberBand && (
@@ -870,14 +985,30 @@ function PrintReport({
           ? "scientific"
           : "standard",
     });
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
+  useModalDialog(dialog, ".fit-print-trigger");
+  async function print() {
+    setError("");
+    try {
+      await window.print();
+    } catch (e) {
+      setError(`Printing failed: ${String(e)}`);
+    }
+  }
   return (
     <dialog
       ref={dialog}
       className={`fit-print-dialog${fullPageGraph ? " full-page-graph" : ""}`}
       aria-label="Print report"
+      onKeyDown={(event) => {
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          event.key.toLowerCase() === "p"
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          void print();
+        }
+      }}
       onClick={(e) => {
         if (e.target !== e.currentTarget) return;
         const rect = e.currentTarget.getBoundingClientRect();
@@ -895,17 +1026,7 @@ function PrintReport({
       }}
     >
       <div className="fit-print-controls">
-        <button
-          onClick={async () => {
-            try {
-              await window.print();
-            } catch (e) {
-              setError(`Printing failed: ${String(e)}`);
-            }
-          }}
-        >
-          Print…
-        </button>
+        <button onClick={() => void print()}>Print…</button>
         <button onClick={onClose}>Close preview</button>
         <label>
           <input
@@ -1019,7 +1140,9 @@ function PrintReport({
                           <td>{printNumber(result.coefficients[i])}</td>
                           <td>
                             {result.standardErrors[i].value == null
-                              ? result.standardErrors[i].reason
+                              ? statisticReasonText(
+                                  result.standardErrors[i].reason,
+                                )
                               : printNumber(result.standardErrors[i].value!)}
                           </td>
                         </tr>
@@ -1169,6 +1292,8 @@ export default function FitApp() {
   const [multiOpen, setMultiOpen] = useState(false);
   const [multiReady, setMultiReady] = useState(false);
   const [equationPending, setEquationPending] = useState(false);
+  const [unsavedDraftWork, setUnsavedDraftWork] = useState(false);
+  const [pendingDataEdit, setPendingDataEdit] = useState(false);
   const [collisionReady, setCollisionReady] = useState(false);
   const [collisionOpen, setCollisionOpen] = useState(false);
   const [collisionRevision, setCollisionRevision] = useState(0);
@@ -1214,6 +1339,14 @@ export default function FitApp() {
   const [busy, setBusy] = useState(false);
   const [sigmaDraft, setSigmaDraft] = useState<string | null>(null);
   const [sigmaTouched, setSigmaTouched] = useState(false);
+  const [numericDraftInvalid, setNumericDraftInvalid] = useState(false);
+  function numericDraftChanged(invalid: boolean) {
+    setNumericDraftInvalid(invalid);
+    if (invalid) {
+      cancel();
+      setNotice("");
+    }
+  }
   const sigmaInvalid =
     sigmaDraft !== null &&
     (!(Number(sigmaDraft) > 0) || !Number.isFinite(Number(sigmaDraft)));
@@ -1245,7 +1378,14 @@ export default function FitApp() {
     future = useRef<State[]>([]),
     input = useRef<HTMLInputElement>(null),
     dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty || sigmaDraft !== null || dataPanel !== null;
+  const pendingEquation = state.settings.model === "custom" && equationPending;
+  dirtyRef.current =
+    dirty ||
+    unsavedDraftWork ||
+    pendingEquation ||
+    sigmaDraft !== null ||
+    numericDraftInvalid ||
+    dataPanel !== null;
   const liveState = useRef(state);
   liveState.current = state;
   useEffect(() => {
@@ -1313,6 +1453,8 @@ export default function FitApp() {
     to.current.push(state);
     setState(next);
     setDirty(true);
+    setError("");
+    setNotice(redo ? "Analysis change redone" : "Analysis change undone");
   }
   function bounds() {
     setYRange(null);
@@ -1326,6 +1468,8 @@ export default function FitApp() {
     setState(next);
     setResult(null);
     setDirty(false);
+    setUnsavedDraftWork(false);
+    setPendingDataEdit(false);
     setPending(null);
     past.current = [];
     future.current = [];
@@ -1347,7 +1491,7 @@ export default function FitApp() {
     setBusy(false);
   }
   function run() {
-    if (sigmaInvalid) return;
+    if (sigmaInvalid || numericDraftInvalid) return;
     cancel();
     setError("");
     setNotice("Fitting…");
@@ -1419,7 +1563,15 @@ export default function FitApp() {
       },
     });
   }
+  function rejectImport(fileName: string, reason: unknown) {
+    setNotice("");
+    setError(
+      `Import rejected: ${fileName}. Your current data were kept.\nDetails: ${reason instanceof Error ? reason.message : String(reason)}`,
+    );
+  }
   async function importText(text: string, fileName = "Imported data") {
+    setNotice("");
+    setError("");
     try {
       if (/\.trk$/i.test(fileName)) {
         setTrackerProject(parseTracker(text, fileName));
@@ -1454,9 +1606,7 @@ export default function FitApp() {
         });
       }
     } catch (e) {
-      setError(
-        `Import rejected: ${e instanceof Error ? e.message : String(e)}`,
-      );
+      rejectImport(fileName, e);
     }
   }
   async function importArchive(bytes: Uint8Array, fileName: string) {
@@ -1464,7 +1614,7 @@ export default function FitApp() {
       setTrackerProject(parseTrackerArchive(bytes, fileName));
       setError("");
     } catch (e) {
-      setError(`Import rejected: ${String(e)}`);
+      rejectImport(fileName, e);
     }
   }
   async function importPath(path: string) {
@@ -1521,7 +1671,7 @@ export default function FitApp() {
     });
   }
   async function saveFile() {
-    if (sigmaInvalid) return;
+    if (sigmaInvalid || numericDraftInvalid || pendingEquation) return;
     try {
       let saved = session();
       if (isTauri()) {
@@ -1562,19 +1712,19 @@ export default function FitApp() {
       setNotice(
         liveState.current === state
           ? "Session saved"
-          : "Earlier snapshot saved; newer changes remain unsaved",
+          : "Earlier version saved; newer changes remain unsaved",
       );
     } catch (e) {
       setError(`Save failed: ${String(e)}`);
     }
   }
   async function copy() {
-    if (!current) return;
+    if (!current || numericDraftInvalid || pendingEquation) return;
     try {
       await navigator.clipboard.writeText(
         fitReportTsv(state.request, state.settings, current, reportSections),
       );
-      setNotice("Report copied: statistics in two columns");
+      setNotice("Report copied with the selected sections");
     } catch {
       setError(
         "Clipboard unavailable. Save the session to retain full-precision inputs.",
@@ -1582,7 +1732,13 @@ export default function FitApp() {
     }
   }
   async function exportGraph(format: "svg" | "png" | "pdf") {
-    if (exportRender) return;
+    if (
+      exportRender ||
+      (!multiOpen && !collisionOpen && (numericDraftInvalid || pendingEquation))
+    )
+      return;
+    setNotice("");
+    setError("");
     exportMenu.current?.removeAttribute("open");
     const activePlots = multiOpen
       ? chartRef.current
@@ -1634,7 +1790,17 @@ export default function FitApp() {
             plot.querySelectorAll<SVGTextElement>('[data-axis-tick="y"]'),
           ).map((tick) => tick.getBBox().width),
         );
-        const fittedSizes = fitExportPlotMargins(sizes, yTickWidths);
+        const yTitleLineCounts = outputPlots.map((plot) =>
+          Math.max(
+            1,
+            plot.querySelector('[data-axis-label="y"]')?.children.length ?? 1,
+          ),
+        );
+        const fittedSizes = fitExportPlotMargins(
+          sizes,
+          yTickWidths,
+          yTitleLineCounts,
+        );
         flushSync(() => setExportRender({ sizes: fittedSizes, yRanges }));
         outputPlots = Array.from(
           document.querySelectorAll<SVGSVGElement>(".fit-export-render svg"),
@@ -1850,1031 +2016,1137 @@ export default function FitApp() {
     (r) => r.included && !state.settings.excludedIds.includes(r.id),
   ).length;
   return (
-    <PlotAppearanceContext.Provider value={appearance}>
-      <div
-        className="fit-app"
-        style={
-          {
-            ...appearanceStyle(appearance),
-            "--fit-scale": displayScale,
-            zoom: displayScale,
-          } as CSSProperties
-        }
-        onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
-            e.preventDefault();
-            if (multiOpen) void multiActions.current?.print();
-            else if (collisionOpen) void collisionActions.current?.print();
-            else setPrintPreview(true);
-            return;
+    <InterfaceScaleContext.Provider value={displayScale}>
+      <PlotAppearanceContext.Provider value={appearance}>
+        <div
+          className="fit-app"
+          style={
+            {
+              ...appearanceStyle(appearance),
+              "--fit-scale": displayScale,
+              zoom: displayScale,
+            } as CSSProperties
           }
-          if (
-            (e.metaKey || e.ctrlKey) &&
-            e.key.toLowerCase() === "z" &&
-            !(e.target instanceof HTMLInputElement)
-          ) {
-            e.preventDefault();
-            history(e.shiftKey);
-          }
-        }}
-      >
-        <header className="fit-header">
-          <div className="fit-header-start">
-            <div>
-              <span className="fit-brand">EXPERIMENTAL DATA ANALYSIS</span>
-              <h1>
-                Data Tool 2027 <span>0.3</span>
-              </h1>
-            </div>
-            <div
-              className="fit-history-controls"
-              role="group"
-              aria-label="Analysis history"
-            >
-              <button
-                aria-label="Undo analysis change"
-                title="Undo (⌘Z)"
-                disabled={multiOpen || !past.current.length}
-                onClick={() => history()}
-              >
-                <span aria-hidden="true">↶</span> Undo
-              </button>
-              <button
-                aria-label="Redo analysis change"
-                title="Redo (⇧⌘Z)"
-                disabled={multiOpen || !future.current.length}
-                onClick={() => history(true)}
-              >
-                <span aria-hidden="true">↷</span> Redo
-              </button>
-            </div>
-            <DisplayMenu
-              scale={displayScale}
-              onScale={setDisplayScale}
-              appearance={appearance}
-              onAppearance={setAppearance}
-            />
-            <details
-              ref={settingsMenu}
-              className="fit-settings-menu"
-              onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
-            >
-              <summary>
-                Settings{" "}
-                <span className="fit-menu-arrow" aria-hidden="true">
-                  ▾
-                </span>
-              </summary>
-              <div
-                ref={settingsPanel}
-                className="fit-settings-popover"
-                style={settingsPosition}
-              >
-                <fieldset>
-                  <legend>Graphs</legend>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showResiduals}
-                      onChange={(e) => setShowResiduals(e.target.checked)}
-                    />
-                    Show residual plots
-                  </label>
-                  <p>Applies to all graphs, printing, and exports.</p>
-                </fieldset>
-                <fieldset disabled={collisionOpen || multiOpen}>
-                  <legend>Copy report sections</legend>
-                  <p>Single-fit reports</p>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={reportSections.statistics}
-                      onChange={(e) =>
-                        setReportSections((s) => ({
-                          ...s,
-                          statistics: e.target.checked,
-                        }))
-                      }
-                    />
-                    Statistics
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={reportSections.correlation}
-                      onChange={(e) =>
-                        setReportSections((s) => ({
-                          ...s,
-                          correlation: e.target.checked,
-                        }))
-                      }
-                    />
-                    Parameter correlations
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={reportSections.observations}
-                      onChange={(e) =>
-                        setReportSections((s) => ({
-                          ...s,
-                          observations: e.target.checked,
-                        }))
-                      }
-                    />
-                    Observations and residuals
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={reportSections.provenance}
-                      onChange={(e) =>
-                        setReportSections((s) => ({
-                          ...s,
-                          provenance: e.target.checked,
-                        }))
-                      }
-                    />
-                    Source and notes
-                  </label>
-                  <button
-                    onClick={() =>
-                      setReportSections({
-                        statistics: true,
-                        correlation: true,
-                        observations: true,
-                        provenance: true,
-                      })
-                    }
-                  >
-                    Technical report
-                  </button>
-                  <button
-                    onClick={() =>
-                      setReportSections({
-                        statistics: true,
-                        correlation: true,
-                        observations: false,
-                        provenance: false,
-                      })
-                    }
-                  >
-                    Compact report
-                  </button>
-                </fieldset>
+          onKeyDown={(e) => {
+            if (e.target instanceof HTMLElement && e.target.closest("dialog")) {
+              if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p")
+                e.preventDefault();
+              return;
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
+              e.preventDefault();
+              if (
+                !multiOpen &&
+                !collisionOpen &&
+                (numericDraftInvalid || pendingEquation)
+              )
+                return;
+              if (multiOpen) void multiActions.current?.print();
+              else if (collisionOpen) void collisionActions.current?.print();
+              else setPrintPreview(true);
+              return;
+            }
+            if (
+              (e.metaKey || e.ctrlKey) &&
+              e.key.toLowerCase() === "z" &&
+              !multiOpen &&
+              !collisionOpen &&
+              !(e.target instanceof HTMLInputElement) &&
+              !(e.target instanceof HTMLTextAreaElement) &&
+              !(e.target instanceof HTMLElement && e.target.isContentEditable)
+            ) {
+              e.preventDefault();
+              history(e.shiftKey);
+            }
+          }}
+        >
+          <header className="fit-header">
+            <div className="fit-header-start">
+              <div>
+                <span className="fit-brand">EXPERIMENTAL DATA ANALYSIS</span>
+                <h1>
+                  Data Tool 2027 <span>0.3</span>
+                </h1>
               </div>
-            </details>
-          </div>
-          <nav>
-            <button
-              onClick={() =>
-                showData({ source: state.request.dataset.label, editing: true })
-              }
-            >
-              Data…
-            </button>
-            <button
-              disabled={
-                sigmaInvalid ||
-                collisionOpen ||
-                multiOpen ||
-                (state.settings.model === "custom" && equationPending)
-              }
-              title={
-                collisionOpen || multiOpen
-                  ? "Multi-interval setup is not yet saved in sessions; switch to a single fit to save the source table."
-                  : undefined
-              }
-              onClick={saveFile}
-            >
-              Save session
-            </button>
-            <button
-              disabled={
-                multiOpen
-                  ? !multiReady
-                  : collisionOpen
-                    ? !collisionReady
-                    : !current
-              }
-              onClick={() =>
-                multiOpen
-                  ? multiActions.current?.copy()
-                  : collisionOpen
-                    ? collisionActions.current?.copy()
-                    : copy()
-              }
-            >
-              Copy report
-            </button>
-            <button
-              disabled={
-                multiOpen ? !multiReady : collisionOpen && !collisionReady
-              }
-              onClick={() =>
-                multiOpen
-                  ? multiActions.current?.print()
-                  : collisionOpen
-                    ? collisionActions.current?.print()
-                    : setPrintPreview(true)
-              }
-            >
-              Print
-            </button>
-            <details ref={exportMenu} className="fit-export-menu">
-              <summary>Export graph</summary>
-              <div className="fit-export-popover" role="menu">
-                <button role="menuitem" onClick={() => void exportGraph("svg")}>
-                  SVG vector graphic
-                </button>
-                <button role="menuitem" onClick={() => void exportGraph("png")}>
-                  PNG image
-                </button>
-                <button role="menuitem" onClick={() => void exportGraph("pdf")}>
-                  PDF vector graphic
+              <div
+                className="fit-history-controls"
+                role="group"
+                aria-label="Analysis history"
+              >
+                <button
+                  aria-label="Undo analysis change"
+                  title="Undo (⌘Z / Ctrl+Z)"
+                  disabled={multiOpen || collisionOpen || !past.current.length}
+                  onClick={() => history()}
+                >
+                  <span aria-hidden="true">↶</span> Undo
                 </button>
                 <button
-                  role="menuitem"
-                  onClick={() => {
-                    exportMenu.current?.removeAttribute("open");
-                    setExportSizeOpen(true);
-                  }}
+                  aria-label="Redo analysis change"
+                  title="Redo (⇧⌘Z / Ctrl+Shift+Z)"
+                  disabled={
+                    multiOpen || collisionOpen || !future.current.length
+                  }
+                  onClick={() => history(true)}
                 >
-                  Figure size…
+                  <span aria-hidden="true">↷</span> Redo
                 </button>
-                {exportSizing && (
-                  <>
-                    <p className="fit-export-size-summary">
-                      {exportSizing.widthMm} × {exportSizing.heightMm} mm ·{" "}
-                      {exportSizing.fontSizePt} pt labels
-                    </p>
-                    <button
-                      role="menuitem"
-                      onClick={() => setExportSizing(null)}
-                    >
-                      Use display size
-                    </button>
-                  </>
-                )}
               </div>
-            </details>
-          </nav>
-        </header>
-        <input
-          ref={input}
-          type="file"
-          accept=".json,.trksess,.csv,.tsv,.txt,.trk,.trz"
-          hidden
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              if (/\.trz$/i.test(file.name)) {
-                if (file.size > 100_000_000)
-                  setError("Tracker archive exceeds 100 MB limit");
-                else
-                  await importArchive(
-                    new Uint8Array(await file.arrayBuffer()),
-                    file.name,
-                  );
-              } else if (file.size > 20_000_000)
-                setError("File exceeds 20 MB limit");
-              else await importText(await file.text(), file.name);
-            }
-            e.target.value = "";
-          }}
-        />
-        {collisionSource && (
-          <CollisionDraft
-            key={collisionRevision}
-            source={collisionSource}
-            open={collisionOpen}
-            showResiduals={showResiduals}
-            exportSizes={collisionOpen ? exportRender?.sizes : undefined}
-            ref={collisionActions}
-            analysisControl={analysisControl}
-            onReady={setCollisionReady}
-          />
-        )}
-        {collisionSource && (
-          <MultiInterval
-            key={`multi-${collisionRevision}`}
-            source={collisionSource}
-            open={multiOpen}
-            showResiduals={showResiduals}
-            exportSizes={multiOpen ? exportRender?.sizes : undefined}
-            ref={multiActions}
-            analysisControl={analysisControl}
-            onReady={setMultiReady}
-          />
-        )}
-        {exportRender && !multiOpen && !collisionOpen && (
-          <div className="fit-export-render" aria-hidden="true" inert>
-            {exportRender.sizes.map((size, index) => (
-              <Plot
-                key={index}
-                state={state}
-                result={current}
-                mode={mode}
-                range={range}
-                residual={index > 0}
-                manual={manualState === state}
-                showBand={showBand}
-                showErrorBars={showErrorBars}
-                showXAxis={index === exportRender.sizes.length - 1}
-                onToggle={() => {}}
-                fixedYRange={exportRender.yRanges[index]}
-                printSize={size}
-                idPrefix="export-"
+              <DisplayMenu
+                scale={displayScale}
+                onScale={setDisplayScale}
+                appearance={appearance}
+                onAppearance={setAppearance}
               />
-            ))}
-          </div>
-        )}
-        {exportSizeOpen && (
-          <ExportSizeDialog
-            value={exportSizing ?? DEFAULT_EXPORT_SIZING}
-            onApply={(sizing) => {
-              setExportSizing(sizing);
-              setExportSizeOpen(false);
-            }}
-            onClose={() => setExportSizeOpen(false)}
-          />
-        )}
-        {trackerProject && (
-          <TrackerImport
-            project={trackerProject}
-            onCancel={() => setTrackerProject(null)}
-            onReview={(analysis) => {
-              setTrackerProject(null);
-              showData({
-                source: analysis.request.dataset.label,
-                incoming: analysis,
-              });
-            }}
-          />
-        )}
-        {printPreview && (
-          <PrintReport
-            yRange={yRange}
-            mode={mode}
-            state={state}
-            result={current}
-            manual={manualState === state}
-            range={range}
-            showBand={showBand}
-            showErrorBars={showErrorBars}
-            showResiduals={showResiduals}
-            fullPageGraph={fullPageGraph}
-            onFullPageGraphChange={setFullPageGraph}
-            onClose={() => setPrintPreview(false)}
-          />
-        )}
-        {dataPanel && (
-          <ImportPanel
-            key={dataPanel.token}
-            externalError={error}
-            onOpen={openFile}
-            examples={[
-              ...examples.map(
-                ([label, fileName, text]) =>
-                  [`Built-in: ${label}`, fileName, text] as const,
-              ),
-              ...publishedExamples,
-            ]}
-            onOpenExample={openExample}
-            source={dataPanel.source}
-            text={dataPanel.text}
-            fileName={dataPanel.fileName}
-            analysis={
-              dataPanel.incoming ?? (dataPanel.editing ? state : undefined)
-            }
-            reviewing={!!dataPanel.incoming}
-            onClose={() => setDataPanel(null)}
-            onApply={(next, replacement) => {
-              setDataPanel(null);
-              if (dataPanel.editing && !replacement) {
-                const updated = { ...state, ...next };
-                change(updated);
-                bounds();
-              } else {
-                dirtyRef.current = dirty || sigmaDraft !== null;
-                propose(
-                  replacement ? next : { ...dataPanel.incoming, ...next },
-                );
-              }
-            }}
-          />
-        )}
-        {(pending || closePending) && (
-          <div className="fit-confirm" role="alert">
-            <span>Keep or discard your unsaved analysis changes?</span>
-            <button
-              onClick={() => {
-                setPending(null);
-                setClosePending(false);
-              }}
-            >
-              Keep working
-            </button>
-            <button
-              onClick={() => {
-                if (pending) replace(pending);
-                else if (isTauri()) {
-                  dirtyRef.current = false;
-                  void getCurrentWindow().destroy();
-                }
-              }}
-            >
-              Discard changes
-            </button>
-          </div>
-        )}
-        {error && (
-          <div role="alert" className="fit-error">
-            <FitErrorMessage message={error} />
-          </div>
-        )}
-        <div
-          className="fit-layout"
-          style={collisionOpen || multiOpen ? { display: "none" } : undefined}
-        >
-          <main className="fit-workspace">
-            <section
-              ref={chartRef}
-              className={`fit-chart${showResiduals ? "" : " is-data-only"}`}
-            >
-              {current?.warnings
-                .filter(
-                  (w) =>
-                    w.startsWith("Best period") ||
-                    w.startsWith("Competing period"),
-                )
-                .map((w) => (
-                  <p className="fit-help" role="alert" key={w}>
-                    {w}
-                  </p>
-                ))}
-              <div className="fit-chart-toolbar">
-                <span className={`fit-status ${stale ? "stale" : ""}`}>
-                  {busy
-                    ? "Fitting…"
-                    : stale
-                      ? "Results stale"
-                      : current
-                        ? "Fitted"
-                        : "Ready to fit"}
-                </span>
-                <div className="fit-band-controls">
-                  <div className="fit-band-option">
+              <details
+                ref={settingsMenu}
+                className="fit-settings-menu"
+                onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
+              >
+                <summary>
+                  Settings{" "}
+                  <span className="fit-menu-arrow" aria-hidden="true">
+                    ▾
+                  </span>
+                </summary>
+                <div
+                  ref={settingsPanel}
+                  className="fit-settings-popover"
+                  style={settingsPosition}
+                >
+                  <fieldset>
+                    <legend>Graphs</legend>
                     <label>
                       <input
                         type="checkbox"
-                        checked={showBand}
-                        onChange={(e) => setShowBand(e.target.checked)}
+                        checked={showResiduals}
+                        onChange={(e) => setShowResiduals(e.target.checked)}
                       />
-                      Show 95% mean confidence band
+                      Show residual plots
                     </label>
-                    <details ref={bandNote} className="fit-band-note">
-                      <summary>Pointwise mean interval · assumptions</summary>
-                      <p>
-                        Conditional on the model and selected data. This is not
-                        a prediction interval for individual observations or a
-                        simultaneous 95% band for the entire curve.
-                        {
-                          " Selection after inspecting the data is not included in this uncertainty."
+                    <p>Applies to all graphs, printing, and exports.</p>
+                  </fieldset>
+                  <fieldset disabled={collisionOpen || multiOpen}>
+                    <legend>Copy report sections</legend>
+                    <p>Single-fit reports</p>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={reportSections.statistics}
+                        onChange={(e) =>
+                          setReportSections((s) => ({
+                            ...s,
+                            statistics: e.target.checked,
+                          }))
                         }
-                      </p>
-                    </details>
-                  </div>
-                  <label
-                    title={
-                      u.kind === "unknown-equal"
-                        ? "No supplied y uncertainty; residual-estimated scatter is not used as a measurement error bar."
-                        : "Supplied marginal y uncertainty, one standard deviation above and below each observation. Only shown on the data plot."
-                    }
-                  >
-                    <input
-                      type="checkbox"
-                      checked={showErrorBars && u.kind !== "unknown-equal"}
-                      disabled={u.kind === "unknown-equal"}
-                      onChange={(e) => setShowErrorBars(e.target.checked)}
-                    />
-                    {u.kind === "unknown-equal"
-                      ? "Error bars unavailable · σ unknown"
-                      : "Show y error bars (±1σ)"}
-                  </label>
+                      />
+                      Statistics
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={reportSections.correlation}
+                        onChange={(e) =>
+                          setReportSections((s) => ({
+                            ...s,
+                            correlation: e.target.checked,
+                          }))
+                        }
+                      />
+                      Parameter correlations
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={reportSections.observations}
+                        onChange={(e) =>
+                          setReportSections((s) => ({
+                            ...s,
+                            observations: e.target.checked,
+                          }))
+                        }
+                      />
+                      Observations and residuals
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={reportSections.provenance}
+                        onChange={(e) =>
+                          setReportSections((s) => ({
+                            ...s,
+                            provenance: e.target.checked,
+                          }))
+                        }
+                      />
+                      Source and notes
+                    </label>
+                    <button
+                      onClick={() =>
+                        setReportSections({
+                          statistics: true,
+                          correlation: true,
+                          observations: true,
+                          provenance: true,
+                        })
+                      }
+                    >
+                      Technical report
+                    </button>
+                    <button
+                      onClick={() =>
+                        setReportSections({
+                          statistics: true,
+                          correlation: true,
+                          observations: false,
+                          provenance: false,
+                        })
+                      }
+                    >
+                      Compact report
+                    </button>
+                  </fieldset>
                 </div>
-              </div>
-              <div className="chart-label">
-                {state.request.dataset.yColumn.label} [
-                {state.request.dataset.yColumn.unit ?? "unspecified"}]
-                <span>
-                  {current
-                    ? "Fitted model"
-                    : manualState === state
-                      ? "Manual preview · not fitted"
-                      : "Data only"}
-                </span>
-              </div>
-              <p className="fit-selection-help">
-                Drag to select · Shift-drag adds · Option/Alt-drag excludes
-              </p>
-              <Plot
-                mode={mode}
-                state={state}
-                result={current}
-                yRange={yRange}
-                onYRange={setYRange}
-                onXRange={setXRange}
-                xCustom={!!xRange}
-                onLogX={(value) => changeLog(value, logY)}
-                onLogY={(value) => changeLog(logX, value)}
-                range={range}
-                residual={false}
-                manual={manualState === state}
-                onToggle={toggle}
-                onSelect={selectRectangle}
-                showBand={showBand}
-                showErrorBars={showErrorBars}
-                showXAxis={!showResiduals}
-              />
-              {showResiduals && (
+              </details>
+            </div>
+            <nav>
+              <button
+                className="fit-data-trigger"
+                onClick={() =>
+                  showData({
+                    source: state.request.dataset.label,
+                    editing: true,
+                  })
+                }
+              >
+                Data…
+              </button>
+              <button
+                disabled={
+                  sigmaInvalid ||
+                  numericDraftInvalid ||
+                  collisionOpen ||
+                  multiOpen ||
+                  (state.settings.model === "custom" && equationPending)
+                }
+                title={
+                  collisionOpen || multiOpen
+                    ? "Multi-interval setup is not yet saved in sessions; switch to a single fit to save the source table."
+                    : undefined
+                }
+                onClick={saveFile}
+              >
+                Save session
+              </button>
+              <button
+                disabled={
+                  multiOpen
+                    ? !multiReady
+                    : collisionOpen
+                      ? !collisionReady
+                      : !current || numericDraftInvalid || pendingEquation
+                }
+                onClick={() =>
+                  multiOpen
+                    ? multiActions.current?.copy()
+                    : collisionOpen
+                      ? collisionActions.current?.copy()
+                      : copy()
+                }
+              >
+                Copy report
+              </button>
+              <button
+                disabled={
+                  multiOpen
+                    ? !multiReady
+                    : collisionOpen
+                      ? !collisionReady
+                      : numericDraftInvalid || pendingEquation
+                }
+                className="fit-print-trigger"
+                onClick={() =>
+                  multiOpen
+                    ? multiActions.current?.print()
+                    : collisionOpen
+                      ? collisionActions.current?.print()
+                      : setPrintPreview(true)
+                }
+              >
+                Print
+              </button>
+              <details ref={exportMenu} className="fit-export-menu">
+                <summary onKeyDown={openMenuFromKey}>Export graph</summary>
+                <div
+                  className="fit-export-popover"
+                  role="menu"
+                  onKeyDown={moveMenuFocus}
+                >
+                  <button
+                    role="menuitem"
+                    disabled={
+                      !multiOpen &&
+                      !collisionOpen &&
+                      (numericDraftInvalid || pendingEquation)
+                    }
+                    onClick={() => void exportGraph("svg")}
+                  >
+                    SVG vector graphic
+                  </button>
+                  <button
+                    role="menuitem"
+                    disabled={
+                      !multiOpen &&
+                      !collisionOpen &&
+                      (numericDraftInvalid || pendingEquation)
+                    }
+                    onClick={() => void exportGraph("png")}
+                  >
+                    PNG image
+                  </button>
+                  <button
+                    role="menuitem"
+                    disabled={
+                      !multiOpen &&
+                      !collisionOpen &&
+                      (numericDraftInvalid || pendingEquation)
+                    }
+                    onClick={() => void exportGraph("pdf")}
+                  >
+                    PDF vector graphic
+                  </button>
+                  <button
+                    role="menuitem"
+                    className="fit-export-sizing-action"
+                    onClick={() => {
+                      exportMenu.current?.removeAttribute("open");
+                      setExportSizeOpen(true);
+                    }}
+                  >
+                    Figure size…
+                  </button>
+                  {exportSizing && (
+                    <>
+                      <p className="fit-export-size-summary">
+                        {exportSizing.widthMm} × {exportSizing.heightMm} mm ·{" "}
+                        {exportSizing.fontSizePt} pt labels
+                      </p>
+                      <button
+                        role="menuitem"
+                        onClick={() => setExportSizing(null)}
+                      >
+                        Use display size
+                      </button>
+                    </>
+                  )}
+                </div>
+              </details>
+            </nav>
+          </header>
+          <input
+            ref={input}
+            type="file"
+            accept=".json,.trksess,.csv,.tsv,.txt,.trk,.trz"
+            hidden
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                if (/\.trz$/i.test(file.name)) {
+                  if (file.size > 100_000_000)
+                    setError("Tracker archive exceeds 100 MB limit");
+                  else
+                    await importArchive(
+                      new Uint8Array(await file.arrayBuffer()),
+                      file.name,
+                    );
+                } else if (file.size > 20_000_000)
+                  setError("File exceeds 20 MB limit");
+                else await importText(await file.text(), file.name);
+              }
+              e.target.value = "";
+            }}
+          />
+          {collisionSource && (
+            <CollisionDraft
+              key={collisionRevision}
+              source={collisionSource}
+              open={collisionOpen}
+              showResiduals={showResiduals}
+              exportSizes={collisionOpen ? exportRender?.sizes : undefined}
+              ref={collisionActions}
+              analysisControl={analysisControl}
+              onReady={setCollisionReady}
+              onDirty={() => setUnsavedDraftWork(true)}
+            />
+          )}
+          {collisionSource && (
+            <MultiInterval
+              key={`multi-${collisionRevision}`}
+              source={collisionSource}
+              open={multiOpen}
+              showResiduals={showResiduals}
+              exportSizes={multiOpen ? exportRender?.sizes : undefined}
+              ref={multiActions}
+              analysisControl={analysisControl}
+              onReady={setMultiReady}
+              onDirty={() => setUnsavedDraftWork(true)}
+            />
+          )}
+          {exportRender && !multiOpen && !collisionOpen && (
+            <div className="fit-export-render" aria-hidden="true" inert>
+              {exportRender.sizes.map((size, index) => (
+                <Plot
+                  key={index}
+                  state={state}
+                  result={current}
+                  mode={mode}
+                  range={range}
+                  residual={index > 0}
+                  manual={manualState === state}
+                  showBand={showBand}
+                  showErrorBars={showErrorBars}
+                  showXAxis={index === exportRender.sizes.length - 1}
+                  onToggle={() => {}}
+                  fixedYRange={exportRender.yRanges[index]}
+                  printSize={size}
+                  idPrefix="export-"
+                />
+              ))}
+            </div>
+          )}
+          {exportSizeOpen && (
+            <ExportSizeDialog
+              value={exportSizing ?? DEFAULT_EXPORT_SIZING}
+              onApply={(sizing) => {
+                setExportSizing(sizing);
+                setExportSizeOpen(false);
+              }}
+              onClose={() => setExportSizeOpen(false)}
+            />
+          )}
+          {trackerProject && (
+            <TrackerImport
+              project={trackerProject}
+              onCancel={() => setTrackerProject(null)}
+              onReview={(analysis) => {
+                setTrackerProject(null);
+                showData({
+                  source: analysis.request.dataset.label,
+                  incoming: analysis,
+                });
+              }}
+            />
+          )}
+          {printPreview && (
+            <PrintReport
+              yRange={yRange}
+              mode={mode}
+              state={state}
+              result={current}
+              manual={manualState === state}
+              range={range}
+              showBand={showBand}
+              showErrorBars={showErrorBars}
+              showResiduals={showResiduals}
+              fullPageGraph={fullPageGraph}
+              onFullPageGraphChange={setFullPageGraph}
+              onClose={() => setPrintPreview(false)}
+            />
+          )}
+          {dataPanel && (
+            <ImportPanel
+              key={dataPanel.token}
+              externalError={error}
+              onOpen={openFile}
+              examples={[
+                { id: "synthetic", label: "Synthetic data", items: examples },
+                {
+                  id: "published",
+                  label: "Published data",
+                  items: publishedExamples,
+                },
+              ]}
+              onOpenExample={openExample}
+              source={dataPanel.source}
+              text={dataPanel.text}
+              fileName={dataPanel.fileName}
+              analysis={
+                dataPanel.incoming ?? (dataPanel.editing ? state : undefined)
+              }
+              reviewing={!!dataPanel.incoming}
+              onClose={() => setDataPanel(null)}
+              onApply={(next, replacement) => {
+                setDataPanel(null);
+                if (dataPanel.editing && !replacement) {
+                  const updated = { ...state, ...next };
+                  if (unsavedDraftWork) {
+                    setPendingDataEdit(true);
+                    setPending(updated);
+                  } else {
+                    change(updated);
+                    bounds();
+                  }
+                } else {
+                  setPendingDataEdit(false);
+                  dirtyRef.current =
+                    dirty ||
+                    unsavedDraftWork ||
+                    pendingEquation ||
+                    sigmaDraft !== null;
+                  propose(
+                    replacement ? next : { ...dataPanel.incoming, ...next },
+                  );
+                }
+              }}
+            />
+          )}
+          {(pending || closePending) && (
+            <div className="fit-confirm" role="alert">
+              <span>
+                {pendingDataEdit
+                  ? "Apply these data and discard the unsaved interval analyses?"
+                  : unsavedDraftWork
+                    ? "Keep or discard your unsaved analysis? Multi-interval and collision setups are not saved in sessions."
+                    : "Keep or discard your unsaved analysis changes?"}
+              </span>
+              <button
+                onClick={() => {
+                  setPending(null);
+                  setPendingDataEdit(false);
+                  setClosePending(false);
+                }}
+              >
+                Keep working
+              </button>
+              <button
+                onClick={() => {
+                  if (pending && pendingDataEdit) {
+                    setUnsavedDraftWork(false);
+                    setPendingDataEdit(false);
+                    setPending(null);
+                    change(pending);
+                    bounds();
+                  } else if (pending) replace(pending);
+                  else if (isTauri()) {
+                    dirtyRef.current = false;
+                    void getCurrentWindow().destroy();
+                  }
+                }}
+              >
+                {pendingDataEdit ? "Apply data" : "Discard changes"}
+              </button>
+            </div>
+          )}
+          {error && (
+            <div role="alert" className="fit-error">
+              <FitErrorMessage message={error} />
+            </div>
+          )}
+          <div
+            className="fit-layout"
+            style={collisionOpen || multiOpen ? { display: "none" } : undefined}
+          >
+            <main className="fit-workspace">
+              <section
+                ref={chartRef}
+                className={`fit-chart${showResiduals ? "" : " is-data-only"}`}
+              >
+                {current?.warnings
+                  .filter(
+                    (w) =>
+                      w.startsWith("Best period") ||
+                      w.startsWith("Competing period"),
+                  )
+                  .map((w) => (
+                    <p className="fit-help" role="alert" key={w}>
+                      {w}
+                    </p>
+                  ))}
+                <div className="fit-chart-toolbar">
+                  <span className={`fit-status ${stale ? "stale" : ""}`}>
+                    {pendingEquation
+                      ? "Equation edits pending"
+                      : busy
+                        ? "Fitting…"
+                        : stale
+                          ? "Results stale"
+                          : current
+                            ? "Fitted"
+                            : "Ready to fit"}
+                  </span>
+                  <div className="fit-band-controls">
+                    <div className="fit-band-option">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={showBand}
+                          onChange={(e) => setShowBand(e.target.checked)}
+                        />
+                        Show 95% mean confidence band
+                      </label>
+                      <details ref={bandNote} className="fit-band-note">
+                        <summary>Pointwise mean interval · assumptions</summary>
+                        <p>
+                          Conditional on the model and selected data. This is
+                          not a prediction interval for individual observations
+                          or a simultaneous 95% band for the entire curve.
+                          {
+                            " Selection after inspecting the data is not included in this uncertainty."
+                          }
+                        </p>
+                      </details>
+                    </div>
+                    <label
+                      title={
+                        u.kind === "unknown-equal"
+                          ? "No supplied y uncertainty; residual-estimated scatter is not used as a measurement error bar."
+                          : "Supplied marginal y uncertainty, one standard deviation above and below each observation. Only shown on the data plot."
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={showErrorBars && u.kind !== "unknown-equal"}
+                        disabled={u.kind === "unknown-equal"}
+                        onChange={(e) => setShowErrorBars(e.target.checked)}
+                      />
+                      {u.kind === "unknown-equal"
+                        ? "Error bars unavailable · σ unknown"
+                        : "Show y error bars (±1σ)"}
+                    </label>
+                  </div>
+                </div>
+                <div className="chart-label">
+                  {state.request.dataset.yColumn.label} [
+                  {state.request.dataset.yColumn.unit ?? "unspecified"}]
+                  <span>
+                    {current
+                      ? "Fitted model"
+                      : manualState === state
+                        ? "Manual preview · not fitted"
+                        : "Data only"}
+                  </span>
+                </div>
+                <p className="fit-selection-help">
+                  Drag to select · Shift-drag adds · Option/Alt-drag excludes
+                </p>
                 <Plot
                   mode={mode}
                   state={state}
                   result={current}
+                  yRange={yRange}
+                  onYRange={setYRange}
+                  onXRange={setXRange}
+                  xCustom={!!xRange}
+                  onLogX={(value) => changeLog(value, logY)}
+                  onLogY={(value) => changeLog(logX, value)}
                   range={range}
-                  residual
+                  residual={false}
+                  manual={manualState === state}
                   onToggle={toggle}
+                  onSelect={selectRectangle}
+                  showBand={showBand}
+                  showErrorBars={showErrorBars}
+                  showXAxis={!showResiduals}
                 />
-              )}
-            </section>
-            <div className="fit-tabs">
-              <button
-                aria-pressed={tab === "results"}
-                onClick={() => setTab("results")}
-              >
-                Fit diagnostics
-              </button>
-              <button
-                aria-pressed={tab === "rows"}
-                onClick={() => setTab("rows")}
-              >
-                Observations & exclusions
-              </button>
-            </div>
-            {tab === "results" ? (
-              <section className="fit-diagnostics">
-                {current ? (
-                  <>
-                    <div className="fit-metrics">
-                      {[
-                        ["RMS residual", current.rms],
-                        ["Degrees of freedom", current.df],
-                        ["Centered R²", current.rSquared.value],
-                        ["Q", current.q.value],
-                      ].map(([label, value]) => (
-                        <div key={label as string}>
-                          <span>{label}</span>
-                          <strong>{number(value as number | null)}</strong>
-                        </div>
-                      ))}
-                    </div>
-                    <details className="fit-diagnostic-details">
-                      <summary>
-                        Inference: {current.inference} · details
-                        {current.warnings.length ? " · notes" : ""}
-                      </summary>
-                      <p>
-                        Inference: {current.inference}. Standard errors use
-                        model covariance (locally approximated for nonlinear
-                        parameters). Intervals are marginal 95% intervals.
-                      </p>
-                      <p>
-                        {current.q.value === null
-                          ? `Q unavailable: ${current.q.reason}.`
-                          : `Q is a tail probability, not the probability the model is true.`}{" "}
-                        Rank {current.rank}; diagonal ratio{" "}
-                        {number(current.diagonalRatio)}.
-                      </p>
-                      {current.warnings.map((w) => (
-                        <p className="fit-warning" key={w}>
-                          {w}
-                        </p>
-                      ))}
-                    </details>
-                  </>
-                ) : (
-                  <p>
-                    {stale
-                      ? "Settings have changed. Fit again to refresh the diagnostics."
-                      : "Choose a model and fit. Diagnostics will appear here."}
-                  </p>
+                {showResiduals && (
+                  <Plot
+                    mode={mode}
+                    state={state}
+                    result={current}
+                    range={range}
+                    residual
+                    onToggle={toggle}
+                  />
                 )}
               </section>
-            ) : (
-              <div className="fit-table-wrap">
+              <div className="fit-tabs">
                 <button
-                  onClick={() =>
-                    showData({
-                      source: state.request.dataset.label,
-                      editing: true,
-                    })
-                  }
+                  aria-pressed={tab === "results"}
+                  onClick={() => setTab("results")}
                 >
-                  Edit data
+                  Fit diagnostics
                 </button>
-                {state.originalRequest && (
-                  <details>
-                    <summary>
-                      Original snapshot preserved · inspect original data
-                    </summary>
-                    <p>
-                      {state.originalRequest.dataset.label} ·{" "}
-                      {state.originalRequest.source.application}
-                    </p>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Original row</th>
-                          <th>{state.originalRequest.dataset.xColumn.label}</th>
-                          <th>{state.originalRequest.dataset.yColumn.label}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {state.originalRequest.dataset.rows.map((row) => (
-                          <tr key={row.id}>
-                            <td>{row.id}</td>
-                            <td>
-                              {row.x === null ? "Missing" : String(row.x)}
-                            </td>
-                            <td>
-                              {row.y === null ? "Missing" : String(row.y)}
-                            </td>
-                          </tr>
+                <button
+                  aria-pressed={tab === "rows"}
+                  onClick={() => setTab("rows")}
+                >
+                  Observations & exclusions
+                </button>
+              </div>
+              {tab === "results" ? (
+                <section className="fit-diagnostics">
+                  {current ? (
+                    <>
+                      <div className="fit-metrics">
+                        {[
+                          ["RMS residual", current.rms],
+                          ["Degrees of freedom", current.df],
+                          ["Centered R²", current.rSquared.value],
+                          ["Q", current.q.value],
+                        ].map(([label, value]) => (
+                          <div key={label as string}>
+                            <span>{label}</span>
+                            <strong>{number(value as number | null)}</strong>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  </details>
-                )}
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Use</th>
-                      <th>Row</th>
-                      <th>{state.request.dataset.xColumn.label}</th>
-                      <th>{state.request.dataset.yColumn.label}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.request.dataset.rows.map((r) => (
-                      <tr key={r.id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`Include ${r.id}`}
-                            disabled={!r.included}
-                            checked={
-                              r.included &&
-                              !state.settings.excludedIds.includes(r.id)
-                            }
-                            onChange={() => toggle(r.id)}
-                          />
-                        </td>
-                        <td>{r.id}</td>
-                        <td>{number(r.x)}</td>
-                        <td>{number(r.y)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </main>
-          <aside className="fit-controls">
-            <section>
-              <div className="section-eyebrow">01 / ANALYSIS</div>
-              {!collisionOpen && !multiOpen && analysisControl}
-              {state.settings.model !== "custom" && (
-                <button
-                  className="edit-custom-equation"
-                  onClick={() =>
-                    change({
-                      ...state,
-                      settings: customFromModel(
-                        state.settings,
-                        state.request,
-                        current?.coefficients,
-                      ),
-                      request: {
-                        ...state.request,
-                        dataset: {
-                          ...state.request.dataset,
-                          assumptions: {
-                            ...state.request.dataset.assumptions,
-                            correctModel: "unknown",
-                          },
-                        },
-                      },
-                    })
-                  }
-                >
-                  Edit as custom equation
-                </button>
-              )}
-              <div
-                className={`fit-equation${state.settings.model === "custom" ? " custom-equation-preview" : ""}`}
-              >
-                {state.settings.model === "custom"
-                  ? `y = ${state.settings.custom!.expression}`
-                  : equations[state.settings.model]}
-              </div>
-              {state.settings.model === "custom" && (
-                <CustomEquationEditor
-                  definition={state.settings.custom!}
-                  onPending={setEquationPending}
-                  onApply={(custom) => {
-                    const oldNames = names;
-                    change({
-                      ...state,
-                      request: {
-                        ...state.request,
-                        dataset: {
-                          ...state.request.dataset,
-                          assumptions: {
-                            ...state.request.dataset.assumptions,
-                            correctModel: "unknown",
-                          },
-                        },
-                      },
-                      settings: {
-                        ...state.settings,
-                        custom,
-                        conditionalInference: false,
-                        parameters: custom.names.map((name) => {
-                          const i = oldNames.indexOf(name);
-                          return i < 0
-                            ? { value: 1, fixed: false }
-                            : {
-                                ...state.settings.parameters[i],
-                                value:
-                                  current?.coefficients[i] ??
-                                  state.settings.parameters[i].value,
-                              };
-                        }),
-                      },
-                    });
-                  }}
-                />
-              )}
-              {isNonlinearModel(state.settings.model) && (
-                <p className="fit-help">
-                  Values below are starting estimates. Edit them or fix known
-                  parameters before fitting. Widths and decay times must be
-                  positive. Nonlinear fits find a local solution; compare
-                  different starts. Intervals and bands are approximate.
-                </p>
-              )}
-              {state.settings.model === "sine-free-period" && (
-                <>
-                  <div className="fit-period-range">
-                    {(["periodMin", "periodMax"] as const).map((key) => (
-                      <label key={key}>
-                        {key === "periodMin"
-                          ? "Minimum period"
-                          : "Maximum period"}{" "}
-                        [{state.request.dataset.xColumn.unit ?? "unspecified"}]
-                        <input
-                          key={String(state.settings[key])}
-                          aria-label={
-                            key === "periodMin"
-                              ? "Minimum period"
-                              : "Maximum period"
-                          }
-                          type="number"
-                          step="any"
-                          defaultValue={state.settings[key]}
-                          onBlur={(e) => {
-                            const value = e.target.valueAsNumber;
-                            if (
-                              Number.isFinite(value) &&
-                              value > 0 &&
-                              (key === "periodMin"
-                                ? value < state.settings.periodMax!
-                                : value > state.settings.periodMin!)
-                            )
-                              change({
-                                ...state,
-                                settings: { ...state.settings, [key]: value },
-                              });
-                            else {
-                              e.currentTarget.value = String(
-                                state.settings[key],
-                              );
-                              setError(
-                                "Period bounds must be positive, with minimum below maximum. Previous bound restored.",
-                              );
-                            }
-                          }}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                  <p className="fit-help">
-                    Fits T within this range; Fix T uses its table value. Errors
-                    and bands are local approximations. Competing periods may
-                    remain outside the range.
-                  </p>
-                  {current && (
-                    <p className="fit-help">
-                      Amplitude{" "}
-                      {number(
-                        Math.hypot(
-                          current.coefficients[1],
-                          current.coefficients[2],
-                        ),
-                      )}{" "}
-                      · Phase{" "}
-                      {number(
-                        Math.atan2(
-                          current.coefficients[2],
-                          current.coefficients[1],
-                        ),
-                      )}{" "}
-                      rad
+                      </div>
+                      <details className="fit-diagnostic-details">
+                        <summary>
+                          Inference: {current.inference} · details
+                          {current.warnings.length ? " · notes" : ""}
+                        </summary>
+                        <p>
+                          Inference: {current.inference}. Standard errors use
+                          model covariance (locally approximated for nonlinear
+                          parameters). Intervals are marginal 95% intervals.
+                        </p>
+                        <p>
+                          {current.q.value === null
+                            ? `Q unavailable: ${statisticReasonText(current.q.reason)}.`
+                            : `Q is a tail probability, not the probability the model is true.`}{" "}
+                          Rank {current.rank}; diagonal ratio{" "}
+                          {number(current.diagonalRatio)}.
+                        </p>
+                        {current.warnings.map((w) => (
+                          <p className="fit-warning" key={w}>
+                            {w}
+                          </p>
+                        ))}
+                      </details>
+                    </>
+                  ) : (
+                    <p>
+                      {stale
+                        ? "Settings have changed. Fit again to refresh the diagnostics."
+                        : "Choose a model and fit. Diagnostics will appear here."}
                     </p>
                   )}
-                </>
+                </section>
+              ) : (
+                <div className="fit-table-wrap">
+                  <button
+                    onClick={() =>
+                      showData({
+                        source: state.request.dataset.label,
+                        editing: true,
+                      })
+                    }
+                  >
+                    Edit data
+                  </button>
+                  {state.originalRequest && (
+                    <details>
+                      <summary>
+                        Original data preserved · inspect before edits
+                      </summary>
+                      <p>
+                        {state.originalRequest.dataset.label} ·{" "}
+                        {state.originalRequest.source.application}
+                      </p>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Original row</th>
+                            <th>
+                              {state.originalRequest.dataset.xColumn.label}
+                            </th>
+                            <th>
+                              {state.originalRequest.dataset.yColumn.label}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {state.originalRequest.dataset.rows.map(
+                            (row, index) => (
+                              <tr key={row.id}>
+                                <td>{index + 1}</td>
+                                <td>
+                                  {row.x === null ? "Missing" : String(row.x)}
+                                </td>
+                                <td>
+                                  {row.y === null ? "Missing" : String(row.y)}
+                                </td>
+                              </tr>
+                            ),
+                          )}
+                        </tbody>
+                      </table>
+                    </details>
+                  )}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Use</th>
+                        <th>Row</th>
+                        <th>{state.request.dataset.xColumn.label}</th>
+                        <th>{state.request.dataset.yColumn.label}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {state.request.dataset.rows.map((r, index) => (
+                        <tr key={r.id}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              aria-label={`Include row ${index + 1}`}
+                              disabled={!r.included}
+                              checked={
+                                r.included &&
+                                !state.settings.excludedIds.includes(r.id)
+                              }
+                              onChange={() => toggle(r.id)}
+                            />
+                          </td>
+                          <td>{index + 1}</td>
+                          <td>{number(r.x)}</td>
+                          <td>{number(r.y)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
-              {(state.settings.model === "exponential" ||
-                state.settings.model === "power-law") && (
-                <label>
-                  {state.settings.model === "exponential"
-                    ? "Supplied rate k (inverse x-unit)"
-                    : "Supplied exponent p (dimensionless)"}
-                  <input
-                    key={state.settings.model + String(state.settings.shape)}
-                    aria-label="Supplied shape"
-                    type="number"
-                    step="any"
-                    defaultValue={state.settings.shape}
-                    onBlur={(e) => {
-                      const value = e.target.valueAsNumber;
-                      if (Number.isFinite(value))
-                        change({
-                          ...state,
-                          settings: { ...state.settings, shape: value },
-                        });
-                      else {
-                        e.currentTarget.value = String(state.settings.shape);
-                        setError(
-                          "Enter a finite shape value. Previous value restored.",
-                        );
-                      }
+            </main>
+            <aside className="fit-controls">
+              <section>
+                <div className="section-eyebrow">01 / ANALYSIS</div>
+                {!collisionOpen && !multiOpen && analysisControl}
+                {state.settings.model !== "custom" && (
+                  <button
+                    className="edit-custom-equation"
+                    onClick={() =>
+                      change({
+                        ...state,
+                        settings: customFromModel(
+                          state.settings,
+                          state.request,
+                          current?.coefficients,
+                        ),
+                        request: {
+                          ...state.request,
+                          dataset: {
+                            ...state.request.dataset,
+                            assumptions: {
+                              ...state.request.dataset.assumptions,
+                              correctModel: "unknown",
+                            },
+                          },
+                        },
+                      })
+                    }
+                  >
+                    Edit as custom equation
+                  </button>
+                )}
+                <div
+                  className={`fit-equation${state.settings.model === "custom" ? " custom-equation-preview" : ""}`}
+                >
+                  {state.settings.model === "custom"
+                    ? `y = ${state.settings.custom!.expression}`
+                    : equations[state.settings.model]}
+                </div>
+                {state.settings.model === "custom" && (
+                  <CustomEquationEditor
+                    definition={state.settings.custom!}
+                    onPending={setEquationPending}
+                    onApply={(custom) => {
+                      const oldNames = names;
+                      change({
+                        ...state,
+                        request: {
+                          ...state.request,
+                          dataset: {
+                            ...state.request.dataset,
+                            assumptions: {
+                              ...state.request.dataset.assumptions,
+                              correctModel: "unknown",
+                            },
+                          },
+                        },
+                        settings: {
+                          ...state.settings,
+                          custom,
+                          conditionalInference: false,
+                          parameters: custom.names.map((name) => {
+                            const i = oldNames.indexOf(name);
+                            return i < 0
+                              ? { value: 1, fixed: false }
+                              : {
+                                  ...state.settings.parameters[i],
+                                  value:
+                                    current?.coefficients[i] ??
+                                    state.settings.parameters[i].value,
+                                };
+                          }),
+                        },
+                      });
                     }}
                   />
-                  <span className="fit-help">
-                    Held fixed; only b and a are fitted.
-                  </span>
-                </label>
-              )}
-              {["power-law", "reciprocal"].includes(state.settings.model) && (
-                <p className="fit-help">
-                  Positive x only; xref is one declared x-unit.
-                </p>
-              )}
-              {state.settings.model === "sine" && (
-                <label>
-                  Supplied period T [
-                  {state.request.dataset.xColumn.unit ?? "unspecified"}]
-                  <input
-                    aria-label="Sine period"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={state.settings.sinePeriod ?? 2 * Math.PI}
-                    onChange={(e) => {
-                      const value = e.target.valueAsNumber;
-                      if (Number.isFinite(value) && value > 0)
+                )}
+                {isNonlinearModel(state.settings.model) && (
+                  <p className="fit-help">
+                    {current
+                      ? "Values below are fitted parameters. Editing them starts a new fit."
+                      : "Values below are starting estimates. Edit them or fix known parameters before fitting."}{" "}
+                    Widths and decay times must be positive. Nonlinear fits find
+                    a local solution; compare different starts. Intervals and
+                    bands are approximate.
+                  </p>
+                )}
+                {state.settings.model === "sine-free-period" && (
+                  <>
+                    <div className="fit-period-range">
+                      {(["periodMin", "periodMax"] as const).map((key) => (
+                        <label key={key}>
+                          {key === "periodMin"
+                            ? "Minimum period"
+                            : "Maximum period"}{" "}
+                          [{state.request.dataset.xColumn.unit ?? "unspecified"}
+                          ]
+                          <input
+                            key={String(state.settings[key])}
+                            aria-label={
+                              key === "periodMin"
+                                ? "Minimum period"
+                                : "Maximum period"
+                            }
+                            type="number"
+                            step="any"
+                            defaultValue={state.settings[key]}
+                            onBlur={(e) => {
+                              const value = e.target.valueAsNumber;
+                              if (
+                                Number.isFinite(value) &&
+                                value > 0 &&
+                                (key === "periodMin"
+                                  ? value < state.settings.periodMax!
+                                  : value > state.settings.periodMin!)
+                              )
+                                change({
+                                  ...state,
+                                  settings: { ...state.settings, [key]: value },
+                                });
+                              else {
+                                e.currentTarget.value = String(
+                                  state.settings[key],
+                                );
+                                setError(
+                                  "Period bounds must be positive, with minimum below maximum. Previous bound restored.",
+                                );
+                              }
+                            }}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <p className="fit-help">
+                      Fits T within this range; Fix T uses its table value.
+                      Errors and bands are local approximations. Competing
+                      periods may remain outside the range.
+                    </p>
+                    {current && (
+                      <p className="fit-help">
+                        Amplitude{" "}
+                        {number(
+                          Math.hypot(
+                            current.coefficients[1],
+                            current.coefficients[2],
+                          ),
+                        )}{" "}
+                        · Phase{" "}
+                        {number(
+                          Math.atan2(
+                            current.coefficients[2],
+                            current.coefficients[1],
+                          ),
+                        )}{" "}
+                        rad
+                      </p>
+                    )}
+                  </>
+                )}
+                {(state.settings.model === "exponential" ||
+                  state.settings.model === "power-law") && (
+                  <label>
+                    {state.settings.model === "exponential"
+                      ? "Supplied rate k (inverse x-unit)"
+                      : "Supplied exponent p (dimensionless)"}
+                    <input
+                      key={state.settings.model + String(state.settings.shape)}
+                      aria-label="Supplied shape"
+                      type="number"
+                      step="any"
+                      defaultValue={state.settings.shape}
+                      onBlur={(e) => {
+                        const value = e.target.valueAsNumber;
+                        if (Number.isFinite(value))
+                          change({
+                            ...state,
+                            settings: { ...state.settings, shape: value },
+                          });
+                        else {
+                          e.currentTarget.value = String(state.settings.shape);
+                          setError(
+                            "Enter a finite shape value. Previous value restored.",
+                          );
+                        }
+                      }}
+                    />
+                    <span className="fit-help">
+                      Held fixed; only b and a are fitted.
+                    </span>
+                  </label>
+                )}
+                {["power-law", "reciprocal"].includes(state.settings.model) && (
+                  <p className="fit-help">
+                    Positive x only; xref is one declared x-unit.
+                  </p>
+                )}
+                {state.settings.model === "sine" && (
+                  <label>
+                    Supplied period T [
+                    {state.request.dataset.xColumn.unit ?? "unspecified"}]
+                    <EditableNumber
+                      aria-label="Sine period"
+                      aria-describedby={
+                        numericDraftInvalid ? "numeric-draft-help" : undefined
+                      }
+                      isValid={(value) => value > 0}
+                      value={state.settings.sinePeriod ?? 2 * Math.PI}
+                      onInvalidChange={numericDraftChanged}
+                      onRestoreInvalid={() => {
+                        setError(
+                          "The period must be greater than zero. The last valid value was restored.",
+                        );
+                      }}
+                      onChange={(value) => {
                         change({
                           ...state,
                           settings: { ...state.settings, sinePeriod: value },
                         });
-                    }}
-                  />
-                  <span className="fit-help">
-                    Period is held fixed. s and c fit amplitude and phase; their
-                    uncertainty is conditional on this period.
-                  </span>
-                </label>
-              )}
-              {state.settings.model === "logarithmic" && (
-                <p className="fit-help">
-                  Natural log; xref = 1{" "}
-                  {state.request.dataset.xColumn.unit ?? "(x unit unspecified)"}
-                  . Included x values must be positive.
-                </p>
-              )}
-              {state.settings.model === "constant-acceleration" && (
-                <label className="fit-check">
-                  <input
-                    type="checkbox"
-                    checked={state.settings.physicalTimeConfirmed}
-                    onChange={(e) =>
-                      change({
-                        ...state,
-                        settings: {
-                          ...state.settings,
-                          physicalTimeConfirmed: e.target.checked,
-                        },
-                      })
-                    }
-                  />
-                  Independent variable is physical time
-                </label>
-              )}
-              <div className="parameter-heading">
-                <span>Parameter</span>
-                <span>Value</span>
-                <span>Std. error</span>
-                <span>Fix</span>
-              </div>
-              {names.map((name, i) => (
-                <div className="fit-parameter" key={name}>
-                  <label htmlFor={`parameter-${name}`}>
-                    {name}
-                    <span
-                      className="parameter-unit"
-                      hidden={state.settings.model === "custom"}
-                    >
-                      {state.settings.model === "custom"
-                        ? state.settings.custom!.units[i] || "?"
-                        : isNonlinearModel(state.settings.model)
-                          ? nonlinearParameterUnit(
-                              state.settings.model,
-                              i,
-                              state.request.dataset.xColumn.unit,
-                              state.request.dataset.yColumn.unit,
-                            )
-                          : state.settings.model === "sine-free-period" &&
-                              i === 3
-                            ? (state.request.dataset.xColumn.unit ?? "?")
-                            : i === 0 ||
-                                state.settings.model === "logarithmic" ||
-                                [
-                                  "sine",
-                                  "sine-free-period",
-                                  "exponential",
-                                  "power-law",
-                                  "reciprocal",
-                                ].includes(state.settings.model)
-                              ? (state.request.dataset.yColumn.unit ?? "?")
-                              : `${state.request.dataset.yColumn.unit ?? "?"}/${state.request.dataset.xColumn.unit ?? "?"}${["", "", "²", "³", "⁴"][i]}`}
+                      }}
+                    />
+                    <span className="fit-help">
+                      Period is held fixed. s and c fit amplitude and phase;
+                      their uncertainty is conditional on this period.
                     </span>
-                    {state.settings.model === "custom" && (
-                      <input
-                        className="custom-unit"
-                        maxLength={100}
-                        aria-label={`${name} unit`}
-                        placeholder="unit"
-                        value={state.settings.custom!.units[i]}
-                        autoCapitalize="none"
-                        autoCorrect="off"
-                        autoComplete="off"
-                        spellCheck={false}
-                        onChange={(e) =>
-                          change({
-                            ...state,
-                            settings: {
-                              ...state.settings,
-                              custom: {
-                                ...state.settings.custom!,
-                                units: state.settings.custom!.units.map(
-                                  (unit, j) =>
-                                    j === i ? e.target.value : unit,
-                                ),
-                              },
-                            },
-                          })
-                        }
-                      />
-                    )}
                   </label>
-                  <input
-                    id={`parameter-${name}`}
-                    aria-label={`${name} value`}
-                    type="number"
-                    step="any"
-                    title={
-                      current ? String(current.coefficients[i]) : undefined
-                    }
-                    value={
-                      current
-                        ? Number(current.coefficients[i].toPrecision(7))
-                        : state.settings.parameters[i].value
-                    }
-                    onChange={(e) => {
-                      const value = e.target.valueAsNumber;
-                      if (Number.isFinite(value))
+                )}
+                {state.settings.model === "logarithmic" && (
+                  <p className="fit-help">
+                    Natural log; xref = 1{" "}
+                    {state.request.dataset.xColumn.unit ??
+                      "(x unit unspecified)"}
+                    . Included x values must be positive.
+                  </p>
+                )}
+                {state.settings.model === "constant-acceleration" && (
+                  <label className="fit-check">
+                    <input
+                      type="checkbox"
+                      checked={state.settings.physicalTimeConfirmed}
+                      onChange={(e) =>
+                        change({
+                          ...state,
+                          settings: {
+                            ...state.settings,
+                            physicalTimeConfirmed: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                    Independent variable is physical time
+                  </label>
+                )}
+                <div className="parameter-heading">
+                  <span>Parameter</span>
+                  <span>Value</span>
+                  <span>Std. error</span>
+                  <span>Fix</span>
+                </div>
+                {names.map((name, i) => (
+                  <div className="fit-parameter" key={name}>
+                    <label htmlFor={`parameter-${name}`}>
+                      {name}
+                      <span
+                        className="parameter-unit"
+                        hidden={state.settings.model === "custom"}
+                      >
+                        {state.settings.model === "custom"
+                          ? state.settings.custom!.units[i] || "?"
+                          : isNonlinearModel(state.settings.model)
+                            ? nonlinearParameterUnit(
+                                state.settings.model,
+                                i,
+                                state.request.dataset.xColumn.unit,
+                                state.request.dataset.yColumn.unit,
+                              )
+                            : state.settings.model === "sine-free-period" &&
+                                i === 3
+                              ? (state.request.dataset.xColumn.unit ?? "?")
+                              : i === 0 ||
+                                  state.settings.model === "logarithmic" ||
+                                  [
+                                    "sine",
+                                    "sine-free-period",
+                                    "exponential",
+                                    "power-law",
+                                    "reciprocal",
+                                  ].includes(state.settings.model)
+                                ? (state.request.dataset.yColumn.unit ?? "?")
+                                : `${state.request.dataset.yColumn.unit ?? "?"}/${state.request.dataset.xColumn.unit ?? "?"}${["", "", "²", "³", "⁴"][i]}`}
+                      </span>
+                      {state.settings.model === "custom" && (
+                        <input
+                          className="custom-unit"
+                          maxLength={100}
+                          aria-label={`${name} unit`}
+                          placeholder="unit"
+                          value={state.settings.custom!.units[i]}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          autoComplete="off"
+                          spellCheck={false}
+                          onChange={(e) =>
+                            change({
+                              ...state,
+                              settings: {
+                                ...state.settings,
+                                custom: {
+                                  ...state.settings.custom!,
+                                  units: state.settings.custom!.units.map(
+                                    (unit, j) =>
+                                      j === i ? e.target.value : unit,
+                                  ),
+                                },
+                              },
+                            })
+                          }
+                        />
+                      )}
+                    </label>
+                    <EditableNumber
+                      key={`${state.settings.model}-${name}`}
+                      id={`parameter-${name}`}
+                      aria-label={`${name} value`}
+                      aria-describedby={
+                        numericDraftInvalid ? "numeric-draft-help" : undefined
+                      }
+                      title={
+                        current ? String(current.coefficients[i]) : undefined
+                      }
+                      value={
+                        current
+                          ? Number(current.coefficients[i].toPrecision(7))
+                          : state.settings.parameters[i].value
+                      }
+                      onInvalidChange={numericDraftChanged}
+                      onRestoreInvalid={() => {
+                        setError(
+                          "Enter a finite parameter value. The last valid value was restored.",
+                        );
+                      }}
+                      onChange={(value) => {
                         change(
                           {
                             ...state,
@@ -2893,286 +3165,292 @@ export default function FitApp() {
                           },
                           true,
                         );
-                    }}
-                  />
-                  {current ? (
-                    <span
-                      className="parameter-result"
-                      title={
-                        current.standardErrors[i].reason ??
-                        "Parameter standard error"
+                      }}
+                    />
+                    {current ? (
+                      <span
+                        className="parameter-result"
+                        title={
+                          current.standardErrors[i].reason
+                            ? statisticReasonText(
+                                current.standardErrors[i].reason,
+                              )
+                            : "Parameter standard error"
+                        }
+                      >
+                        {current.standardErrors[i].value === null
+                          ? current.standardErrors[i].reason === "fixed"
+                            ? "(fixed)"
+                            : "—"
+                          : number(current.standardErrors[i].value)}
+                      </span>
+                    ) : (
+                      <span className="parameter-placeholder">—</span>
+                    )}
+                    <input
+                      aria-label={`Fix ${name}`}
+                      type="checkbox"
+                      checked={state.settings.parameters[i].fixed}
+                      onChange={(e) =>
+                        change({
+                          ...state,
+                          settings: {
+                            ...state.settings,
+                            parameters: state.settings.parameters.map(
+                              (p, j) => ({
+                                ...p,
+                                value: current?.coefficients[j] ?? p.value,
+                                fixed: j === i ? e.target.checked : p.fixed,
+                              }),
+                            ),
+                          },
+                        })
                       }
+                    />
+                  </div>
+                ))}
+                {numericDraftInvalid && (
+                  <p id="numeric-draft-help" className="fit-help">
+                    Finish entering a valid number, or press Escape to restore
+                    the last valid value. Scientific notation such as 1e-3 is
+                    accepted.
+                  </p>
+                )}
+                <div className="fit-run-actions">
+                  <button
+                    className="fit-primary"
+                    onClick={run}
+                    disabled={
+                      busy ||
+                      sigmaInvalid ||
+                      numericDraftInvalid ||
+                      (state.settings.model === "custom" && equationPending)
+                    }
+                  >
+                    Fit selected observations
+                  </button>
+                  {busy && (
+                    <button
+                      onClick={() => {
+                        cancel();
+                        setNotice("Fit cancelled");
+                      }}
                     >
-                      {current.standardErrors[i].value === null
-                        ? current.standardErrors[i].reason === "fixed"
-                          ? "(fixed)"
-                          : "—"
-                        : number(current.standardErrors[i].value)}
-                    </span>
-                  ) : (
-                    <span className="parameter-placeholder">—</span>
+                      Cancel fit
+                    </button>
                   )}
-                  <input
-                    aria-label={`Fix ${name}`}
-                    type="checkbox"
-                    checked={state.settings.parameters[i].fixed}
-                    onChange={(e) =>
+                </div>
+                {!collisionOpen && !multiOpen && (
+                  <Assumptions
+                    checked={state.settings.conditionalInference}
+                    onChange={(checked) =>
                       change({
                         ...state,
                         settings: {
                           ...state.settings,
-                          parameters: state.settings.parameters.map((p, j) => ({
-                            ...p,
-                            value: current?.coefficients[j] ?? p.value,
-                            fixed: j === i ? e.target.checked : p.fixed,
-                          })),
+                          conditionalInference: checked,
                         },
                       })
                     }
                   />
-                </div>
-              ))}
-              <div className="fit-run-actions">
-                <button
-                  className="fit-primary"
-                  onClick={run}
-                  disabled={
-                    busy ||
-                    sigmaInvalid ||
-                    (state.settings.model === "custom" && equationPending)
-                  }
-                >
-                  Fit selected observations
-                </button>
-                {busy && (
-                  <button
-                    onClick={() => {
-                      cancel();
-                      setNotice("Fit cancelled");
-                    }}
-                  >
-                    Cancel fit
-                  </button>
                 )}
-              </div>
-              {!collisionOpen && !multiOpen && (
-                <Assumptions
-                  checked={state.settings.conditionalInference}
-                  onChange={(checked) =>
-                    change({
-                      ...state,
-                      settings: {
-                        ...state.settings,
-                        conditionalInference: checked,
-                      },
-                    })
-                  }
-                />
-              )}
-              {current && (
-                <details className="fit-intervals">
-                  <summary>95% parameter intervals</summary>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Parameter</th>
-                        <th>Lower</th>
-                        <th>Upper</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {names.map((name, i) => (
-                        <tr key={name}>
-                          <td>{name}</td>
-                          <td>{number(current.intervals[i]?.[0] ?? null)}</td>
-                          <td>{number(current.intervals[i]?.[1] ?? null)}</td>
+                {current && (
+                  <details className="fit-intervals">
+                    <summary>95% parameter intervals</summary>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Parameter</th>
+                          <th>Lower</th>
+                          <th>Upper</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </details>
-              )}
-            </section>
-            <section>
-              <div className="section-eyebrow">02 / UNCERTAINTY</div>
-              <label>
-                Noise model
-                <select
-                  aria-label="Noise model"
-                  value={u.kind}
-                  onChange={(e) => {
-                    change({
-                      ...state,
-                      ...switchNoiseModel(
-                        state.request,
-                        state.settings,
-                        e.target.value as FitRequest["uncertainty"]["kind"],
-                      ),
-                    });
-                  }}
-                >
-                  <option value="unknown-equal">
-                    Unknown · estimate equal scatter
-                  </option>
-                  <option value="supplied-common">Supplied common σ</option>
-                  {(u.kind === "supplied-per-row" ||
-                    state.settings.retainedPerRowUncertainty) && (
-                    <option value="supplied-per-row">
-                      Supplied per observation
-                    </option>
-                  )}
-                </select>
-              </label>
-              {u.kind === "supplied-common" && (
+                      </thead>
+                      <tbody>
+                        {names.map((name, i) => (
+                          <tr key={name}>
+                            <td>{name}</td>
+                            <td>{number(current.intervals[i]?.[0] ?? null)}</td>
+                            <td>{number(current.intervals[i]?.[1] ?? null)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </details>
+                )}
+              </section>
+              <section>
+                <div className="section-eyebrow">02 / UNCERTAINTY</div>
                 <label>
-                  σ y [{state.request.dataset.yColumn.unit ?? "unspecified"}]
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    aria-label="Y uncertainty"
-                    aria-invalid={sigmaTouched && sigmaInvalid}
-                    aria-describedby={
-                      sigmaTouched && sigmaInvalid ? "sigma-error" : undefined
-                    }
-                    value={sigmaDraft ?? String(u.sigmaY)}
+                  Noise model
+                  <select
+                    aria-label="Noise model"
+                    value={u.kind}
                     onChange={(e) => {
-                      cancel();
-                      setSigmaDraft(e.target.value);
-                      setSigmaTouched(false);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        e.currentTarget.blur();
-                      }
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        setSigmaDraft(null);
-                        setSigmaTouched(false);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (sigmaDraft === null) return;
-                      if (sigmaInvalid) {
-                        setSigmaTouched(true);
-                        return;
-                      }
-                      const sigmaY = Number(sigmaDraft);
-                      if (sigmaY === u.sigmaY) {
-                        setSigmaDraft(null);
-                        setSigmaTouched(false);
-                        return;
-                      }
                       change({
                         ...state,
-                        request: {
-                          ...state.request,
-                          uncertainty: {
-                            ...u,
-                            sigmaY,
-                            provenance: {
-                              kind: "user-asserted",
-                              description: "Common sigma edited in fit window",
+                        ...switchNoiseModel(
+                          state.request,
+                          state.settings,
+                          e.target.value as FitRequest["uncertainty"]["kind"],
+                        ),
+                      });
+                    }}
+                  >
+                    <option value="unknown-equal">
+                      Unknown · estimate equal scatter
+                    </option>
+                    <option value="supplied-common">Supplied common σ</option>
+                    {(u.kind === "supplied-per-row" ||
+                      state.settings.retainedPerRowUncertainty) && (
+                      <option value="supplied-per-row">
+                        Supplied per observation
+                      </option>
+                    )}
+                  </select>
+                </label>
+                {u.kind === "supplied-common" && (
+                  <label>
+                    σ y [{state.request.dataset.yColumn.unit ?? "unspecified"}]
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      aria-label="Y uncertainty"
+                      aria-invalid={sigmaTouched && sigmaInvalid}
+                      aria-describedby={
+                        sigmaTouched && sigmaInvalid ? "sigma-error" : undefined
+                      }
+                      value={sigmaDraft ?? String(u.sigmaY)}
+                      onChange={(e) => {
+                        cancel();
+                        setSigmaDraft(e.target.value);
+                        setSigmaTouched(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          setSigmaDraft(null);
+                          setSigmaTouched(false);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (sigmaDraft === null) return;
+                        if (sigmaInvalid) {
+                          setSigmaTouched(true);
+                          return;
+                        }
+                        const sigmaY = Number(sigmaDraft);
+                        if (sigmaY === u.sigmaY) {
+                          setSigmaDraft(null);
+                          setSigmaTouched(false);
+                          return;
+                        }
+                        change({
+                          ...state,
+                          request: {
+                            ...state.request,
+                            uncertainty: {
+                              ...u,
+                              sigmaY,
+                              provenance: {
+                                kind: "user-asserted",
+                                description:
+                                  "Common sigma edited in fit window",
+                              },
                             },
                           },
-                        },
-                      });
+                        });
+                      }}
+                    />
+                  </label>
+                )}
+                {sigmaTouched && sigmaInvalid && (
+                  <p id="sigma-error" className="fit-help" role="alert">
+                    Enter an uncertainty greater than zero, or press Escape to
+                    restore the previous value.
+                  </p>
+                )}
+                <p className="fit-help">
+                  {u.kind === "unknown-equal"
+                    ? "Equal weights. Scatter is estimated from residuals; Q is unavailable."
+                    : "Absolute supplied uncertainties are never rescaled to force reduced χ² to one."}
+                </p>
+                <p className="fit-help">
+                  Error structure: {errorStructureText(u.errorStructure)}. x is{" "}
+                  {state.request.dataset.assumptions.exactX === "asserted"
+                    ? "asserted exact"
+                    : "not established as exact"}
+                  .
+                </p>
+              </section>
+              <section>
+                <div className="fit-history">
+                  <button
+                    disabled={!state.settings.excludedIds.length}
+                    onClick={() =>
+                      change({
+                        ...state,
+                        settings: { ...state.settings, excludedIds: [] },
+                      })
+                    }
+                  >
+                    Restore points
+                  </button>
+                </div>
+                <p role="status" className="fit-help">
+                  {notice ||
+                    (dirty
+                      ? "Unsaved analysis changes"
+                      : "Local analysis · no data uploaded")}
+                </p>
+              </section>
+              <section className="fit-source">
+                <div className="section-eyebrow">SOURCE</div>
+                <div>
+                  <h2>{state.request.dataset.label}</h2>
+                  <p>
+                    {included} / {state.request.dataset.rows.length}{" "}
+                    observations · {state.request.dataset.yColumn.label} vs{" "}
+                    {state.request.dataset.xColumn.label}
+                  </p>
+                </div>
+
+                <p>{state.request.source.application}</p>
+                <label>
+                  Source notes
+                  <textarea
+                    key={`${state.request.requestId}-source`}
+                    aria-label="Source notes"
+                    rows={4}
+                    defaultValue={state.request.source.context ?? ""}
+                    placeholder="Describe the experiment or add comments…"
+                    onBlur={(e) => {
+                      const context = e.currentTarget.value.trim()
+                        ? e.currentTarget.value
+                        : null;
+                      if (context !== state.request.source.context)
+                        change({
+                          ...state,
+                          request: {
+                            ...state.request,
+                            source: { ...state.request.source, context },
+                          },
+                        });
                     }}
                   />
                 </label>
-              )}
-              {sigmaTouched && sigmaInvalid && (
-                <p id="sigma-error" className="fit-help" role="alert">
-                  Enter an uncertainty greater than zero, or press Escape to
-                  restore the previous value.
-                </p>
-              )}
-              <p className="fit-help">
-                {u.kind === "unknown-equal"
-                  ? "Equal weights. Scatter is estimated from residuals; Q is unavailable."
-                  : "Absolute supplied uncertainties are never rescaled to force reduced χ² to one."}
-              </p>
-              <p className="fit-help">
-                Error structure: {u.errorStructure}. x is{" "}
-                {state.request.dataset.assumptions.exactX === "asserted"
-                  ? "asserted exact"
-                  : "not established as exact"}
-                .
-              </p>
-            </section>
-            <section>
-              <div className="fit-history">
-                <button
-                  disabled={!past.current.length}
-                  onClick={() => history()}
-                >
-                  Undo
-                </button>
-                <button
-                  disabled={!future.current.length}
-                  onClick={() => history(true)}
-                >
-                  Redo
-                </button>
-                <button
-                  disabled={!state.settings.excludedIds.length}
-                  onClick={() =>
-                    change({
-                      ...state,
-                      settings: { ...state.settings, excludedIds: [] },
-                    })
-                  }
-                >
-                  Restore points
-                </button>
-              </div>
-              <p role="status" className="fit-help">
-                {notice ||
-                  (dirty
-                    ? "Unsaved analysis changes"
-                    : "Local analysis · no data uploaded")}
-              </p>
-            </section>
-            <section className="fit-source">
-              <div className="section-eyebrow">SOURCE</div>
-              <div>
-                <h2>{state.request.dataset.label}</h2>
-                <p>
-                  {included} / {state.request.dataset.rows.length} observations
-                  · {state.request.dataset.yColumn.label} vs{" "}
-                  {state.request.dataset.xColumn.label}
-                </p>
-              </div>
-
-              <p>{state.request.source.application}</p>
-              <label>
-                Source notes
-                <textarea
-                  key={`${state.request.requestId}-source`}
-                  aria-label="Source notes"
-                  rows={4}
-                  defaultValue={state.request.source.context ?? ""}
-                  placeholder="Describe the experiment or add comments…"
-                  onBlur={(e) => {
-                    const context = e.currentTarget.value.trim()
-                      ? e.currentTarget.value
-                      : null;
-                    if (context !== state.request.source.context)
-                      change({
-                        ...state,
-                        request: {
-                          ...state.request,
-                          source: { ...state.request.source, context },
-                        },
-                      });
-                  }}
-                />
-              </label>
-              <p>Snapshot {state.request.snapshotId}</p>
-            </section>
-          </aside>
+                <details>
+                  <summary>Technical identifiers</summary>
+                  <p>Snapshot ID: {state.request.snapshotId}</p>
+                </details>
+              </section>
+            </aside>
+          </div>
         </div>
-      </div>
-    </PlotAppearanceContext.Provider>
+      </PlotAppearanceContext.Provider>
+    </InterfaceScaleContext.Provider>
   );
 }

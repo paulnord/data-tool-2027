@@ -1,3 +1,12 @@
+import { formatNumber as fmt } from "./formatNumber";
+import {
+  modelParameterUnit,
+  modelNotationNote,
+} from "../core/fit/modelNotation";
+import { ModelSelector, modelLabel } from "./ModelSelector";
+import { PeakShapeControls } from "./PeakShapeControls";
+import { fitDerivedQuantities } from "../core/fit/derivedParameters";
+import { equations } from "./modelEquations";
 import SourceNotes from "./SourceNotes";
 import {
   forwardRef,
@@ -20,10 +29,7 @@ import {
   type FitRequest,
   type FitSettings,
 } from "../core/fit/schema";
-import { customFromModel } from "../core/fit/customFromModel";
 import {
-  nonlinearModelIds,
-  nonlinearModels,
   isNonlinearModel,
   suggestedParameters,
 } from "../core/fit/nonlinearModels";
@@ -51,31 +57,12 @@ import { EditableNumber } from "./EditableNumber";
 import { FitErrorMessage } from "./FitErrorMessage";
 import Assumptions from "./Assumptions";
 import "./multiInterval.css";
-const fmt = (v: number | null | undefined) =>
-  v == null ? "Unavailable" : Number(v.toPrecision(7)).toString();
 const unitEntry = {
   autoCapitalize: "none",
   autoCorrect: "off",
   autoComplete: "off",
   spellCheck: false,
 } as const;
-const models: [FitSettings["model"], string][] = [
-  ["line", "Straight line"],
-  ["quadratic", "Quadratic"],
-  ["cubic", "Cubic"],
-  ["quartic", "Quartic"],
-  ["sine", "Sine · supplied period"],
-  ["sine-free-period", "Sine · fit period"],
-  ["exponential", "Exponential · supplied rate"],
-  ["power-law", "Power law · supplied exponent"],
-  ["logarithmic", "Logarithmic"],
-  ["reciprocal", "Reciprocal"],
-  ["constant-acceleration", "Constant acceleration"],
-  ...nonlinearModelIds.map(
-    (m) => [m, nonlinearModels[m].label] as [FitSettings["model"], string],
-  ),
-  ["custom", "Custom equation…"],
-];
 function newInterval(index: number, count: number): IntervalDefinition {
   return {
     name: `Interval ${index + 1}`,
@@ -88,11 +75,12 @@ function parameterUnit(
   source: TableAnalysis,
   name: string,
 ) {
-  const custom =
-    settings.model === "custom"
-      ? settings.custom!
-      : customFromModel(settings, source.request).custom!;
-  return custom.units[custom.names.indexOf(name)] || "?";
+  return modelParameterUnit(
+    settings,
+    parameterNames(settings.model, settings.custom).indexOf(name),
+    source.request.dataset.xColumn.unit,
+    source.request.dataset.yColumn.unit,
+  );
 }
 export interface MultiIntervalActions {
   copy: () => Promise<void>;
@@ -104,6 +92,7 @@ export default forwardRef<
     source: TableAnalysis;
     open: boolean;
     showResiduals?: boolean;
+    showGuides?: boolean;
     exportSizes?: ExportPlotSize[];
     analysisControl: ReactNode;
     onReady: (ready: boolean) => void;
@@ -114,6 +103,7 @@ export default forwardRef<
     source,
     open,
     showResiduals = true,
+    showGuides = false,
     exportSizes,
     analysisControl,
     onReady,
@@ -597,7 +587,7 @@ export default forwardRef<
         <label>
           Y uncertainties
           <select
-            aria-label="Interval noise model"
+            aria-label="Interval uncertainty model"
             value={noise}
             onChange={(e) => {
               invalidate();
@@ -727,31 +717,23 @@ export default forwardRef<
             </label>
           ))}
         </div>
-        <label>
-          Equation
-          <select
-            aria-label="Interval equation"
-            value={settings.model}
-            onChange={(e) =>
-              chooseModel(e.target.value as FitSettings["model"])
-            }
-          >
-            {models.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ModelSelector
+          label="Equation"
+          ariaLabel="Interval equation"
+          value={settings.model}
+          onChange={(value) => chooseModel(value as FitSettings["model"])}
+        />
+        <PeakShapeControls
+          settings={settings}
+          labelPrefix="Interval "
+          onChange={changeSettings}
+        />
+        {modelNotationNote(settings.model) && (
+          <p className="fit-help">{modelNotationNote(settings.model)}</p>
+        )}
         {settings.model !== "custom" && (
           <p className="interval-equation-preview">
-            y ={" "}
-            {
-              customFromModel(
-                settings,
-                preview.requests[curve] ?? source.request,
-              ).custom!.expression
-            }
+            {equations[settings.model]}
           </p>
         )}
         {settings.model === "custom" && (
@@ -998,7 +980,7 @@ export default forwardRef<
                   <td>
                     {s.settings[0].model === "custom"
                       ? `y = ${s.settings[0].custom!.expression}`
-                      : models.find((m) => m[0] === s.settings[0].model)?.[1]}
+                      : modelLabel(s.settings[0].model)}
                   </td>
                   <td>
                     {results[i]?.filter((r) => r.result).length ?? 0}/
@@ -1016,6 +998,7 @@ export default forwardRef<
               <article key={i}>
                 <h2>{request.dataset.yColumn.label}</h2>
                 <IntervalPlot
+                  showGuides={showGuides}
                   request={request}
                   intervals={intervals}
                   results={results.map((r) => r?.[i] ?? null)}
@@ -1031,6 +1014,7 @@ export default forwardRef<
                 {showResiduals && (
                   <div className="interval-live-residual">
                     <IntervalPlot
+                      showGuides={showGuides}
                       request={request}
                       intervals={intervals}
                       results={results.map((r) => r?.[i] ?? null)}
@@ -1106,7 +1090,7 @@ export default forwardRef<
                 {heading(xColumn).unit || "?"}]. Endpoints included. Equation:{" "}
                 {item.settings[0].model === "custom"
                   ? `y = ${item.settings[0].custom!.expression}`
-                  : models.find((m) => m[0] === item.settings[0].model)?.[1]}
+                  : modelLabel(item.settings[0].model)}
                 .
               </p>
               {!results[index] && (
@@ -1172,6 +1156,36 @@ export default forwardRef<
                         {fmt(entry.result.rms)} · {entry.result.inference}{" "}
                         inference.
                       </p>
+                      {entry.settings.model.startsWith("gaussian") && (
+                        <table
+                          aria-label={`${item.name} derived peak quantities`}
+                        >
+                          <thead>
+                            <tr>
+                              <th>Derived quantity</th>
+                              <th>Value</th>
+                              <th>Standard error</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {fitDerivedQuantities(
+                              entry.request,
+                              entry.settings,
+                              entry.result,
+                            ).map((q) => (
+                              <tr key={q.id}>
+                                <th>{q.label}</th>
+                                <td>{fmt(q.value)}</td>
+                                <td>
+                                  {q.standardError.reason === "fixed"
+                                    ? "Fixed"
+                                    : fmt(q.standardError.value)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                       <details
                         className="interval-result-diagnostics"
                         open={includeDetails || undefined}
@@ -1183,6 +1197,7 @@ export default forwardRef<
                         </summary>
                         {showResiduals && (
                           <IntervalPlot
+                            showGuides={showGuides}
                             request={entry.request}
                             colors={[intervalColors[index]]}
                             intervals={[item]}
@@ -1202,9 +1217,9 @@ export default forwardRef<
                               <tr key={name}>
                                 <th>{name}</th>
                                 <td>
-                                  {value === null
-                                    ? "Unavailable"
-                                    : String(value)}
+                                  {typeof value === "number"
+                                    ? fmt(value)
+                                    : String(value ?? "Unavailable")}
                                 </td>
                               </tr>
                             ))}
@@ -1247,6 +1262,7 @@ export default forwardRef<
                 : undefined;
               return (
                 <IntervalPlot
+                  showGuides={showGuides}
                   key={`${i}-${part}`}
                   request={request}
                   intervals={intervals}

@@ -61,3 +61,32 @@ Custom equations save as `tracker-fit-session`, version `3`, engine `qr-expressi
 The published v1 and v2 structures are unchanged. New builds accept all three session versions. Legacy models still save as v1, the five nonlinear built-ins as v2, and custom equations as v3. Older applications must reject v3 rather than discard the equation. Selecting a built-in again permits saving in its older format. Requests, original snapshots and acknowledgments remain v1; source tables and uncertainty assumptions retain their existing validation. Tracker and OSP code remain untouched.
 
 The multi-interval UI is a separate in-memory draft. It does not add fields to any existing session version or change Tracker request/ack compatibility. Multi-interval session saving remains disabled pending an explicit schema migration; source tables and single-fit sessions remain savable as before. See [multi-interval scope](multi-interval.md).
+
+## Session v4 for additional model families — 2026-09-14
+
+Degree-5 through degree-10 polynomials (`polynomial-5` … `polynomial-10`), `exponential-growth`, and `sigmoid` save as `tracker-fit-session`, version `4`. The structural schema is `schemas/tracker-fit-session.v4.json`. Polynomial coefficients are `c0` through `cN` in increasing power order, with N+1 finite values and fixed flags; their engine remains `qr-vp-sine-2`. Growth uses `b`, `A`, `tau`; logistic sigmoid uses `b`, `A`, `x0`, `w`. These use engine `qr-lm-3`, with positive tau or w. A mismatched model/engine pair is rejected.
+
+The published v1–v3 schemas are unchanged. New builds read all four session versions. Degree 2–4 polynomials retain their original `quadratic`, `cubic`, and `quartic` identities and v1 encoding. The supplied-rate exponential remains valid in old files and can still be edited when loaded; it is omitted from the chooser for new analyses because the decay/growth models allow a fixed time constant. The constant-acceleration and supplied-period sine choices are likewise hidden for new analyses but retained when loading their saved models. New sinusoid analyses use `sine-free-period`, with T fixed when a supplied period is desired. No automatic conversion alters old coefficients, uncertainty assumptions, or fit results. Requests and acknowledgments stay v1 and the `.trksess` extension is retained. Older readers must reject v4.
+
+## Session v5 for adjustable Gaussian peaks — 2026-09-14
+
+`gaussian-shape` saves as `tracker-fit-session` version `5` with engine `qr-lm-3`,
+using `schemas/tracker-fit-session.v5.json`. Its six ordered parameters are
+`[b, A, mu, w, skew, tail]` with finite values and fixed flags; w and tail must
+be strictly positive. b/A have Y units, mu/w have X units, and skew/tail are
+dimensionless. w is a width scale, not generally a standard deviation. The
+mode-centered equation and derived moment conventions are in [peak shapes](peak-shapes.md).
+
+Enabling either Gaussian shape option preserves the four existing parameter
+values and flags, adds skew = 0 and tail = 1, and frees the selected option.
+Disabling an option fixes it at its Gaussian value. Disabling both returns to
+the original `gaussian` identity and v2. No observations or uncertainty assumptions
+change during these transitions. Derived moments and fit results are not serialized.
+
+Published v1–v4 schemas remain unchanged. New builds read all five session
+versions; older readers must reject v5 rather than approximate the peak.
+Requests, original snapshots and acknowledgments stay v1; `.trksess` is retained.
+Native envelope validation accepts v5, and full semantic validation runs on
+import and save. Candidate session exports preserve each model's own version.
+
+See [equation families and notation](equation-families.md) for menu organization and validation scope.

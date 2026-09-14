@@ -21,6 +21,21 @@ const statisticReasons: Readonly<Record<string, string>> = {
   "invalid-band-variance":
     "The confidence band variance is invalid or outside the numeric range",
   "band-overflow": "The confidence band exceeds the numeric range",
+  "zero-amplitude":
+    "The fitted oscillation amplitude is zero; phase and linearized uncertainty are undefined",
+  "nonfinite-derived-quantity":
+    "The derived quantity exceeds the numeric range",
+  "nonfinite-derived-gradient":
+    "The sensitivity of the derived quantity exceeds the numeric range",
+  "covariance-unavailable": "The fitted parameter covariance is unavailable",
+  "invalid-propagated-variance":
+    "The propagated variance is invalid or outside the numeric range",
+  "peak-moments-unresolved":
+    "Peak moment integration did not converge within the numerical tolerance",
+  "zero-derived-gradient":
+    "First-order sensitivity vanishes; a reliable local standard error is unavailable",
+  "zero-peak-amplitude":
+    "A zero-height peak has no defined normalized shape moments",
 };
 
 /** Keep an unfamiliar code visible rather than inventing an explanation for it. */

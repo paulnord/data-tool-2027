@@ -60,11 +60,17 @@ test("parameters accept incremental negative and scientific notation without sav
   await expect(value).toHaveValue(fittedValue);
 });
 
-test("supplied sine period can be edited naturally and rejects zero", async ({
+test("saved fixed-period sinusoid remains editable and rejects zero", async ({
   page,
 }) => {
-  await openData(page);
-  await page.getByLabel("Analysis", { exact: true }).selectOption("sine");
+  await page.goto("/");
+  await page
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles("examples/data/sine-demo.trksess");
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
   const period = page.getByLabel("Sine period", { exact: true });
   await period.fill("");
   await expect(period).toHaveValue("");

@@ -1,6 +1,8 @@
 import { validateEquation, type CustomEquation } from "./customEquation";
+import { higherPolynomialIds, polynomialDegree } from "./polynomialModels";
 import {
-  nonlinearModelIds,
+  nonlinearV2ModelIds,
+  additionalNonlinearModelIds,
   nonlinearModels,
   isNonlinearModel,
 } from "./nonlinearModels";
@@ -194,7 +196,7 @@ export const settingsV2Schema = settingsV1Schema
   .extend({
     model: z.enum([
       ...settingsV1Schema.shape.model.options,
-      ...nonlinearModelIds,
+      ...nonlinearV2ModelIds,
     ]),
   })
   .superRefine(checkSettings)
@@ -216,7 +218,7 @@ const customSchema = z
     units: z.array(z.string().max(100)).min(1).max(8),
   })
   .strict();
-export const settingsSchema = settingsV2Schema
+export const settingsV3Schema = settingsV2Schema
   .extend({
     model: z.enum([...settingsV2Schema.shape.model.options, "custom"]),
     parameters: z
@@ -240,6 +242,56 @@ export const settingsSchema = settingsV2Schema
       ctx.addIssue({ code: "custom", message: String(error) });
     }
   });
+export const settingsV4Schema = settingsV2Schema
+  .extend({
+    model: z.enum([...higherPolynomialIds, ...additionalNonlinearModelIds]),
+    parameters: z
+      .array(z.object({ value: finite, fixed: z.boolean() }).strict())
+      .min(3)
+      .max(11),
+    custom: customSchema.optional(),
+  })
+  .superRefine(checkSettings)
+  .superRefine((s, ctx) => {
+    if (s.custom)
+      ctx.addIssue({
+        code: "custom",
+        message: "Custom equation is only valid for a custom model",
+      });
+    if (isNonlinearModel(s.model))
+      for (const j of nonlinearModels[s.model].positive)
+        if (!(s.parameters[j]?.value > 0))
+          ctx.addIssue({
+            code: "custom",
+            message: `${nonlinearModels[s.model].names[j]} must be positive`,
+          });
+  });
+export const settingsV5Schema = settingsV4Schema
+  .extend({
+    model: z.literal("gaussian-shape"),
+    parameters: z
+      .array(z.object({ value: finite, fixed: z.boolean() }).strict())
+      .length(6),
+  })
+  .superRefine(checkSettings)
+  .superRefine((s, ctx) => {
+    if (s.custom)
+      ctx.addIssue({
+        code: "custom",
+        message: "Custom equation is only valid for a custom model",
+      });
+    for (const i of [3, 5])
+      if (!(s.parameters[i]?.value > 0))
+        ctx.addIssue({
+          code: "custom",
+          message: `${nonlinearModels["gaussian-shape"].names[i]} must be positive`,
+        });
+  });
+export const settingsSchema = z.union([
+  settingsV3Schema,
+  settingsV4Schema,
+  settingsV5Schema,
+]);
 export const dataTableSchema = z
   .object({
     cells: z.array(z.array(z.string()).max(1000)).max(100001),
@@ -270,16 +322,33 @@ const sessionV2Object = sessionV1Object.extend({
 });
 const sessionV3Object = sessionV1Object.extend({
   version: z.literal(3),
-  settings: settingsSchema,
+  settings: settingsV3Schema,
   engine: z.literal("qr-expression-4"),
+});
+const sessionV4Object = sessionV1Object.extend({
+  version: z.literal(4),
+  settings: settingsV4Schema,
+  engine: z.enum(["qr-vp-sine-2", "qr-lm-3"]),
+});
+const sessionV5Object = sessionV1Object.extend({
+  version: z.literal(5),
+  settings: settingsV5Schema,
+  engine: z.literal("qr-lm-3"),
 });
 function checkSession(
   s:
     | z.infer<typeof sessionV1Object>
     | z.infer<typeof sessionV2Object>
-    | z.infer<typeof sessionV3Object>,
+    | z.infer<typeof sessionV3Object>
+    | z.infer<typeof sessionV4Object>
+    | z.infer<typeof sessionV5Object>,
   ctx: z.RefinementCtx,
 ) {
+  if (s.version === 4 && s.engine !== sessionEngine(s.settings))
+    ctx.addIssue({
+      code: "custom",
+      message: "Session engine does not match model",
+    });
   if (s.settings.model === "sine-free-period" && s.engine === "qr-mgs2-1")
     ctx.addIssue({
       code: "custom",
@@ -362,17 +431,28 @@ function checkSession(
 export const sessionV1Schema = sessionV1Object.superRefine(checkSession);
 export const sessionV2Schema = sessionV2Object.superRefine(checkSession);
 export const sessionV3Schema = sessionV3Object.superRefine(checkSession);
+export const sessionV4Schema = sessionV4Object.superRefine(checkSession);
+export const sessionV5Schema = sessionV5Object.superRefine(checkSession);
 export const sessionSchema = z.union([
   sessionV1Schema,
   sessionV2Schema,
   sessionV3Schema,
+  sessionV4Schema,
+  sessionV5Schema,
 ]);
 export const sessionVersion = (settings: { model: string }) =>
-  settings.model === "custom"
-    ? (3 as const)
-    : isNonlinearModel(settings.model)
-      ? (2 as const)
-      : (1 as const);
+  settings.model === "gaussian-shape"
+    ? (5 as const)
+    : (higherPolynomialIds as readonly string[]).includes(settings.model) ||
+        (additionalNonlinearModelIds as readonly string[]).includes(
+          settings.model,
+        )
+      ? (4 as const)
+      : settings.model === "custom"
+        ? (3 as const)
+        : isNonlinearModel(settings.model)
+          ? (2 as const)
+          : (1 as const);
 export const sessionEngine = (settings: { model: string }) =>
   settings.model === "custom"
     ? ("qr-expression-4" as const)
@@ -401,34 +481,31 @@ export const acknowledgmentSchema = z.discriminatedUnion("status", [
 export type FitRequest = z.infer<typeof requestSchema>;
 export type FitSettings = z.infer<typeof settingsSchema>;
 export type FitSession = z.infer<typeof sessionSchema>;
-export const parameterNames = (
+const legacyParameterNames: Record<string, string[]> = {
+  line: ["b", "m"],
+  logarithmic: ["b", "a"],
+  sine: ["b", "s", "c"],
+  "sine-free-period": ["b", "s", "c", "T"],
+  exponential: ["b", "a"],
+  "power-law": ["b", "a"],
+  reciprocal: ["b", "a"],
+  "constant-acceleration": ["y0", "v0", "a"],
+};
+export function parameterNames(
   model: string,
   custom?: CustomEquation,
-): string[] =>
-  model === "custom"
-    ? (custom?.names ?? ["b", "m"])
-    : {
-        "exponential-decay": nonlinearModels["exponential-decay"].names,
-        "power-law-free": nonlinearModels["power-law-free"].names,
-        gaussian: nonlinearModels.gaussian.names,
-        "damped-sine": nonlinearModels["damped-sine"].names,
-        lorentzian: nonlinearModels.lorentzian.names,
-        line: ["b", "m"],
-        quadratic: ["c0", "c1", "c2"],
-        cubic: ["c0", "c1", "c2", "c3"],
-        quartic: ["c0", "c1", "c2", "c3", "c4"],
-        logarithmic: ["b", "a"],
-        sine: ["b", "s", "c"],
-        "sine-free-period": ["b", "s", "c", "T"],
-        exponential: ["b", "a"],
-        "power-law": ["b", "a"],
-        reciprocal: ["b", "a"],
-        "constant-acceleration": ["y0", "v0", "a"],
-      }[model as Exclude<FitSettings["model"], "custom">];
+): string[] {
+  if (model === "custom") return custom?.names ?? ["b", "m"];
+  const degree = polynomialDegree(model);
+  if (degree !== undefined)
+    return Array.from({ length: degree + 1 }, (_, i) => `c${i}`);
+  if (isNonlinearModel(model)) return nonlinearModels[model].names;
+  return legacyParameterNames[model] ?? [];
+}
 export function initialSettings(
   model: FitSettings["model"] = "constant-acceleration",
 ): FitSettings {
-  return {
+  return settingsSchema.parse({
     model,
     ...(model === "custom"
       ? {
@@ -453,13 +530,13 @@ export function initialSettings(
         : model === "sine-free-period" && i === 3
           ? 3
           : 0,
-      fixed: false,
+      fixed: model === "gaussian-shape" && i >= 4,
     })),
     excludedIds: [],
     conditionalInference: false,
     physicalTimeConfirmed: false,
     selectionAfterInspection: false,
-  };
+  });
 }
 
 /** Decimal/scientific notation only; blanks mean missing, never zero. */

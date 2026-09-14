@@ -141,6 +141,17 @@ test("fit extensions use the included observation span, not view limits or inter
   await expect(plot.locator('[data-fit-part="extrapolation"]')).toHaveCount(0);
 });
 
+async function enableMeanGuides(page: Page) {
+  await page.locator(".fit-settings-menu summary").click();
+  await page
+    .getByRole("checkbox", {
+      name: "Show fit guides when available",
+      exact: true,
+    })
+    .check();
+  await page.keyboard.press("Escape");
+}
+
 test("the damped mean-position guide uses fitted b and disappears with stale results", async ({
   page,
 }) => {
@@ -157,6 +168,8 @@ test("the damped mean-position guide uses fitted b and disappears with stale res
   const baseline = Number(
     await page.getByLabel("b value", { exact: true }).inputValue(),
   );
+  await expect(plot.locator("line[data-mean-position]")).toHaveCount(0);
+  await enableMeanGuides(page);
   const guide = plot.locator("line[data-mean-position]");
   await expect(guide).toHaveCount(1);
   expect(Number(await guide.getAttribute("data-mean-position"))).toBeCloseTo(
@@ -215,6 +228,7 @@ test("physical SVG exports retain mean guides and dashed extensions without extr
     .getByLabel("Analysis", { exact: true })
     .selectOption("damped-sine");
   await fit(page);
+  await enableMeanGuides(page);
   await xRange(page, -2, 12);
   const before = await page.locator(".parameter-result").allTextContents();
   const menu = page.locator(".fit-export-menu");
@@ -331,6 +345,16 @@ test("synthetic time intervals fit independently and keep distinct monochrome gu
   );
   const main = plots.first();
   await expect(main.locator('[data-fit-part="fitted"]')).toHaveCount(2);
+  await expect(main.locator(".model-guide")).toHaveCount(0);
+  await enableMeanGuides(page);
+  await expect(main.locator(".model-guide")).toHaveCount(6);
+  await expect(main.locator(".model-guide-upper-envelope")).toHaveCount(2);
+  await expect(main.locator(".model-guide-lower-envelope")).toHaveCount(2);
+  const frame = await main.locator(".fit-plot-frame").boundingBox();
+  for (const label of await main.locator("[data-mean-position-label]").all()) {
+    const box = await label.boundingBox();
+    expect(box!.y + box!.height).toBeLessThan(frame!.y);
+  }
   const baselines = await main
     .locator("line[data-mean-position]")
     .evaluateAll((lines) =>
@@ -371,6 +395,29 @@ test("synthetic time intervals fit independently and keep distinct monochrome gu
   );
   expect(await tables.allTextContents()).toEqual(resultsBeforeAppearance);
   await expect(main.locator("line[data-mean-position]")).toHaveCount(2);
+  await page.locator(".fit-settings-menu summary").click();
+  await page
+    .getByRole("checkbox", {
+      name: "Show fit guides when available",
+      exact: true,
+    })
+    .uncheck();
+  await page.keyboard.press("Escape");
+  await expect(
+    main.locator(".model-guide,[data-mean-position-label]"),
+  ).toHaveCount(0);
+  expect(await tables.allTextContents()).toEqual(resultsBeforeAppearance);
+  await enableMeanGuides(page);
+
+  await page.locator(".fit-export-menu summary").click();
+  const exported = page.waitForEvent("download");
+  await page
+    .getByRole("menuitem", { name: "SVG vector graphic", exact: true })
+    .click();
+  const svg = await readFile((await (await exported).path())!, "utf8");
+  expect(svg).toContain("Positive fitted amplitude envelope");
+  expect(svg).toContain("Negative fitted amplitude envelope");
+  expect(svg).toContain("Fit guide labels");
   await workspace
     .locator(".interval-overview .interval-graphs")
     .screenshot({ path: testInfo.outputPath("synthetic-interval-guides.png") });

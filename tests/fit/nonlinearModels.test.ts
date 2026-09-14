@@ -10,7 +10,7 @@ import {
 } from "../../src/core/fit/schema";
 import {
   isNonlinearModel,
-  nonlinearModelIds,
+  nonlinearV2ModelIds,
   nonlinearModels,
   suggestedParameters,
 } from "../../src/core/fit/nonlinearModels";
@@ -211,7 +211,7 @@ for (const fixture of reference.fixtures) {
   });
 }
 it("new model domains, positivity and rank loss fail explicitly", () => {
-  for (const model of nonlinearModelIds) {
+  for (const model of nonlinearV2ModelIds) {
     const fixture = reference.fixtures.find((f) => f.model === model)!,
       r = requestFor(fixture),
       settings = initialSettings(model);

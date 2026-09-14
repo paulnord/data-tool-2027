@@ -1,3 +1,4 @@
+import { formatNumber as fmt } from "./formatNumber";
 import SourceNotes from "./SourceNotes";
 import {
   AxisControls,
@@ -40,8 +41,6 @@ import {
 } from "./PlotAppearance";
 import "./collision.css";
 
-const fmt = (v: number | null | undefined) =>
-  v == null ? "Unavailable" : Number(v.toPrecision(6)).toString();
 const slots = ["Object 1 · x", "Object 1 · y", "Object 2 · x", "Object 2 · y"];
 function heading(source: TableAnalysis, i: number) {
   const t = tableForAnalysis(source);

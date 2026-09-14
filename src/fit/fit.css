@@ -118,7 +118,6 @@
   color: var(--ink);
   border: 1px solid #ccd6cf;
   border-radius: 6px;
-  padding: 8px 12px;
   cursor: pointer;
 }
 .fit-settings-menu summary::-webkit-details-marker,
@@ -452,6 +451,30 @@
   stroke: #cc9550;
   stroke-width: 2.5;
 }
+.fit-plot .model-guide {
+  fill: none;
+  stroke: #74817c;
+  stroke-width: 1.25;
+  stroke-dasharray: 7 5;
+  pointer-events: none;
+}
+.fit-plot .model-guide-baseline {
+  stroke-dasharray: 3 4;
+}
+.peak-shape-controls {
+  margin: 10px 0;
+}
+.peak-shape-controls label.fit-check {
+  display: flex;
+  align-items: start;
+  gap: 7px;
+}
+.peak-shape-controls label input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  flex: none;
+  margin: 2px 0 0;
+}
 .fit-plot .point {
   fill: var(--plot-data-color, #2875a4);
   color: var(--plot-data-color, #2875a4);
@@ -520,6 +543,36 @@
   color: var(--ink);
   font-weight: 550;
   font-variant-numeric: tabular-nums;
+}
+.fit-derived {
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+.fit-derived h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 13px;
+}
+.fit-derived table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.fit-derived th,
+.fit-derived td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.fit-derived th:nth-child(n + 2),
+.fit-derived td:nth-child(n + 2) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.fit-derived p {
+  margin: 8px 0 0;
 }
 .fit-controls {
   background: #fff;
@@ -647,6 +700,21 @@
   display: flex;
   gap: 15px;
   align-items: center;
+}
+.fit-confirm-dialog {
+  display: block;
+  margin: auto;
+  width: min(32rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 3rem);
+  white-space: normal;
+}
+.fit-confirm-dialog::backdrop {
+  background: #172c4266;
+}
+.fit-confirm-dialog > div {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
 }
 .fit-warning {
   color: #815c20;
@@ -853,11 +921,6 @@
   gap: 5px;
   background: transparent;
   justify-content: flex-end;
-}
-.fit-header nav button {
-  font-size: 11px;
-  padding: 6px 8px;
-  min-height: 29px;
 }
 .fit-header .fit-primary {
   padding: 6px 10px;
@@ -1303,12 +1366,9 @@
 }
 .fit-export-menu summary {
   list-style: none;
-  padding: 4px 7px;
   border: 1px solid #ccd6cf;
-  border-radius: 5px;
   background: #fff;
   color: var(--ink);
-  font-size: 11px;
   cursor: pointer;
 }
 .fit-export-menu summary::-webkit-details-marker {
@@ -1629,6 +1689,23 @@
 }
 .fit-header nav {
   margin-left: auto;
+  align-items: center;
+}
+/* Buttons and disclosure triggers use the same toolbar dimensions. */
+.fit-header .fit-history-controls > button,
+.fit-header nav > button,
+.fit-header
+  :is(.fit-display-menu, .fit-settings-menu, .fit-export-menu)
+  > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
 }
 .fit-header-start .fit-settings-popover {
   left: 0;
@@ -1639,12 +1716,7 @@
   gap: 5px;
 }
 .fit-history-controls button {
-  display: inline-flex;
-  align-items: center;
   gap: 5px;
-  min-height: 34px;
-  padding: 5px 9px;
-  font-size: 12px;
 }
 .fit-history-controls button:disabled {
   opacity: 0.6;

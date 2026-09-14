@@ -27,17 +27,18 @@ fn parse_args(args: impl IntoIterator<Item=String>) -> Result<Option<Launch>> {
     }
     Ok(path.map(|path| Launch{path, ack}))
 }
-fn atomic_text(path: &Path, data: &str) -> Result<()> {
+fn atomic_bytes(path: &Path, data: &[u8]) -> Result<()> {
     let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
     let mut tmp = tempfile::NamedTempFile::new_in(parent).map_err(err)?;
-    tmp.write_all(data.as_bytes()).map_err(err)?;
+    tmp.write_all(data).map_err(err)?;
     tmp.as_file().sync_all().map_err(err)?;
     tmp.persist(path).map_err(err)?; Ok(())
 }
+fn atomic_text(path: &Path, data: &str) -> Result<()> {atomic_bytes(path,data.as_bytes())}
 fn validate_fit_json(data: &str) -> Result<()> {
     if data.len()>20_000_000 {return Err("Fit file exceeds 20 MB".into())}
     let value: serde_json::Value = serde_json::from_str(data).map_err(err)?;
-    if !((value["version"] == 1 && matches!(value["format"].as_str(),Some("tracker-fit-request"|"tracker-fit-session"))) || ((value["version"] == 2 || value["version"] == 3) && value["format"] == "tracker-fit-session")) {return Err("Unsupported fit file".into())}
+    if !((value["version"] == 1 && matches!(value["format"].as_str(),Some("tracker-fit-request"|"tracker-fit-session"))) || ((value["version"] == 2 || value["version"] == 3 || value["version"] == 4 || value["version"] == 5) && value["format"] == "tracker-fit-session")) {return Err("Unsupported fit file".into())}
     Ok(())
 }
 #[tauri::command]
@@ -77,6 +78,15 @@ fn write_fit_file(path: String, data: String) -> Result<()> {
 fn write_fit_csv(path: String, data: String) -> Result<()> {
     if !Path::new(&path).extension().and_then(|s|s.to_str()).is_some_and(|s|s.eq_ignore_ascii_case("csv")) {return Err("CSV export requires a .csv filename".into())}
     atomic_text(Path::new(&path), &data)
+}
+#[tauri::command]
+fn write_analysis_bundle(path: String, data: Vec<u8>) -> Result<()> {
+    if data.len() > 50_000_000 {return Err("Analysis bundle exceeds 50 MB".into())}
+    if !Path::new(&path).extension().and_then(|value| value.to_str()).is_some_and(|value|value.eq_ignore_ascii_case("zip")) {
+        return Err("Analysis bundle requires a .zip filename".into())
+    }
+    if !data.starts_with(b"PK\x03\x04") {return Err("Analysis bundle is not a ZIP archive".into())}
+    atomic_bytes(Path::new(&path), &data)
 }
 #[tauri::command]
 fn take_launch(state: tauri::State<LaunchState>) -> Result<Option<Launch>> {state.pending.lock().map_err(err).map(|mut p|p.take())}
@@ -134,7 +144,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init()).manage(state)
         .setup(|app| {if let Some(window)=app.get_webview_window("main") {size_window(&window).map_err(std::io::Error::other)?} Ok(())})
-        .invoke_handler(tauri::generate_handler![open_fitting_reference,data_files_directory,read_fit_file,read_tracker_archive,write_fit_file,write_fit_csv,take_launch,acknowledge_launch])
+        .invoke_handler(tauri::generate_handler![open_fitting_reference,data_files_directory,read_fit_file,read_tracker_archive,write_fit_file,write_fit_csv,write_analysis_bundle,take_launch,acknowledge_launch])
         .build(tauri::generate_context!()).expect("Data Tool 2027 could not start")
         .run(|app,event| {
             #[cfg(target_os="macos")]
@@ -178,6 +188,9 @@ mod tests {
         write_fit_csv(path.to_string_lossy().into(),text.into()).unwrap();assert_eq!(read_fit_file(path.to_string_lossy().into()).unwrap(),text);
         assert!(write_fit_file(path.to_string_lossy().into(),"invalid".into()).is_err());assert_eq!(std::fs::read_to_string(path).unwrap(),text);
         assert!(write_fit_csv(dir.path().join("session.trksess").to_string_lossy().into(),text.into()).is_err());
+        let bundle=dir.path().join("analysis.zip");let archive=b"PK\x03\x04bundle".to_vec();write_analysis_bundle(bundle.to_string_lossy().into(),archive.clone()).unwrap();assert_eq!(std::fs::read(bundle).unwrap(),archive);
+        assert!(write_analysis_bundle(dir.path().join("analysis.txt").to_string_lossy().into(),b"PK\x03\x04bundle".to_vec()).is_err());
+        let bundle=dir.path().join("analysis.zip");assert!(write_analysis_bundle(bundle.to_string_lossy().into(),b"not a zip".to_vec()).is_err());assert_eq!(std::fs::read(bundle).unwrap(),archive);
     }
     #[test] fn bounded_binary_archive_read() {
         let dir=tempfile::tempdir().unwrap(); let path=dir.path().join("project.trz");
@@ -193,7 +206,9 @@ mod tests {
         assert!(validate_fit_json(r#"{"format":"tracker-fit-request","version":2}"#).is_err());
         validate_fit_json(r#"{"format":"tracker-fit-session","version":2}"#).unwrap();
         validate_fit_json(r#"{"format":"tracker-fit-session","version":3}"#).unwrap();
-        assert!(validate_fit_json(r#"{"format":"tracker-fit-session","version":4}"#).is_err());
+        validate_fit_json(r#"{"format":"tracker-fit-session","version":4}"#).unwrap();
+        validate_fit_json(r#"{"format":"tracker-fit-session","version":5}"#).unwrap();
+        assert!(validate_fit_json(r#"{"format":"tracker-fit-session","version":6}"#).is_err());
         validate_ack(r#"{"format":"tracker-fit-ack","version":1,"requestId":"e7c00000-0000-4000-8000-000000000001","status":"accepted"}"#).unwrap();
         assert!(validate_ack(r#"{"format":"tracker-fit-ack","version":1,"status":"error"}"#).is_err());
     }

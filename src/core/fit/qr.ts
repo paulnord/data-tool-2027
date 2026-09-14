@@ -3,7 +3,7 @@ const dot = (a: number[], b: number[]) =>
   a.reduce((s, v, i) => s + v * b[i], 0);
 const norm = (a: number[]) => Math.sqrt(dot(a, a));
 /** Column-pivoted, twice-reorthogonalized modified Gram-Schmidt QR.
- * Columns are normalized before factorization. The small (<=8 column) R
+ * Columns are normalized before factorization. The small (<=11 column) R
  * factor is solved by substitution; normal equations are never formed.
  * Rank threshold is relative to the largest normalized R diagonal.
  */

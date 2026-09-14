@@ -1,3 +1,11 @@
+import { FitGuideLegend, layoutGuideLabels } from "./FitGuideLegend";
+import { formatNumber as number } from "./formatNumber";
+import {
+  modelParameterUnit,
+  modelNotationNote,
+} from "../core/fit/modelNotation";
+import { ModelSelector } from "./ModelSelector";
+import { equations } from "./modelEquations";
 import SourceNotes from "./SourceNotes";
 import { useModalDialog } from "./useModalDialog";
 import { InterfaceScaleContext } from "./InterfaceScale";
@@ -24,6 +32,7 @@ import {
   usePlotAppearance,
 } from "./PlotAppearance";
 import { exportPlotGraph } from "./graphExport";
+import { encodeCodeExportBundle } from "./codeExportArchive";
 import { AxisControls, YAxisControls, type AxisRange } from "./YAxisControls";
 import MultiInterval, { type MultiIntervalActions } from "./MultiInterval";
 import { FitErrorMessage } from "./FitErrorMessage";
@@ -35,6 +44,9 @@ import { customFromModel } from "../core/fit/customFromModel";
 import { CustomEquationEditor } from "./CustomEquationEditor";
 import Assumptions from "./Assumptions";
 import CollisionDraft, { type CollisionActions } from "./CollisionDraft";
+import ModelComparison, {
+  type ModelComparisonActions,
+} from "./ModelComparison";
 import {
   plotScale,
   automaticDomain,
@@ -42,8 +54,6 @@ import {
   type GraphMode,
 } from "./plotScale";
 import {
-  nonlinearModels,
-  nonlinearModelIds,
   isNonlinearModel,
   nonlinearParameterUnit,
   suggestedParameters,
@@ -58,6 +68,14 @@ import { ImportPanel } from "./ImportPanel";
 import { switchNoiseModel } from "../core/fit/noiseModel";
 import { suppliedYErrorBars } from "../core/fit/errorBars";
 import { meanConfidenceBand } from "../core/fit/confidenceBand";
+import { modelGuideValues } from "../core/fit/modelGuides";
+import { fitDerivedQuantities } from "../core/fit/derivedParameters";
+import { PeakShapeControls } from "./PeakShapeControls";
+import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
+import {
+  buildCodeExportDescription,
+  generateCodeExportBundle,
+} from "../core/fit/codeExport";
 import {
   rectangleExclusions,
   type SelectionRectangle,
@@ -217,26 +235,6 @@ type State = {
   originalRequest?: FitRequest;
   dataTable?: DataTable;
 };
-const number = (v: number | null) =>
-  v === null
-    ? "Unavailable"
-    : v.toLocaleString("en-US", { maximumSignificantDigits: 7 });
-const equations = {
-  ...(Object.fromEntries(
-    nonlinearModelIds.map((m) => [m, nonlinearModels[m].equation]),
-  ) as Record<(typeof nonlinearModelIds)[number], string>),
-  line: "y = b + m x",
-  quadratic: "y = c₀ + c₁ x + c₂ x²",
-  cubic: "y = c0 + c1*x + c2*x² + c3*x³",
-  quartic: "y = c0 + c1*x + c2*x² + c3*x³ + c4*x⁴",
-  sine: "y = b + s sin(2πx/T) + c cos(2πx/T)",
-  "sine-free-period": "y = b + s sin(2πx/T) + c cos(2πx/T)",
-  exponential: "y = b + a exp(kx)",
-  "power-law": "y = b + a (x/xref)^p",
-  reciprocal: "y = b + a xref/x",
-  logarithmic: "y = b + a ln(x / xref)",
-  "constant-acceleration": "y = y₀ + v₀ t + ½ a t²",
-};
 function fresh(): State {
   return {
     request: emptyRequest(crypto.randomUUID(), crypto.randomUUID()),
@@ -260,6 +258,7 @@ function Plot({
   manual = false,
   showBand = false,
   showErrorBars = false,
+  showGuides = false,
   showXAxis = true,
   idPrefix = "",
   printSize,
@@ -284,6 +283,7 @@ function Plot({
   manual?: boolean;
   showBand?: boolean;
   showErrorBars?: boolean;
+  showGuides?: boolean;
   showXAxis?: boolean;
   idPrefix?: string;
   printSize?: {
@@ -421,6 +421,22 @@ function Plot({
         ),
       };
     });
+  const guideCurves =
+    !residual && showGuides && showModel && curve.length
+      ? modelGuideValues(curve[0].x, state.settings, coeff).map((guide) => ({
+          ...guide,
+          points:
+            guide.axis === "x"
+              ? []
+              : curve.map((point) => ({
+                  x: point.x,
+                  y:
+                    modelGuideValues(point.x, state.settings, coeff).find(
+                      (candidate) => candidate.id === guide.id,
+                    )?.value ?? NaN,
+                })),
+        }))
+      : [];
   const band =
     !residual && showBand && result
       ? meanConfidenceBand(
@@ -446,10 +462,10 @@ function Plot({
     ...ys,
     ...visibleErrorBars.flatMap((bar) => [bar.lower, bar.upper]),
     ...(!residual ? curve.map((p) => p.y).filter(Number.isFinite) : []),
+    ...guideCurves.flatMap((guide) =>
+      guide.points.map((point) => point.y).filter(Number.isFinite),
+    ),
     ...(band?.points.flatMap((p) => [p.lower, p.upper]) ?? []),
-    ...(fittedCurve?.baseline !== null && fittedCurve?.baseline !== undefined
-      ? [fittedCurve.baseline]
-      : []),
   ];
   const residualExtent =
     ys.reduce((m, v) => Math.max(m, Math.abs(v)), 0) || 0.001;
@@ -484,8 +500,21 @@ function Plot({
       ? (printSize?.leftMarginPx ?? Math.max(58, exportFont * 5.2))
       : 82,
     right = exportFont ? Math.max(12, exportFont) : 36,
-    top = exportFont ? Math.max(8, exportFont * 0.75) : 8,
+    baseTop = exportFont ? Math.max(8, exportFont * 0.75) : 8,
     bottom = showXAxis ? (exportFont ? exportFont * 3.2 : 52) : 6;
+  const guideLabels = layoutGuideLabels(
+    guideCurves
+      .filter((guide) => guide.symbol && Number.isFinite(guide.value))
+      .map((guide) => ({
+        id: guide.id,
+        text: `${guide.symbol} = ${number(guide.value)}`,
+        description: `${guide.label}: ${number(guide.value)} ${guide.axis === "x" ? (state.request.dataset.xColumn.unit ?? "") : (state.request.dataset.yColumn.unit ?? "")}`,
+        color: "var(--plot-fit-color)",
+      })),
+    width - left - right,
+    exportFont ?? 12,
+  );
+  const top = baseTop + guideLabels.height;
   const errorCap = exportFont ? 2.5 : 5;
   const xTickCount = exportFont
     ? Math.max(
@@ -596,6 +625,16 @@ function Plot({
         viewBox={`0 0 ${width} ${height}`}
         width={idPrefix ? width : undefined}
         height={idPrefix ? height : undefined}
+        data-guide-minimum-height={
+          guideLabels.height
+            ? top + bottom + (exportFont ?? 12) * 2.5
+            : undefined
+        }
+        data-guide-minimum-width={
+          guideLabels.height
+            ? left + right + guideLabels.minimumWidth
+            : undefined
+        }
         data-x-scale={logX ? "log" : "linear"}
         data-y-scale={logY ? "log" : "linear"}
         role="img"
@@ -755,6 +794,12 @@ function Plot({
               </text>
             );
           })}
+        <FitGuideLegend
+          layout={guideLabels}
+          left={left}
+          top={baseTop}
+          fontSize={exportFont ?? 12}
+        />
         <rect
           className="fit-plot-frame"
           data-plot-frame="true"
@@ -793,12 +838,13 @@ function Plot({
             <desc>
               Fainter dashed ends extrapolate the model up to ten percent beyond
               the fitted observations. They are not additional measurements.
-              {fittedCurve.baseline !== null
+              {showGuides && fittedCurve.baseline !== null
                 ? " The dotted b guide marks the fitted mean position, not the sample average."
                 : ""}
             </desc>
           )}
-          {fittedCurve?.baseline !== null &&
+          {showGuides &&
+            fittedCurve?.baseline !== null &&
             fittedCurve?.baseline !== undefined &&
             fittedCurve.baseline >= yDomain[0] &&
             fittedCurve.baseline <= yDomain[1] &&
@@ -810,12 +856,11 @@ function Plot({
               const end =
                 fittedCurve.after.at(-1)?.x ?? fittedCurve.fitted.at(-1)?.x;
               if (start === undefined || end === undefined) return null;
-              const labelSize = exportFont ?? 12;
-              const label = `b = ${baseline.toPrecision(4)}`;
-              const labelWidth = label.length * labelSize * 0.65;
               return (
                 <g className="fit-mean-guide" style={{ pointerEvents: "none" }}>
                   <line
+                    className="model-guide model-guide-baseline"
+                    aria-label="Fitted baseline y = b"
                     data-mean-position={baseline}
                     x1={x(start)}
                     x2={x(end)}
@@ -828,23 +873,6 @@ function Plot({
                   >
                     <title>{`Fitted mean position: b = ${number(baseline)} ${state.request.dataset.yColumn.unit ?? ""}`}</title>
                   </line>
-                  <text
-                    x={Math.min(
-                      width - right - 4,
-                      Math.max(left + labelWidth + 4, x(end)),
-                    )}
-                    y={Math.max(
-                      top + labelSize,
-                      Math.min(height - bottom - 4, y(baseline) - 5),
-                    )}
-                    textAnchor="end"
-                    style={{
-                      fill: "var(--plot-fit-color)",
-                      fontSize: labelSize,
-                    }}
-                  >
-                    {label}
-                  </text>
                 </g>
               );
             })()}
@@ -858,6 +886,38 @@ function Plot({
             />
           ) : !residual && showModel ? (
             <>
+              {guideCurves
+                .filter(
+                  (guide) =>
+                    guide.id !== "baseline" || fittedCurve?.baseline == null,
+                )
+                .map((guide) =>
+                  guide.axis === "x" ? (
+                    Number.isFinite(guide.value) &&
+                    guide.value >= range[0] &&
+                    guide.value <= range[1] &&
+                    (!logX || guide.value > 0) ? (
+                      <line
+                        key={guide.id}
+                        className={`model-guide model-guide-${guide.id}`}
+                        aria-label={guide.label}
+                        data-guide-axis="x"
+                        data-guide-value={guide.value}
+                        x1={x(guide.value)}
+                        x2={x(guide.value)}
+                        y1={top}
+                        y2={height - bottom}
+                      />
+                    ) : null
+                  ) : (
+                    <path
+                      key={guide.id}
+                      d={plotPath(guide.points, x, y)}
+                      className={`model-guide model-guide-${guide.id}`}
+                      aria-label={guide.label}
+                    />
+                  ),
+                )}
               <path
                 d={plotPath(curve, x, y)}
                 className="curve"
@@ -945,6 +1005,7 @@ function PrintReport({
   range,
   showBand,
   showErrorBars,
+  showGuides,
   showResiduals,
   fullPageGraph,
   onFullPageGraphChange,
@@ -959,6 +1020,7 @@ function PrintReport({
   range: [number, number];
   showBand: boolean;
   showErrorBars: boolean;
+  showGuides: boolean;
   showResiduals: boolean;
   fullPageGraph: boolean;
   onFullPageGraphChange: (enabled: boolean) => void;
@@ -968,6 +1030,9 @@ function PrintReport({
   const [error, setError] = useState("");
   const graphWidth = fullPageGraph ? 960 : 720;
   const hasResidualPlot = showResiduals && !!result;
+  const derived = result
+    ? fitDerivedQuantities(state.request, state.settings, result)
+    : [];
   const dataHeight = fullPageGraph
     ? hasResidualPlot
       ? 402
@@ -976,15 +1041,7 @@ function PrintReport({
       ? 236
       : 370;
   const residualHeight = fullPageGraph ? 184 : 134;
-  const printNumber = (value: number) =>
-    value.toLocaleString("en-US", {
-      maximumSignificantDigits: 7,
-      useGrouping: false,
-      notation:
-        value !== 0 && (Math.abs(value) < 0.001 || Math.abs(value) >= 1e7)
-          ? "scientific"
-          : "standard",
-    });
+  const printNumber = (value: number) => number(value).replaceAll(",", "");
   useModalDialog(dialog, ".fit-print-trigger");
   async function print() {
     setError("");
@@ -1070,6 +1127,7 @@ function PrintReport({
                   onToggle={() => {}}
                   showBand={showBand}
                   showErrorBars={showErrorBars}
+                  showGuides={showGuides}
                   showXAxis={!hasResidualPlot}
                   printSize={{ width: graphWidth, height: dataHeight }}
                   idPrefix="print-measure-"
@@ -1082,6 +1140,7 @@ function PrintReport({
                     range={range}
                     residual
                     onToggle={() => {}}
+                    showGuides={showGuides}
                     showXAxis
                     printSize={{ width: graphWidth, height: residualHeight }}
                     idPrefix="print-measure-"
@@ -1095,6 +1154,11 @@ function PrintReport({
                   : ""}{" "}
                 {showErrorBars
                   ? "Error bars: supplied ±1σ when available."
+                  : ""}
+                {result &&
+                showGuides &&
+                modelGuideValues(0, state.settings, result.coefficients).length
+                  ? " Dashed guides mark model reference values; labels appear above the graph."
                   : ""}
               </p>
             </div>
@@ -1173,6 +1237,43 @@ function PrintReport({
                       )}
                     </tbody>
                   </table>
+                  {derived.length > 0 && (
+                    <table
+                      aria-label={
+                        state.settings.model.startsWith("gaussian")
+                          ? "Print derived peak quantities"
+                          : "Print derived oscillation quantities"
+                      }
+                    >
+                      <thead>
+                        <tr>
+                          <th>Derived quantity</th>
+                          <th>Value</th>
+                          <th>Standard error</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {derived.map((quantity) => (
+                          <tr key={quantity.id}>
+                            <td>{quantity.label}</td>
+                            <td>
+                              {quantity.value === null
+                                ? "Unavailable"
+                                : printNumber(quantity.value)}{" "}
+                              [{quantity.unit}]
+                            </td>
+                            <td>
+                              {quantity.standardError.value === null
+                                ? statisticReasonText(
+                                    quantity.standardError.reason,
+                                  )
+                                : printNumber(quantity.standardError.value)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                   <table
                     className="fit-correlation-table"
                     aria-label="Print parameter correlation matrix"
@@ -1227,6 +1328,7 @@ function PrintReport({
 export default function FitApp() {
   const [appearance, setAppearance] = useState(defaultPlotAppearance);
   const [showResiduals, setShowResiduals] = useState(true);
+  const [showGuides, setShowGuides] = useState(false);
   const [exportSizing, setExportSizing] = useState<ExportSizing | null>(null);
   const [exportSizeOpen, setExportSizeOpen] = useState(false);
   const [exportRender, setExportRender] = useState<{
@@ -1289,6 +1391,8 @@ export default function FitApp() {
   );
   const collisionActions = useRef<CollisionActions>(null);
   const multiActions = useRef<MultiIntervalActions>(null);
+  const comparisonActions = useRef<ModelComparisonActions>(null);
+  const [comparisonReady, setComparisonReady] = useState(false);
   const [multiOpen, setMultiOpen] = useState(false);
   const [multiReady, setMultiReady] = useState(false);
   const [equationPending, setEquationPending] = useState(false);
@@ -1296,6 +1400,8 @@ export default function FitApp() {
   const [pendingDataEdit, setPendingDataEdit] = useState(false);
   const [collisionReady, setCollisionReady] = useState(false);
   const [collisionOpen, setCollisionOpen] = useState(false);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [comparisonVisited, setComparisonVisited] = useState(false);
   const [collisionRevision, setCollisionRevision] = useState(0);
   const [collisionSource, setCollisionSource] = useState<State | null>(null);
   const [mode, setMode] = useState<GraphMode>("linear");
@@ -1671,6 +1777,18 @@ export default function FitApp() {
     });
   }
   async function saveFile() {
+    if (comparisonOpen) {
+      try {
+        const bundle = comparisonActions.current?.saveSessions();
+        if (bundle && (await saveAnalysisBundle(bundle)))
+          setNotice(
+            "Candidate sessions saved; load each file into a comparison candidate to restore them",
+          );
+      } catch (cause) {
+        setError(`Save failed: ${String(cause)}`);
+      }
+      return;
+    }
     if (sigmaInvalid || numericDraftInvalid || pendingEquation) return;
     try {
       let saved = session();
@@ -1734,27 +1852,35 @@ export default function FitApp() {
   async function exportGraph(format: "svg" | "png" | "pdf") {
     if (
       exportRender ||
-      (!multiOpen && !collisionOpen && (numericDraftInvalid || pendingEquation))
+      (comparisonOpen
+        ? !comparisonReady
+        : !multiOpen &&
+          !collisionOpen &&
+          (numericDraftInvalid || pendingEquation))
     )
       return;
     setNotice("");
     setError("");
     exportMenu.current?.removeAttribute("open");
-    const activePlots = multiOpen
-      ? chartRef.current
-          ?.closest(".fit-app")
-          ?.querySelectorAll<SVGSVGElement>(
-            ".multi-interval:not([hidden]) .interval-graphs svg.interval-plot",
-          )
-      : collisionOpen
+    const activePlots = comparisonOpen
+      ? document.querySelectorAll<SVGSVGElement>(
+          ".model-comparison .comparison-workspace > .comparison-plot-wrap svg",
+        )
+      : multiOpen
         ? chartRef.current
             ?.closest(".fit-app")
             ?.querySelectorAll<SVGSVGElement>(
-              ".collision-dialog:not([hidden]) .collision-charts svg.collision-plot, .collision-dialog:not([hidden]) .collision-details.expanded svg.collision-plot",
+              ".multi-interval:not([hidden]) .interval-graphs svg.interval-plot",
             )
-        : chartRef.current?.querySelectorAll<SVGSVGElement>(
-            'svg[aria-label="Data and fitted curve"], svg[aria-label="Residual plot"]',
-          );
+        : collisionOpen
+          ? chartRef.current
+              ?.closest(".fit-app")
+              ?.querySelectorAll<SVGSVGElement>(
+                ".collision-dialog:not([hidden]) .collision-charts svg.collision-plot, .collision-dialog:not([hidden]) .collision-details.expanded svg.collision-plot",
+              )
+          : chartRef.current?.querySelectorAll<SVGSVGElement>(
+              'svg[aria-label="Data and fitted curve"], svg[aria-label="Residual plot"]',
+            );
     const plots = Array.from(activePlots ?? []).filter(
       (plot) =>
         plot.getClientRects().length > 0 &&
@@ -1762,7 +1888,10 @@ export default function FitApp() {
         plot.clientHeight > 0,
     );
     const name =
-      (state.request.dataset.label || "fit-graph")
+      (comparisonOpen
+        ? "model-comparison"
+        : state.request.dataset.label || "fit-graph"
+      )
         .replace(/[^a-z0-9]+/gi, "-")
         .replace(/^-|-$/g, "") || "fit-graph";
     try {
@@ -1806,6 +1935,16 @@ export default function FitApp() {
           document.querySelectorAll<SVGSVGElement>(".fit-export-render svg"),
         );
       }
+      for (const plot of outputPlots) {
+        const box = plot.viewBox.baseVal;
+        if (
+          Number(plot.dataset.guideMinimumHeight ?? 0) > box.height ||
+          Number(plot.dataset.guideMinimumWidth ?? 0) > box.width
+        )
+          throw new Error(
+            "Fit guide labels need more room. Increase the figure width or height, or hide fit guides.",
+          );
+      }
       const notices = [
         ...new Set(
           outputPlots.flatMap((plot) =>
@@ -1826,6 +1965,94 @@ export default function FitApp() {
       setError(`Graph export failed: ${String(error)}`);
     } finally {
       setExportRender(null);
+    }
+  }
+  async function saveAnalysisBundle(
+    bundle: ReturnType<typeof generateCodeExportBundle>,
+  ) {
+    const archive = encodeCodeExportBundle(bundle);
+    if (isTauri()) {
+      const path = await save({
+        defaultPath: bundle.archiveName,
+        filters: [{ name: "Analysis bundle", extensions: ["zip"] }],
+      });
+      if (!path) return false;
+      await invoke("write_analysis_bundle", {
+        path,
+        data: Array.from(archive),
+      });
+    } else {
+      const url = URL.createObjectURL(
+        new Blob([new Uint8Array(archive)], { type: "application/zip" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = bundle.archiveName;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    return true;
+  }
+  async function exportCodeBundle(target: "scipy" | "root") {
+    exportMenu.current?.removeAttribute("open");
+    if (comparisonOpen) {
+      try {
+        const bundle = comparisonActions.current?.exportCode(target);
+        if (bundle && (await saveAnalysisBundle(bundle)))
+          setNotice("Model comparison analysis bundle exported");
+      } catch (cause) {
+        setError(`Code export failed: ${String(cause)}`);
+      }
+      return;
+    }
+
+    if (
+      numericDraftInvalid ||
+      pendingEquation ||
+      comparisonOpen ||
+      multiOpen ||
+      collisionOpen
+    )
+      return;
+    if (!current) {
+      setError("Fit the current analysis before exporting code.");
+      return;
+    }
+    try {
+      const plot = chartRef.current?.querySelector<SVGSVGElement>(
+        'svg[aria-label="Data and fitted curve"]',
+      );
+      const displayedY = plot
+        ? ([
+            Number(plot.getAttribute("data-y-min")),
+            Number(plot.getAttribute("data-y-max")),
+          ] as AxisRange)
+        : yRange;
+      const description = buildCodeExportDescription(
+        state.request,
+        state.settings,
+        current,
+        {
+          mode,
+          xRange: range,
+          yRange:
+            displayedY?.every(Number.isFinite) && displayedY[0] < displayedY[1]
+              ? displayedY
+              : null,
+          showResiduals,
+          showErrorBars,
+          showGuides,
+        },
+      );
+      const bundle = generateCodeExportBundle(description, target);
+      if (!(await saveAnalysisBundle(bundle))) return;
+      setNotice(
+        `${target === "scipy" ? "SciPy" : "ROOT"} analysis bundle exported`,
+      );
+    } catch (cause) {
+      setError(`Code export failed: ${String(cause)}`);
     }
   }
   useEffect(() => {
@@ -1928,90 +2155,80 @@ export default function FitApp() {
     }
   }, [collisionOpen, multiOpen, state, collisionSource]);
   const analysisControl = (
-    <label>
-      Analysis
-      <select
-        aria-label="Analysis"
-        value={
-          multiOpen
+    <ModelSelector
+      label="Analysis"
+      workspaces
+      value={
+        comparisonOpen
+          ? "model-comparison"
+          : multiOpen
             ? "multi-interval"
             : collisionOpen
               ? "collision"
               : state.settings.model
-        }
-        onChange={(e) => {
-          if (e.target.value === "multi-interval") {
-            setMultiOpen(true);
-            setCollisionOpen(false);
-            return;
-          }
-          setMultiOpen(false);
-          if (e.target.value === "collision") {
-            setCollisionOpen(true);
-            return;
-          }
+      }
+      onChange={(value) => {
+        if (value === "multi-interval") {
+          setMultiOpen(true);
           setCollisionOpen(false);
-          if (e.target.value === state.settings.model) return;
-          change({
-            ...state,
-            request: {
-              ...state.request,
-              dataset: {
-                ...state.request.dataset,
-                assumptions: {
-                  ...state.request.dataset.assumptions,
-                  correctModel: "unknown",
-                },
+          setComparisonOpen(false);
+          return;
+        }
+        setMultiOpen(false);
+        if (value === "collision") {
+          setCollisionOpen(true);
+          setComparisonOpen(false);
+          return;
+        }
+        setCollisionOpen(false);
+        if (value === "model-comparison") {
+          setComparisonVisited(true);
+          setComparisonOpen(true);
+          return;
+        }
+        setComparisonOpen(false);
+        if (
+          value === state.settings.model ||
+          (value === "gaussian" && state.settings.model === "gaussian-shape")
+        )
+          return;
+        change({
+          ...state,
+          request: {
+            ...state.request,
+            dataset: {
+              ...state.request.dataset,
+              assumptions: {
+                ...state.request.dataset.assumptions,
+                correctModel: "unknown",
               },
             },
-            settings: {
-              ...initialSettings(e.target.value as FitSettings["model"]),
-              ...(isNonlinearModel(e.target.value)
-                ? {
-                    parameters: suggestedParameters(
-                      e.target.value,
-                      state.request,
-                      state.settings.excludedIds,
-                    ).map((value) => ({ value, fixed: false })),
-                  }
-                : {}),
-              excludedIds: state.settings.excludedIds,
-              selectionAfterInspection: state.settings.selectionAfterInspection,
-              retainedPerRowUncertainty:
-                state.settings.retainedPerRowUncertainty,
-              physicalTimeConfirmed: state.settings.physicalTimeConfirmed,
-            },
-          });
-        }}
-      >
-        <optgroup label="Single-curve fits">
-          <option value="line">Straight line</option>
-          <option value="quadratic">Quadratic</option>
-          <option value="cubic">Cubic</option>
-          <option value="quartic">Quartic</option>
-          <option value="logarithmic">Logarithmic</option>
-          <option value="sine">Sine · supplied period</option>
-          <option value="sine-free-period">Sine · fit period</option>
-          <option value="exponential">Exponential · supplied rate</option>
-          <option value="power-law">Power law · supplied exponent</option>
-          <option value="reciprocal">Reciprocal</option>
-          {nonlinearModelIds.map((model) => (
-            <option key={model} value={model}>
-              {nonlinearModels[model].label}
-            </option>
-          ))}
-          <option value="constant-acceleration">Constant acceleration</option>
-          <option value="custom">Custom equation…</option>
-        </optgroup>
-        <optgroup label="Multiple intervals">
-          <option value="multi-interval">Multi-interval fit…</option>
-          <option value="collision">Collision · before and after</option>
-        </optgroup>
-      </select>
-    </label>
+          },
+          settings: {
+            ...initialSettings(value as FitSettings["model"]),
+            ...(isNonlinearModel(value)
+              ? {
+                  parameters: suggestedParameters(
+                    value,
+                    state.request,
+                    state.settings.excludedIds,
+                  ).map((value) => ({ value, fixed: false })),
+                }
+              : {}),
+            excludedIds: state.settings.excludedIds,
+            selectionAfterInspection: state.settings.selectionAfterInspection,
+            retainedPerRowUncertainty: state.settings.retainedPerRowUncertainty,
+            physicalTimeConfirmed: state.settings.physicalTimeConfirmed,
+          },
+        });
+      }}
+    />
   );
   const names = parameterNames(state.settings.model, state.settings.custom),
     u = state.request.uncertainty;
+  const derived = current
+    ? fitDerivedQuantities(state.request, state.settings, current)
+    : [];
   const included = state.request.dataset.rows.filter(
     (r) => r.included && !state.settings.excludedIds.includes(r.id),
   ).length;
@@ -2035,6 +2252,10 @@ export default function FitApp() {
             }
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
               e.preventDefault();
+              if (comparisonOpen) {
+                comparisonActions.current?.print();
+                return;
+              }
               if (
                 !multiOpen &&
                 !collisionOpen &&
@@ -2049,6 +2270,7 @@ export default function FitApp() {
             if (
               (e.metaKey || e.ctrlKey) &&
               e.key.toLowerCase() === "z" &&
+              !comparisonOpen &&
               !multiOpen &&
               !collisionOpen &&
               !(e.target instanceof HTMLInputElement) &&
@@ -2076,7 +2298,12 @@ export default function FitApp() {
                 <button
                   aria-label="Undo analysis change"
                   title="Undo (⌘Z / Ctrl+Z)"
-                  disabled={multiOpen || collisionOpen || !past.current.length}
+                  disabled={
+                    multiOpen ||
+                    collisionOpen ||
+                    comparisonOpen ||
+                    !past.current.length
+                  }
                   onClick={() => history()}
                 >
                   <span aria-hidden="true">↶</span> Undo
@@ -2085,7 +2312,10 @@ export default function FitApp() {
                   aria-label="Redo analysis change"
                   title="Redo (⇧⌘Z / Ctrl+Shift+Z)"
                   disabled={
-                    multiOpen || collisionOpen || !future.current.length
+                    multiOpen ||
+                    collisionOpen ||
+                    comparisonOpen ||
+                    !future.current.length
                   }
                   onClick={() => history(true)}
                 >
@@ -2124,9 +2354,23 @@ export default function FitApp() {
                       />
                       Show residual plots
                     </label>
-                    <p>Applies to all graphs, printing, and exports.</p>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={showGuides}
+                        onChange={(e) => setShowGuides(e.target.checked)}
+                      />
+                      Show fit guides when available
+                    </label>
+                    <p>
+                      Residual visibility applies to all analyses. Fit guides
+                      follow single, multi-interval, and model-comparison fits
+                      into printing and exports. Labels sit above the curves.
+                    </p>
                   </fieldset>
-                  <fieldset disabled={collisionOpen || multiOpen}>
+                  <fieldset
+                    disabled={collisionOpen || multiOpen || comparisonOpen}
+                  >
                     <legend>Copy report sections</legend>
                     <p>Single-fit reports</p>
                     <label>
@@ -2223,60 +2467,71 @@ export default function FitApp() {
               </button>
               <button
                 disabled={
-                  sigmaInvalid ||
-                  numericDraftInvalid ||
-                  collisionOpen ||
-                  multiOpen ||
-                  (state.settings.model === "custom" && equationPending)
+                  !comparisonOpen &&
+                  (sigmaInvalid ||
+                    numericDraftInvalid ||
+                    collisionOpen ||
+                    multiOpen ||
+                    (state.settings.model === "custom" && equationPending))
                 }
                 title={
                   collisionOpen || multiOpen
-                    ? "Multi-interval setup is not yet saved in sessions; switch to a single fit to save the source table."
+                    ? "This analysis workspace is not saved in sessions; switch to a single fit to save the source table."
                     : undefined
                 }
                 onClick={saveFile}
               >
-                Save session
+                {comparisonOpen
+                  ? "Save candidate sessions (.zip)"
+                  : "Save session"}
               </button>
               <button
                 disabled={
-                  multiOpen
-                    ? !multiReady
-                    : collisionOpen
-                      ? !collisionReady
-                      : !current || numericDraftInvalid || pendingEquation
+                  comparisonOpen
+                    ? !comparisonReady
+                    : multiOpen
+                      ? !multiReady
+                      : collisionOpen
+                        ? !collisionReady
+                        : !current || numericDraftInvalid || pendingEquation
                 }
                 onClick={() =>
-                  multiOpen
-                    ? multiActions.current?.copy()
-                    : collisionOpen
-                      ? collisionActions.current?.copy()
-                      : copy()
+                  comparisonOpen
+                    ? comparisonActions.current?.copy()
+                    : multiOpen
+                      ? multiActions.current?.copy()
+                      : collisionOpen
+                        ? collisionActions.current?.copy()
+                        : copy()
                 }
               >
                 Copy report
               </button>
               <button
                 disabled={
-                  multiOpen
-                    ? !multiReady
-                    : collisionOpen
-                      ? !collisionReady
-                      : numericDraftInvalid || pendingEquation
+                  comparisonOpen
+                    ? !comparisonReady
+                    : multiOpen
+                      ? !multiReady
+                      : collisionOpen
+                        ? !collisionReady
+                        : numericDraftInvalid || pendingEquation
                 }
                 className="fit-print-trigger"
                 onClick={() =>
-                  multiOpen
-                    ? multiActions.current?.print()
-                    : collisionOpen
-                      ? collisionActions.current?.print()
-                      : setPrintPreview(true)
+                  comparisonOpen
+                    ? comparisonActions.current?.print()
+                    : multiOpen
+                      ? multiActions.current?.print()
+                      : collisionOpen
+                        ? collisionActions.current?.print()
+                        : setPrintPreview(true)
                 }
               >
                 Print
               </button>
               <details ref={exportMenu} className="fit-export-menu">
-                <summary onKeyDown={openMenuFromKey}>Export graph</summary>
+                <summary onKeyDown={openMenuFromKey}>Export</summary>
                 <div
                   className="fit-export-popover"
                   role="menu"
@@ -2285,9 +2540,11 @@ export default function FitApp() {
                   <button
                     role="menuitem"
                     disabled={
-                      !multiOpen &&
-                      !collisionOpen &&
-                      (numericDraftInvalid || pendingEquation)
+                      comparisonOpen
+                        ? !comparisonReady
+                        : !multiOpen &&
+                          !collisionOpen &&
+                          (numericDraftInvalid || pendingEquation)
                     }
                     onClick={() => void exportGraph("svg")}
                   >
@@ -2296,9 +2553,11 @@ export default function FitApp() {
                   <button
                     role="menuitem"
                     disabled={
-                      !multiOpen &&
-                      !collisionOpen &&
-                      (numericDraftInvalid || pendingEquation)
+                      comparisonOpen
+                        ? !comparisonReady
+                        : !multiOpen &&
+                          !collisionOpen &&
+                          (numericDraftInvalid || pendingEquation)
                     }
                     onClick={() => void exportGraph("png")}
                   >
@@ -2307,13 +2566,46 @@ export default function FitApp() {
                   <button
                     role="menuitem"
                     disabled={
-                      !multiOpen &&
-                      !collisionOpen &&
-                      (numericDraftInvalid || pendingEquation)
+                      comparisonOpen
+                        ? !comparisonReady
+                        : !multiOpen &&
+                          !collisionOpen &&
+                          (numericDraftInvalid || pendingEquation)
                     }
                     onClick={() => void exportGraph("pdf")}
                   >
                     PDF vector graphic
+                  </button>
+                  <hr />
+                  <button
+                    role="menuitem"
+                    disabled={
+                      comparisonOpen
+                        ? !comparisonReady
+                        : !current ||
+                          numericDraftInvalid ||
+                          pendingEquation ||
+                          collisionOpen ||
+                          multiOpen
+                    }
+                    onClick={() => void exportCodeBundle("scipy")}
+                  >
+                    Python / SciPy analysis bundle (.zip)
+                  </button>
+                  <button
+                    role="menuitem"
+                    disabled={
+                      comparisonOpen
+                        ? !comparisonReady
+                        : !current ||
+                          numericDraftInvalid ||
+                          pendingEquation ||
+                          collisionOpen ||
+                          multiOpen
+                    }
+                    onClick={() => void exportCodeBundle("root")}
+                  >
+                    C++ / ROOT analysis bundle (.zip)
                   </button>
                   <button
                     role="menuitem"
@@ -2384,6 +2676,7 @@ export default function FitApp() {
               key={`multi-${collisionRevision}`}
               source={collisionSource}
               open={multiOpen}
+              showGuides={showGuides}
               showResiduals={showResiduals}
               exportSizes={multiOpen ? exportRender?.sizes : undefined}
               ref={multiActions}
@@ -2392,7 +2685,24 @@ export default function FitApp() {
               onDirty={() => setUnsavedDraftWork(true)}
             />
           )}
-          {exportRender && !multiOpen && !collisionOpen && (
+          {comparisonVisited && (
+            <div hidden={!comparisonOpen}>
+              <ModelComparison
+                source={state}
+                sourceResult={current}
+                analysisControl={comparisonOpen ? analysisControl : null}
+                showResiduals={showResiduals}
+                showErrorBars={showErrorBars}
+                showGuides={showGuides}
+                onErrorBarsChange={setShowErrorBars}
+                onDirty={() => setUnsavedDraftWork(true)}
+                onReady={setComparisonReady}
+                ref={comparisonActions}
+                exportSizes={comparisonOpen ? exportRender?.sizes : undefined}
+              />
+            </div>
+          )}
+          {exportRender && !multiOpen && !collisionOpen && !comparisonOpen && (
             <div className="fit-export-render" aria-hidden="true" inert>
               {exportRender.sizes.map((size, index) => (
                 <Plot
@@ -2405,6 +2715,7 @@ export default function FitApp() {
                   manual={manualState === state}
                   showBand={showBand}
                   showErrorBars={showErrorBars}
+                  showGuides={showGuides}
                   showXAxis={index === exportRender.sizes.length - 1}
                   onToggle={() => {}}
                   fixedYRange={exportRender.yRanges[index]}
@@ -2447,6 +2758,7 @@ export default function FitApp() {
               range={range}
               showBand={showBand}
               showErrorBars={showErrorBars}
+              showGuides={showGuides}
               showResiduals={showResiduals}
               fullPageGraph={fullPageGraph}
               onFullPageGraphChange={setFullPageGraph}
@@ -2501,41 +2813,38 @@ export default function FitApp() {
             />
           )}
           {(pending || closePending) && (
-            <div className="fit-confirm" role="alert">
-              <span>
-                {pendingDataEdit
-                  ? "Apply these data and discard the unsaved interval analyses?"
-                  : unsavedDraftWork
-                    ? "Keep or discard your unsaved analysis? Multi-interval and collision setups are not saved in sessions."
-                    : "Keep or discard your unsaved analysis changes?"}
-              </span>
-              <button
-                onClick={() => {
-                  setPending(null);
+            <UnsavedChangesDialog
+              message={
+                pendingDataEdit
+                  ? comparisonOpen
+                    ? "Apply these data to every comparison candidate? Existing fit results will be cleared."
+                    : "Apply these data and discard the unsaved interval analyses?"
+                  : pending && comparisonOpen
+                    ? "Load the new dataset for every comparison candidate? Candidate equations and settings will be kept; existing fit results will be cleared."
+                    : unsavedDraftWork
+                      ? "Keep or discard your unsaved analysis? Multi-interval and collision setups are not saved in sessions."
+                      : "Keep or discard your unsaved analysis changes?"
+              }
+              onKeep={() => {
+                setPending(null);
+                setPendingDataEdit(false);
+                setClosePending(false);
+              }}
+              onApply={() => {
+                if (pending && pendingDataEdit) {
+                  setUnsavedDraftWork(false);
                   setPendingDataEdit(false);
-                  setClosePending(false);
-                }}
-              >
-                Keep working
-              </button>
-              <button
-                onClick={() => {
-                  if (pending && pendingDataEdit) {
-                    setUnsavedDraftWork(false);
-                    setPendingDataEdit(false);
-                    setPending(null);
-                    change(pending);
-                    bounds();
-                  } else if (pending) replace(pending);
-                  else if (isTauri()) {
-                    dirtyRef.current = false;
-                    void getCurrentWindow().destroy();
-                  }
-                }}
-              >
-                {pendingDataEdit ? "Apply data" : "Discard changes"}
-              </button>
-            </div>
+                  setPending(null);
+                  change(pending);
+                  bounds();
+                } else if (pending) replace(pending);
+                else if (isTauri()) {
+                  dirtyRef.current = false;
+                  void getCurrentWindow().destroy();
+                }
+              }}
+              action={pendingDataEdit ? "Apply data" : "Discard changes"}
+            />
           )}
           {error && (
             <div role="alert" className="fit-error">
@@ -2544,7 +2853,11 @@ export default function FitApp() {
           )}
           <div
             className="fit-layout"
-            style={collisionOpen || multiOpen ? { display: "none" } : undefined}
+            style={
+              collisionOpen || multiOpen || comparisonOpen
+                ? { display: "none" }
+                : undefined
+            }
           >
             <main className="fit-workspace">
               <section
@@ -2646,6 +2959,7 @@ export default function FitApp() {
                   onSelect={selectRectangle}
                   showBand={showBand}
                   showErrorBars={showErrorBars}
+                  showGuides={showGuides}
                   showXAxis={!showResiduals}
                 />
                 {showResiduals && (
@@ -2690,6 +3004,68 @@ export default function FitApp() {
                           </div>
                         ))}
                       </div>
+                      {derived.length > 0 && (
+                        <div className="fit-derived">
+                          <h3>
+                            {state.settings.model.startsWith("gaussian")
+                              ? "Derived peak quantities"
+                              : "Derived oscillation quantities"}
+                          </h3>
+                          <table
+                            aria-label={
+                              state.settings.model.startsWith("gaussian")
+                                ? "Derived peak quantities"
+                                : "Derived oscillation quantities"
+                            }
+                          >
+                            <thead>
+                              <tr>
+                                <th>Quantity</th>
+                                <th>Value</th>
+                                <th>Standard error</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {derived.map((quantity) => (
+                                <tr key={quantity.id}>
+                                  <td>{quantity.label}</td>
+                                  <td>
+                                    {number(quantity.value)} [{quantity.unit}]
+                                  </td>
+                                  <td
+                                    title={
+                                      quantity.standardError.reason
+                                        ? statisticReasonText(
+                                            quantity.standardError.reason,
+                                          )
+                                        : undefined
+                                    }
+                                  >
+                                    {quantity.standardError.value === null
+                                      ? statisticReasonText(
+                                          quantity.standardError.reason,
+                                        )
+                                      : number(quantity.standardError.value)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <p>
+                            {state.settings.model.startsWith("gaussian") ? (
+                              "These moments describe the normalized peak, including its extrapolated tails. Standard errors use the full fitted covariance and a local approximation."
+                            ) : (
+                              <>
+                                A and φ summarize s and c. Phase uses the
+                                current X origin; separate sine/cosine
+                                components would also be origin-dependent.
+                                Standard errors use the full fitted covariance
+                                and a local propagation.
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      )}
                       <details className="fit-diagnostic-details">
                         <summary>
                           Inference: {current.inference} · details
@@ -2810,10 +3186,24 @@ export default function FitApp() {
             <aside className="fit-controls">
               <section>
                 <div className="section-eyebrow">01 / ANALYSIS</div>
-                {!collisionOpen && !multiOpen && analysisControl}
+                {!collisionOpen &&
+                  !multiOpen &&
+                  !comparisonOpen &&
+                  analysisControl}
                 {state.settings.model !== "custom" && (
                   <button
                     className="edit-custom-equation"
+                    disabled={
+                      state.settings.parameters.length > 8 ||
+                      state.settings.model === "gaussian-shape"
+                    }
+                    title={
+                      state.settings.model === "gaussian-shape"
+                        ? "This shape uses a mode calculation; export its SciPy/ROOT program to edit it."
+                        : state.settings.parameters.length > 8
+                          ? "Custom equations support at most eight parameters."
+                          : undefined
+                    }
                     onClick={() =>
                       change({
                         ...state,
@@ -2888,9 +3278,9 @@ export default function FitApp() {
                     {current
                       ? "Values below are fitted parameters. Editing them starts a new fit."
                       : "Values below are starting estimates. Edit them or fix known parameters before fitting."}{" "}
-                    Widths and decay times must be positive. Nonlinear fits find
-                    a local solution; compare different starts. Intervals and
-                    bands are approximate.
+                    Widths and time constants must be positive. Nonlinear fits
+                    find a local solution; compare different starts. Intervals
+                    and bands are approximate.
                   </p>
                 )}
                 {state.settings.model === "sine-free-period" && (
@@ -2997,9 +3387,9 @@ export default function FitApp() {
                     </span>
                   </label>
                 )}
-                {["power-law", "reciprocal"].includes(state.settings.model) && (
+                {modelNotationNote(state.settings.model) && (
                   <p className="fit-help">
-                    Positive x only; xref is one declared x-unit.
+                    {modelNotationNote(state.settings.model)}
                   </p>
                 )}
                 {state.settings.model === "sine" && (
@@ -3032,14 +3422,7 @@ export default function FitApp() {
                     </span>
                   </label>
                 )}
-                {state.settings.model === "logarithmic" && (
-                  <p className="fit-help">
-                    Natural log; xref = 1{" "}
-                    {state.request.dataset.xColumn.unit ??
-                      "(x unit unspecified)"}
-                    . Included x values must be positive.
-                  </p>
-                )}
+
                 {state.settings.model === "constant-acceleration" && (
                   <label className="fit-check">
                     <input
@@ -3058,6 +3441,16 @@ export default function FitApp() {
                     Independent variable is physical time
                   </label>
                 )}
+                <PeakShapeControls
+                  settings={{
+                    ...state.settings,
+                    parameters: state.settings.parameters.map((p, i) => ({
+                      ...p,
+                      value: current?.coefficients[i] ?? p.value,
+                    })),
+                  }}
+                  onChange={(settings) => change({ ...state, settings })}
+                />
                 <div className="parameter-heading">
                   <span>Parameter</span>
                   <span>Value</span>
@@ -3072,29 +3465,12 @@ export default function FitApp() {
                         className="parameter-unit"
                         hidden={state.settings.model === "custom"}
                       >
-                        {state.settings.model === "custom"
-                          ? state.settings.custom!.units[i] || "?"
-                          : isNonlinearModel(state.settings.model)
-                            ? nonlinearParameterUnit(
-                                state.settings.model,
-                                i,
-                                state.request.dataset.xColumn.unit,
-                                state.request.dataset.yColumn.unit,
-                              )
-                            : state.settings.model === "sine-free-period" &&
-                                i === 3
-                              ? (state.request.dataset.xColumn.unit ?? "?")
-                              : i === 0 ||
-                                  state.settings.model === "logarithmic" ||
-                                  [
-                                    "sine",
-                                    "sine-free-period",
-                                    "exponential",
-                                    "power-law",
-                                    "reciprocal",
-                                  ].includes(state.settings.model)
-                                ? (state.request.dataset.yColumn.unit ?? "?")
-                                : `${state.request.dataset.yColumn.unit ?? "?"}/${state.request.dataset.xColumn.unit ?? "?"}${["", "", "²", "³", "⁴"][i]}`}
+                        {modelParameterUnit(
+                          state.settings,
+                          i,
+                          state.request.dataset.xColumn.unit,
+                          state.request.dataset.yColumn.unit,
+                        )}
                       </span>
                       {state.settings.model === "custom" && (
                         <input
@@ -3281,9 +3657,9 @@ export default function FitApp() {
               <section>
                 <div className="section-eyebrow">02 / UNCERTAINTY</div>
                 <label>
-                  Noise model
+                  Y uncertainty model
                   <select
-                    aria-label="Noise model"
+                    aria-label="Y uncertainty model"
                     value={u.kind}
                     onChange={(e) => {
                       change({

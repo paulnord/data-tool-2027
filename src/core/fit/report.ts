@@ -1,8 +1,9 @@
+import { polynomialExpressions } from "./polynomialModels";
+import { modelNotationNote, modelParameterUnit } from "./modelNotation";
 import {
   nonlinearModels,
   nonlinearModelIds,
   isNonlinearModel,
-  nonlinearParameterUnit,
 } from "./nonlinearModels";
 import {
   parameterNames,
@@ -12,6 +13,7 @@ import {
 } from "./schema";
 import type { FitResult } from "./solve";
 import { statisticReasonText } from "./diagnosticText";
+import { fitDerivedQuantities } from "./derivedParameters";
 export type Cell = string | number | boolean | null;
 export type ReportRow = readonly [statistic: string, value: Cell];
 export type ReportSections = {
@@ -93,7 +95,13 @@ export function fitReportTable(
   const rowNumbers = new Map(
     request.dataset.rows.map((row, index) => [row.id, index + 1]),
   );
+  const derived = fitDerivedQuantities(request, settings, result);
   const equations = {
+    ...(Object.fromEntries(
+      Object.entries(
+        polynomialExpressions((i) => (i === 0 ? "c0" : `c${i}*x^${i}`)),
+      ).map(([model, expression]) => [model, `y = ${expression}`]),
+    ) as ReturnType<typeof polynomialExpressions>),
     ...(Object.fromEntries(
       nonlinearModelIds.map((m) => [m, nonlinearModels[m].equation]),
     ) as Record<(typeof nonlinearModelIds)[number], string>),
@@ -104,9 +112,9 @@ export function fitReportTable(
     sine: "y = b + s sin(2πx/T) + c cos(2πx/T)",
     "sine-free-period": "y = b + s sin(2πx/T) + c cos(2πx/T)",
     exponential: "y = b + a exp(kx)",
-    "power-law": "y = b + a (x/xref)^p",
-    reciprocal: "y = b + a xref/x",
-    logarithmic: "y = b + a ln(x / xref)",
+    "power-law": "y = b + a x^p",
+    reciprocal: "y = b + a/x",
+    logarithmic: "y = b + a ln(x)",
     "constant-acceleration": "y = y0 + v0*t + 0.5*a*t^2",
   };
   const rows: Cell[][] = [
@@ -148,21 +156,13 @@ export function fitReportTable(
     ...(settings.model === "sine"
       ? [["Supplied period T", settings.sinePeriod ?? 2 * Math.PI]]
       : []),
-    ...(settings.model === "logarithmic"
-      ? [["Log reference xref", "1 declared x-unit"]]
+    ...(modelNotationNote(settings.model)
+      ? [["Unit convention", modelNotationNote(settings.model)]]
       : []),
     ...(settings.model === "sine-free-period"
       ? [
           ["Minimum searched period", settings.periodMin!],
           ["Maximum searched period", settings.periodMax!],
-          [
-            "Amplitude",
-            Math.hypot(result.coefficients[1], result.coefficients[2]),
-          ],
-          [
-            "Phase (rad)",
-            Math.atan2(result.coefficients[2], result.coefficients[1]),
-          ],
           ["Interval method", "Local linear approximation when T is free"],
         ]
       : []),
@@ -190,7 +190,20 @@ export function fitReportTable(
             names
               .map(
                 (name, i) =>
-                  `${name}: ${nonlinearParameterUnit(settings.model as (typeof nonlinearModelIds)[number], i, request.dataset.xColumn.unit, request.dataset.yColumn.unit)}`,
+                  `${name}: ${modelParameterUnit(settings, i, request.dataset.xColumn.unit, request.dataset.yColumn.unit)}`,
+              )
+              .join("; "),
+          ],
+        ]
+      : []),
+    ...(settings.model !== "custom" && !isNonlinearModel(settings.model)
+      ? [
+          [
+            "Parameter units",
+            names
+              .map(
+                (name, i) =>
+                  `${name}: ${modelParameterUnit(settings, i, request.dataset.xColumn.unit, request.dataset.yColumn.unit)}`,
               )
               .join("; "),
           ],
@@ -208,6 +221,19 @@ export function fitReportTable(
         statisticReasonText(result.standardErrors[i].reason),
       ...(result.intervals[i] ?? [null, null]),
     ]),
+    ...(derived.length
+      ? [
+          [],
+          ["Derived quantity", "Value", "Unit", "Standard error"],
+          ...derived.map((quantity) => [
+            quantity.label,
+            quantity.value,
+            quantity.unit,
+            quantity.standardError.value ??
+              statisticReasonText(quantity.standardError.reason),
+          ]),
+        ]
+      : []),
     [],
     ["Statistic", "Value"],
     ...fitReportRows(request, settings, result).map((row) => [...row]),

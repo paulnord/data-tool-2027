@@ -1,3 +1,6 @@
+import { FitGuideLegend, layoutGuideLabels } from "./FitGuideLegend";
+import { formatNumber } from "./formatNumber";
+import { modelGuideValues } from "../core/fit/modelGuides";
 import { AxisControls, YAxisControls, useYRange } from "./YAxisControls";
 import { useId, useRef, useState } from "react";
 import type { FitRequest } from "../core/fit/schema";
@@ -24,6 +27,7 @@ export function IntervalPlot({
   domain,
   dataDomain = domain,
   residual = false,
+  showGuides = false,
   height: requestedHeight,
   colors: requestedColors,
   onRange,
@@ -40,6 +44,7 @@ export function IntervalPlot({
   domain: IntervalRange;
   dataDomain?: IntervalRange;
   residual?: boolean;
+  showGuides?: boolean;
   height?: number;
   colors?: string[];
   onRange?: (range: IntervalRange) => void;
@@ -58,7 +63,7 @@ export function IntervalPlot({
       ? (renderSize.leftMarginPx ?? Math.max(58, fontSize * 5.2))
       : 72,
     right = renderSize ? Math.max(12, fontSize) : 16,
-    top = renderSize ? Math.max(10, fontSize * 0.9) : 18,
+    baseTop = renderSize ? Math.max(10, fontSize * 0.9) : 18,
     bottom = renderSize ? fontSize * 3.2 : 42;
   const xTicks = renderSize
     ? Math.max(
@@ -66,12 +71,6 @@ export function IntervalPlot({
         Math.min(5, Math.floor((width - left - right) / (fontSize * 5))),
       )
     : 5;
-  const yTicks = renderSize
-    ? Math.max(
-        residual ? 3 : 2,
-        Math.min(6, Math.floor((height - top - bottom) / (fontSize * 2.3))),
-      )
-    : 6;
   const id = useId(),
     drag = useRef<{ start: number; interval?: number; end?: number } | null>(
       null,
@@ -106,6 +105,58 @@ export function IntervalPlot({
       ? null
       : sampleFittedCurve(r.settings, r.result, domain),
   );
+  const guideCurves = curves.flatMap((curve, i) => {
+    const fit = results[i];
+    if (!showGuides || !curve?.fitted.length || !fit?.result) return [];
+    return modelGuideValues(
+      curve.fitted[0].x,
+      fit.settings,
+      fit.result.coefficients,
+    )
+      .filter((guide) => guide.id !== "baseline" || curve.baseline === null)
+      .map((guide) => ({
+        ...guide,
+        interval: i,
+        points:
+          guide.axis === "x"
+            ? []
+            : curve.fitted.map((point) => ({
+                x: point.x,
+                y: modelGuideValues(
+                  point.x,
+                  fit.settings,
+                  fit.result!.coefficients,
+                ).find((value) => value.id === guide.id)!.value,
+              })),
+      }));
+  });
+  const guideLabels = layoutGuideLabels(
+    results.flatMap((fit, i) =>
+      !residual && showGuides && fit?.result
+        ? modelGuideValues(0, fit.settings, fit.result.coefficients)
+            .filter((guide) => guide.symbol && Number.isFinite(guide.value))
+            .map((guide) => ({
+              id: guide.id,
+              text: `${intervals.length > 1 ? `${i + 1}: ` : ""}${guide.symbol} = ${formatNumber(guide.value)}`,
+              description: `${intervals[i]?.name || `Interval ${i + 1}`}: ${guide.label}: ${formatNumber(guide.value)} ${guide.axis === "x" ? (request.dataset.xColumn.unit ?? "") : (request.dataset.yColumn.unit ?? "")}`,
+              color: colors[i],
+              intervalIndex: i,
+            }))
+        : [],
+    ),
+    width - left - right,
+    fontSize,
+  );
+  const top = baseTop + guideLabels.height;
+  const yTicks = renderSize
+    ? Math.max(
+        residual ? 3 : 2,
+        Math.min(
+          6,
+          Math.floor(Math.max(1, height - top - bottom) / (fontSize * 2.3)),
+        ),
+      )
+    : 6;
   const sigma =
     !residual && request.uncertainty.kind === "supplied-common"
       ? request.uncertainty.sigmaY
@@ -116,9 +167,12 @@ export function IntervalPlot({
       curve
         ? [
             ...curve.fitted.map((p) => p.y).filter(Number.isFinite),
-            ...(curve.baseline === null ? [] : [curve.baseline]),
+            ...(showGuides && curve.baseline !== null ? [curve.baseline] : []),
           ]
         : [],
+    ),
+    ...guideCurves.flatMap((guide) =>
+      guide.points.map((point) => point.y).filter(Number.isFinite),
     ),
     ...(residual ? [0] : []),
   ];
@@ -128,7 +182,8 @@ export function IntervalPlot({
   );
   const yDomain = forcedYRange ?? customY ?? automaticY;
   const sy = plotScale(yDomain, false),
-    y = (v: number) => top + (1 - sy.fraction(v)) * (height - top - bottom);
+    y = (v: number) =>
+      top + (1 - sy.fraction(v)) * Math.max(1, height - top - bottom);
   const at = (element: SVGSVGElement, clientX: number) => {
     const box = element.getBoundingClientRect(),
       scale = Math.min(box.width / width, box.height / height);
@@ -174,6 +229,14 @@ export function IntervalPlot({
             "--export-font-size": `${fontSize}px`,
           }),
         }}
+        data-guide-minimum-height={
+          guideLabels.height ? top + bottom + fontSize * 2.5 : undefined
+        }
+        data-guide-minimum-width={
+          guideLabels.height
+            ? left + right + guideLabels.minimumWidth
+            : undefined
+        }
         data-x-min={domain[0]}
         data-x-max={domain[1]}
         data-x-scale="linear"
@@ -224,8 +287,9 @@ export function IntervalPlot({
           <desc>
             Fitted curves retain each interval's line pattern. Fainter dashed
             extensions show the model just beyond the first and last fitted
-            observations. Dotted guides mark the mean position b of damped
-            oscillations.
+            observations. Optional guides mark model reference values such as
+            centers, mean positions, asymptotes, and damped amplitude envelopes.
+            Guide labels are keyed by interval above the plotting frame.
           </desc>
         )}
         <defs>
@@ -234,10 +298,16 @@ export function IntervalPlot({
               x={left}
               y={top}
               width={width - left - right}
-              height={height - top - bottom}
+              height={Math.max(1, height - top - bottom)}
             />
           </clipPath>
         </defs>
+        <FitGuideLegend
+          layout={guideLabels}
+          left={left}
+          top={baseTop}
+          fontSize={fontSize}
+        />
         <rect
           className="fit-plot-frame"
           data-plot-frame="true"
@@ -245,7 +315,7 @@ export function IntervalPlot({
           x={left}
           y={top}
           width={width - left - right}
-          height={height - top - bottom}
+          height={Math.max(1, height - top - bottom)}
           fill="#fff"
           stroke="#a7becf"
         />
@@ -295,7 +365,7 @@ export function IntervalPlot({
                   x={x(s.range[0])}
                   y={top}
                   width={Math.max(0, x(s.range[1]) - x(s.range[0]))}
-                  height={height - top - bottom}
+                  height={Math.max(1, height - top - bottom)}
                   fill={colors[i]}
                   opacity={i === active ? 0.12 : 0.06}
                 />
@@ -313,6 +383,7 @@ export function IntervalPlot({
           )}
           {curves.map((curve, i) => {
             if (
+              !showGuides ||
               !curve ||
               curve.baseline === null ||
               curve.baseline < yDomain[0] ||
@@ -325,11 +396,11 @@ export function IntervalPlot({
             const to = sampled[sampled.length - 1].x;
             const baseline = curve.baseline;
             const name = intervals[i]?.name || `Interval ${i + 1}`;
-            const label = `b${intervals.length > 1 ? ` (${i + 1})` : ""} = ${baseline.toPrecision(4)}`;
-            const labelWidth = label.length * fontSize * 0.65;
             return (
               <g key={i}>
                 <line
+                  className="model-guide model-guide-baseline"
+                  aria-label={`${name}: fitted baseline y = b`}
                   data-mean-position={baseline}
                   data-interval-index={i}
                   x1={x(from)}
@@ -343,26 +414,48 @@ export function IntervalPlot({
                 >
                   <title>{`${name}: mean position b = ${baseline}`}</title>
                 </line>
-                <text
-                  data-mean-position-label="true"
-                  data-interval-index={i}
-                  x={Math.min(
-                    width - right - 4,
-                    Math.max(left + labelWidth + 4, x(to) - 4),
-                  )}
-                  y={Math.max(
-                    top + fontSize + 3,
-                    Math.min(height - bottom - 4, y(baseline) - 5),
-                  )}
-                  textAnchor="end"
-                  style={{ fill: colors[i], fontSize }}
-                >
-                  <title>{`${name}: mean position b = ${baseline}`}</title>
-                  {label}
-                </text>
               </g>
             );
           })}
+          {guideCurves.map((guide) =>
+            guide.axis === "x" ? (
+              Number.isFinite(guide.value) &&
+              guide.value >= domain[0] &&
+              guide.value <= domain[1] ? (
+                <line
+                  key={`${guide.interval}-${guide.id}`}
+                  className={`model-guide model-guide-${guide.id}`}
+                  data-interval-index={guide.interval}
+                  data-guide-axis="x"
+                  data-guide-value={guide.value}
+                  aria-label={`${intervals[guide.interval]?.name}: ${guide.label}`}
+                  x1={x(guide.value)}
+                  x2={x(guide.value)}
+                  y1={top}
+                  y2={height - bottom}
+                  stroke={colors[guide.interval]}
+                  strokeWidth={renderSize ? 0.65 : 1}
+                  strokeDasharray="5 4"
+                  opacity={0.65}
+                  style={{ pointerEvents: "none" }}
+                />
+              ) : null
+            ) : (
+              <path
+                key={`${guide.interval}-${guide.id}`}
+                className={`model-guide model-guide-${guide.id}`}
+                data-interval-index={guide.interval}
+                aria-label={`${intervals[guide.interval]?.name}: ${guide.label}`}
+                d={plotPath(guide.points, x, y)}
+                fill="none"
+                stroke={colors[guide.interval]}
+                strokeWidth={renderSize ? 0.65 : 1}
+                strokeDasharray="5 4"
+                opacity={0.65}
+                style={{ pointerEvents: "none" }}
+              />
+            ),
+          )}
           {points.map((p, i) => (
             <g
               key={i}
@@ -423,7 +516,7 @@ export function IntervalPlot({
               x={x(selection[0])}
               y={top}
               width={x(selection[1]) - x(selection[0])}
-              height={height - top - bottom}
+              height={Math.max(1, height - top - bottom)}
               fill={colors[active]}
               opacity=".25"
             />
@@ -456,7 +549,7 @@ export function IntervalPlot({
                         x={x(v) - 7}
                         y={top}
                         width={14}
-                        height={height - top - bottom}
+                        height={Math.max(1, height - top - bottom)}
                         fill="transparent"
                         onPointerDown={(e) => {
                           e.stopPropagation();

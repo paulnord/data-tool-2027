@@ -5,14 +5,14 @@ Choose a model after loading an ordinary data file. Selecting one of these model
 | Model                        | Equation                                                  | Parameters and units                                                                                                                 |
 | ---------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Exponential · fit decay time | `y = b + A exp(-x/tau)`                                   | b and A: y-unit; tau: positive x-unit. The fitted decay rate is `1/tau`.                                                             |
-| Power law · fit exponent     | `y = b + A (x/xref)^n`                                    | b and A: y-unit; n: dimensionless. xref is exactly one declared x-unit; included x must be positive.                                 |
+| Power law · fit exponent     | `y = b + A*x^n`                                           | b and A: y-unit; n: dimensionless. x denotes its numerical value in the selected unit and must be positive.                          |
 | Gaussian peak                | `y = b + A exp(-0.5*((x-mu)/sigma)^2)`                    | b and peak height A: y-unit; center mu and positive width sigma: x-unit. This sigma describes the peak, not measurement uncertainty. |
 | Damped oscillation           | `y = b + exp(-x/tau)*(s*sin(2*pi*x/T) + c*cos(2*pi*x/T))` | b, s and c: y-unit; positive period T and decay time tau: x-unit. s and c describe phase without a discontinuous phase parameter.    |
 | Lorentzian peak              | `y = b + A/(1+((x-mu)/gamma)^2)`                          | b and peak height A: y-unit; center mu and positive half-width gamma: x-unit. Full width at half maximum is `2*gamma`.               |
 
-The supplied-rate exponential and supplied-exponent power law remain available. The new decay-time model describes decay toward a background, with either sign of amplitude; it does not fit an exponential growth rate. A peak amplitude may also be negative to describe a dip. Units are labels, never guessed conversions. Unit entry preserves case.
+Saved supplied-rate exponentials remain editable; supplied-exponent power laws remain available. The new decay-time model describes decay toward a background, with either sign of amplitude; it does not fit an exponential growth rate. A peak amplitude may also be negative to describe a dip. Units are labels, never guessed conversions. Unit entry preserves case.
 
-Ordinary synthetic examples are in `examples/data/exponential-decay.csv`, `power-law-free.csv`, `gaussian.csv`, `damped-sine.csv` and `lorentzian.csv`. Use the **Examples** menu to open them directly, or choose **Data… → Load file…**; these files are also included in the normal Examples directory. They contain no fitting settings or automatic uncertainty assignments.
+Ordinary synthetic examples are in `examples/data/exponential-decay.csv`, `power-law-free.csv`, `gaussian.csv`, `damped-sine.csv` and `lorentzian.csv`. Open them through **Data… → Load file…**. They contain no fitting settings or automatic uncertainty assignments.
 
 ## Numerical method and diagnostics
 
@@ -26,6 +26,8 @@ When nonlinear parameters are free, standard errors, marginal intervals and poin
 
 The damped oscillation solver is local and does not perform the separate sine model's bounded frequency scan. The report warns that other minima may exist. Confidence intervals do not account for choosing a basin, model or exclusions after examining the data.
 
+An optional graph preference draws the damped fit's baseline and symmetric exponential amplitude envelope as muted dashed guides. It is off by default and does not change the fitted equation. Single and multi-interval plots place baseline labels in a keyed legend above the plotting frame, including in print and graph exports. Gaussian and Lorentzian guides mark the center; logistic sigmoid guides mark its midpoint and asymptotes. Small exports must provide enough space for these labels; the exporter asks for a larger figure when necessary. Sine-family diagnostics derive amplitude, phase and frequency with local first-order uncertainty propagated through the complete covariance matrix. Phase is relative to the current X origin; component sine/cosine curves are not drawn because their individual appearance also depends on that origin. See [model comparison, guides and code export](model-comparison-and-code-export.md).
+
 ## Independent validation
 
 `tests/fit/nonlinear-reference.json` records independent SciPy least-squares optima, complex-step Jacobians and SVD covariance for all five models, including fixed-background and fixed-shape cases. The test-only generator records NumPy/SciPy versions and PCG64 seeds. SciPy is not a runtime dependency. See [SciPy's least-squares documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html) for the independent reference solver.
@@ -33,3 +35,7 @@ The damped oscillation solver is local and does not perform the separate sine mo
 Tests compare coefficients, weighted objectives and full covariance, check analytic derivatives by finite differences, reverse row order, exclude observations, transform x units including power-law covariance cross terms, evaluate all-fixed models, and reject invalid domains and rank loss. A separate high-signal ensemble uses 500 experiments per model (2,500 total), with a registered family-wise alpha of 0.001 over 19 parameter-coverage gates and independently calculated binomial thresholds. This supports local interval behavior in these specified regimes; it does not establish coverage for low signal, poorly sampled oscillations, weak identification or every possible starting value.
 
 The scientific core remains independent of React, native APIs, file access and generators. All random generation and independent numerical reference tooling stay under tests/scripts.
+
+The additional exponential-growth and logistic-sigmoid models are described in [equation families](equation-families.md) and use session v4.
+
+Gaussian peaks also support optional [skew and tail controls](peak-shapes.md), using session v5. The Lorentzian CSV includes its original per-point generating uncertainties; assign the third column as Y uncertainty on import.

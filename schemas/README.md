@@ -1,4 +1,4 @@
-# Fit interchange schemas (v1 and session v2)
+# Fit interchange schemas (request/ack v1, sessions v1–v5)
 
 Generate these files with `npm run schemas:fit`. They are generated from the strict Zod 4 schemas in `src/core/fit/schema.ts` using the Zod 4 entrypoint already included in the installed Zod package. Ajv is a development-only independent validator; no numerical runtime dependency was added. Format UUID checks are enforced by Zod; external validators should enable format validation.
 
@@ -40,3 +40,11 @@ In addition to the existing semantic checks, enforce parameter counts and domain
 ## Custom equation session v3
 
 `tracker-fit-session.v3.json` adds `custom` settings and engine `qr-expression-4`. Enforce the restricted expression grammar, identifier and complexity limits, exact first-occurrence parameter order, matching parameter/name/unit lengths (1–8), and valid non-reserved independent variable. `custom` metadata is required for the custom model and forbidden on built-in models. Units are case-sensitive strings, with blank meaning unknown. Built-in settings still undergo their original count/domain checks. Requests and acknowledgments remain v1. See [v3 migration](../docs/integration.md#session-v3-for-custom-equations--2026-09-10).
+
+Session v4 adds degree-5 through degree-10 polynomials, exponential growth, and logistic sigmoid. Enforce the model-specific coefficient count, positive widths/time constants, and matching engine as described in [the migration](../docs/integration.md#session-v4-for-additional-model-families--2026-09-14); v1–v3 schemas remain unchanged.
+
+Session v5 adds `gaussian-shape` with engine `qr-lm-3` and exactly six parameters
+`[b,A,mu,w,skew,tail]`. Enforce finite values, strictly positive w and tail,
+and the existing row/table/uncertainty semantics. Custom-expression metadata is
+forbidden on this built-in model. See [v5 migration](../docs/integration.md#session-v5-for-adjustable-gaussian-peaks--2026-09-14).
+The v1–v4 schemas and request/ack v1 formats remain unchanged.

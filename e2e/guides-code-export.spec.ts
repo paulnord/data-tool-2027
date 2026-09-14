@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { strFromU8, unzipSync } from "fflate";
 
 async function openDamped(page: Page) {
   await page.goto("/");
@@ -65,7 +66,7 @@ test("damped guides stay optional and derived quantities carry through print and
   await expect(preview.locator(".model-guide")).toHaveCount(3);
 });
 
-test("exports readable SciPy and ROOT programs from the fitted view", async ({
+test("exports a CSV-backed SciPy and ROOT analysis bundle", async ({
   page,
 }) => {
   await openDamped(page);
@@ -79,28 +80,55 @@ test("exports readable SciPy and ROOT programs from the fitted view", async ({
   await page.keyboard.press("Escape");
 
   await page.locator(".fit-export-menu summary").click();
-  let pending = page.waitForEvent("download");
+  const pending = page.waitForEvent("download");
   await page
-    .getByRole("menuitem", { name: "Python / SciPy script", exact: true })
+    .getByRole("menuitem", {
+      name: "SciPy / ROOT analysis bundle (.zip)",
+      exact: true,
+    })
     .click();
-  let download = await pending;
-  expect(download.suggestedFilename()).toMatch(/-scipy\.py$/);
-  const python = await readFile((await download.path())!, "utf8");
+  const download = await pending;
+  expect(download.suggestedFilename()).toMatch(/-analysis-bundle\.zip$/);
+  const bytes = await readFile((await download.path())!);
+  const archive = unzipSync(new Uint8Array(bytes));
+  const files = Object.fromEntries(
+    Object.entries(archive).map(([path, contents]) => [
+      path.replace(/^[^/]+\//, ""),
+      strFromU8(contents),
+    ]),
+  );
+  expect(Object.keys(files).sort()).toEqual([
+    "README.md",
+    "analysis.json",
+    "data.csv",
+    "fit_root.C",
+    "fit_scipy.py",
+  ]);
+
+  expect(files["data.csv"]).toMatch(
+    /^row_id,x,y,sigma,included,missing_reason\r?\n/,
+  );
+  const metadata = JSON.parse(files["analysis.json"]);
+  expect(metadata).toMatchObject({
+    format: "data-tool-analysis-bundle",
+    version: 1,
+    fit: { model: "damped-sine" },
+    view: { showGuides: true },
+  });
+
+  const python = files["fit_scipy.py"];
   expect(python).toContain("from scipy.optimize import curve_fit");
-  expect(python).toContain("data_tool_fit = np.array");
+  expect(python).toContain("reader = csv.DictReader(handle)");
+  expect(python).not.toContain("x_all = np.array([");
   expect(python).toContain("envelope = amplitude*np.exp");
   expect(python).toContain("fig.savefig");
 
-  await page.locator(".fit-export-menu summary").click();
-  pending = page.waitForEvent("download");
-  await page
-    .getByRole("menuitem", { name: "C++ / ROOT macro", exact: true })
-    .click();
-  download = await pending;
-  expect(download.suggestedFilename()).toMatch(/^data_tool_.*_root\.C$/);
-  const root = await readFile((await download.path())!, "utf8");
+  const root = files["fit_root.C"];
+  expect(root).toContain("std::ifstream input(csv_path)");
+  expect(root).not.toContain("const std::vector<double> x_all = {");
   expect(root).toContain("TFitResultPtr fit_result");
   expect(root).toContain("upper_envelope");
   expect(root).toContain("TGraphErrors residuals");
   expect(root).toContain("TFile output(");
+  expect(files["README.md"]).toContain("--data another-run.csv");
 });

@@ -1,14 +1,20 @@
 import { expect, it } from "vitest";
+import { strFromU8, unzipSync } from "fflate";
 import {
   buildCodeExportDescription,
+  generateCodeExportBundle,
+  generateCodeExportCsv,
+  generateCodeExportMetadata,
   generatePythonCode,
   generateRootCode,
 } from "../../src/core/fit/codeExport";
+import { parseDelimited } from "../../src/core/fit/dataInput";
+import { encodeCodeExportBundle } from "../../src/fit/codeExportArchive";
 import { initialSettings } from "../../src/core/fit/schema";
 import { fit } from "../../src/core/fit/solve";
 import { syntheticRequest } from "../support/synthetic";
 
-it("generates standalone SciPy and ROOT programs with exact inputs and fit settings", () => {
+it("generates a portable bundle with external data and explicit fit metadata", () => {
   const request = syntheticRequest();
   const settings = initialSettings("quadratic");
   settings.parameters[0] = { value: 1.2345678901234567, fixed: true };
@@ -24,16 +30,19 @@ it("generates standalone SciPy and ROOT programs with exact inputs and fit setti
   });
   const python = generatePythonCode(description);
   expect(python).toContain("from scipy.optimize import curve_fit");
-  expect(python).toContain("1.2345678901234567");
-  expect(python).toContain("absolute_sigma=True");
-  expect(python).toContain("free_index = np.array([1, 2]");
+  expect(python).toContain("reader = csv.DictReader(handle)");
+  expect(python).toContain('parser.add_argument("--data"');
+  expect(python).toContain("absolute_sigma=known_sigma");
+  expect(python).toContain("parameter_metadata");
   expect(python).toContain("p0=np.clip(start[free_index]");
-  expect(python).toContain('ax_data.set_xscale("log")');
-  expect(python).toContain("ax_data.set_ylim(0.5, 8.0)");
+  expect(python).not.toContain("x_all = np.array([");
   expect(python).toContain("fig.savefig");
 
   const root = generateRootCode(description);
   expect(root).toContain("#include <TFitResult.h>");
+  expect(root).toContain("std::ifstream input(csv_path)");
+  expect(root).toContain("void fit_root(const char *data_path");
+  expect(root).toContain("c == '\\n' || c == '\\r'");
   expect(root).toContain('graph.Fit(&model, "SQREX0")');
   expect(root).toContain("fit_x_min = *fit_bounds.first");
   expect(root).toContain("model.SetRange(x_min, x_max)");
@@ -42,6 +51,52 @@ it("generates standalone SciPy and ROOT programs with exact inputs and fit setti
   expect(root).toContain("gPad->SetLogx()");
   expect(root).toContain("residuals.Write()");
   expect(root).toContain("fit_result->Write");
+  expect(root).not.toContain("const std::vector<double> x_all = {");
+
+  const csv = generateCodeExportCsv(description);
+  const records = parseDelimited(csv, ",");
+  expect(records[0]).toEqual([
+    "row_id",
+    "x",
+    "y",
+    "sigma",
+    "included",
+    "missing_reason",
+  ]);
+  expect(records).toHaveLength(request.dataset.rows.length + 1);
+  expect(records[3][4]).toBe("false");
+
+  const metadata = JSON.parse(generateCodeExportMetadata(description));
+  expect(metadata).toMatchObject({
+    format: "data-tool-analysis-bundle",
+    version: 1,
+    dataset: { dataFile: "data.csv" },
+    fit: { model: "quadratic" },
+  });
+  expect(metadata.fit.parameters[0]).toMatchObject({
+    start: 1.2345678901234567,
+    fixed: true,
+  });
+  expect(metadata.fit.options).not.toHaveProperty("excludedIds");
+  expect(metadata.uncertainty.values).toBe("data.csv:sigma");
+
+  const bundle = generateCodeExportBundle(description);
+  expect(bundle.archiveName).toMatch(/-analysis-bundle\.zip$/);
+  expect(Object.keys(bundle.files).sort()).toEqual([
+    "README.md",
+    "analysis.json",
+    "data.csv",
+    "fit_root.C",
+    "fit_scipy.py",
+  ]);
+  expect(bundle.files["README.md"]).toContain("--data another-run.csv");
+  const archive = unzipSync(encodeCodeExportBundle(bundle));
+  expect(Object.keys(archive).sort()).toEqual(
+    Object.keys(bundle.files)
+      .map((name) => `${bundle.directoryName}/${name}`)
+      .sort(),
+  );
+  expect(strFromU8(archive[`${bundle.directoryName}/data.csv`])).toBe(csv);
 });
 
 it("writes round-trippable scientific literals without invalid exponent suffixes", () => {
@@ -62,14 +117,12 @@ it("writes round-trippable scientific literals without invalid exponent suffixes
     showErrorBars: false,
     showGuides: false,
   });
-  for (const source of [
-    generatePythonCode(description),
-    generateRootCode(description),
-  ]) {
-    expect(source).toContain("1.0e+21");
-    expect(source).toContain("1.0e-21");
-    expect(source).not.toContain("e+21.0");
-  }
+  const csv = generateCodeExportCsv(description);
+  expect(csv).toContain("1e+21");
+  expect(csv).toContain("1e-21");
+  expect(csv).not.toContain("e+21.0");
+  expect(generateCodeExportMetadata(description)).toContain("1e+21");
+  expect(generateRootCode(description)).toContain("1.0e+21");
 });
 
 it("emits damped guides and the two-pass unknown-scatter ROOT covariance", () => {
@@ -102,7 +155,10 @@ it("emits damped guides and the two-pass unknown-scatter ROOT covariance", () =>
   });
   const python = generatePythonCode(description);
   expect(python).toContain("envelope = amplitude*np.exp");
-  expect(python).toContain("absolute_sigma=False");
+  expect(python).toContain("absolute_sigma=known_sigma");
+  expect(generateCodeExportMetadata(description)).toContain(
+    '"kind": "unknown-equal"',
+  );
   const root = generateRootCode(description);
   expect(root).toContain("preliminary_sse");
   expect(root).toContain("upper_envelope");
@@ -158,8 +214,12 @@ it("keeps hostile labels inert and exported filenames bounded", () => {
     showGuides: false,
   });
   expect(description.fileStem.length).toBeLessThanOrEqual(80);
+  description.rowIds[0] = 'row,"quoted"\nnext';
+  const records = parseDelimited(generateCodeExportCsv(description), ",");
+  expect(records[1][0]).toBe('row,"quoted"\nnext');
+  const metadata = JSON.parse(generateCodeExportMetadata(description));
+  expect(metadata.dataset.title).toContain("print('not code')");
   const python = generatePythonCode(description);
-  expect(python).toContain("\\u2028print('not code')");
-  expect(python).not.toContain("\u2028");
+  expect(python).not.toContain("print('not code')");
   expect(generateRootCode(description)).toContain("\\u2028");
 });

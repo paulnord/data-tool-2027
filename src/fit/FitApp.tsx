@@ -18,6 +18,7 @@ import {
   usePlotAppearance,
 } from "./PlotAppearance";
 import { exportPlotGraph } from "./graphExport";
+import { encodeCodeExportBundle } from "./codeExportArchive";
 import { AxisControls, YAxisControls, type AxisRange } from "./YAxisControls";
 import MultiInterval, { type MultiIntervalActions } from "./MultiInterval";
 import { FitErrorMessage } from "./FitErrorMessage";
@@ -53,9 +54,7 @@ import { modelGuideValues } from "../core/fit/modelGuides";
 import { oscillationDerivedQuantities } from "../core/fit/derivedParameters";
 import {
   buildCodeExportDescription,
-  codeExportFileName,
-  generatePythonCode,
-  generateRootCode,
+  generateCodeExportBundle,
 } from "../core/fit/codeExport";
 import {
   rectangleExclusions,
@@ -1741,7 +1740,7 @@ export default function FitApp() {
       setExportRender(null);
     }
   }
-  async function exportCode(target: "python" | "root") {
+  async function exportCodeBundle() {
     exportMenu.current?.removeAttribute("open");
     if (!current) {
       setError("Fit the current analysis before exporting code.");
@@ -1773,41 +1772,31 @@ export default function FitApp() {
           showGuides,
         },
       );
-      const fileName = codeExportFileName(description, target);
-      const source =
-        target === "python"
-          ? generatePythonCode(description)
-          : generateRootCode(description);
+      const bundle = generateCodeExportBundle(description);
+      const archive = encodeCodeExportBundle(bundle);
       if (isTauri()) {
         const path = await save({
-          defaultPath: fileName,
-          filters: [
-            target === "python"
-              ? { name: "Python script", extensions: ["py"] }
-              : { name: "ROOT macro", extensions: ["C"] },
-          ],
+          defaultPath: bundle.archiveName,
+          filters: [{ name: "Analysis bundle", extensions: ["zip"] }],
         });
         if (!path) return;
-        await invoke("write_analysis_code", { path, data: source });
+        await invoke("write_analysis_bundle", {
+          path,
+          data: Array.from(archive),
+        });
       } else {
         const url = URL.createObjectURL(
-          new Blob([source], {
-            type: target === "python" ? "text/x-python" : "text/x-c++src",
-          }),
+          new Blob([new Uint8Array(archive)], { type: "application/zip" }),
         );
         const link = document.createElement("a");
         link.href = url;
-        link.download = fileName;
+        link.download = bundle.archiveName;
         document.body.append(link);
         link.click();
         link.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
-      setNotice(
-        target === "python"
-          ? "Python/SciPy script exported"
-          : "C++/ROOT macro exported",
-      );
+      setNotice("SciPy/ROOT analysis bundle exported");
     } catch (cause) {
       setError(`Code export failed: ${String(cause)}`);
     }
@@ -2298,18 +2287,9 @@ export default function FitApp() {
                   disabled={
                     !current || collisionOpen || multiOpen || comparisonOpen
                   }
-                  onClick={() => void exportCode("python")}
+                  onClick={() => void exportCodeBundle()}
                 >
-                  Python / SciPy script
-                </button>
-                <button
-                  role="menuitem"
-                  disabled={
-                    !current || collisionOpen || multiOpen || comparisonOpen
-                  }
-                  onClick={() => void exportCode("root")}
-                >
-                  C++ / ROOT macro
+                  SciPy / ROOT analysis bundle (.zip)
                 </button>
                 <button
                   role="menuitem"

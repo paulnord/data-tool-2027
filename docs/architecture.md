@@ -2,8 +2,8 @@
 
 - `src/core/fit/`: pure TypeScript numerical engine, strict schemas, source tables, uncertainty models, selections, model comparison, derived quantities, model guides and language-neutral code-export descriptions. No React, DOM, storage or native APIs.
 - `src/import/`: bounded local Tracker XML/ZIP parsing and calibrated numerical snapshots; no video decoding, file writes or resource fetching.
-- `src/fit/`: React analysis, comparison and data-table UI; workers run numerical fits. SVG graphs are shared with the print report.
-- `src-tauri/`: small Rust host for local file dialogs, bounded reads, atomic exports, process launch arguments and acknowledgments. The system webview handles rendering and printing. No video dependencies or production test hooks.
+- `src/fit/`: React analysis, comparison and data-table UI; workers run numerical fits. SVG graphs are shared with the print report. Reproducibility artifacts are packaged locally as ZIP archives.
+- `src-tauri/`: small Rust host for local file dialogs, bounded reads, atomic text/binary exports, process launch arguments and acknowledgments. The system webview handles rendering and printing. No video dependencies or production test hooks.
 - `examples/data/`: ordinary static CSV and session files, packaged as an Examples directory for the native file chooser.
 - `tests/`: scientific tests, independent references and deterministic test-data generators.
 - `e2e/`: fitting/data workflows and explicit empty-startup checks; no Tracker video tests.

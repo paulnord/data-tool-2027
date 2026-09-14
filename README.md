@@ -4,7 +4,7 @@
 
 [Download version 0.3 for Windows, Mac or Linux](https://github.com/paulnord/data-tool-2027/releases/tag/v0.3.0). See the [0.3 release notes](docs/releases/v0.3.0.md) for changes, signing and platform-testing limitations.
 
-A general-purpose application for graphing and fitting numerical data locally. Import or paste measurements, declare units and uncertainties, fit and compare models, inspect residuals and confidence bands, and export CSV, SVG, PNG, PDF, reproducible SciPy/ROOT code, or a printable report.
+A general-purpose application for graphing and fitting numerical data locally. Import or paste measurements, declare units and uncertainties, fit and compare models, inspect residuals and confidence bands, and export CSV, SVG, PNG, PDF, a reproducible SciPy/ROOT analysis bundle, or a printable report.
 
 The [program specification](docs/program-specification.md) describes version 0.3 and the subsequent interface and export revisions in this checkout, scientific and file-format guarantees, acceptance criteria, and proposed improvements for a future rebuild. It separates implemented features from future work, including localization.
 
@@ -39,7 +39,7 @@ Open standard Tracker `.trk`/`.trz` files to review saved point-mass positions, 
 
 The model selector includes fitted decay time, fitted power-law exponent, Gaussian peaks, damped oscillations and Lorentzian peaks, with fixed/free parameters and local uncertainty diagnostics. Damped oscillations can display an optional fitted baseline and envelope; sine-family fits report covariance-propagated amplitude, phase and frequency. See [nonlinear fitting](docs/nonlinear-fits.md).
 
-Choose **Analysis → Model comparison…** to refit two candidates on an identical sample and inspect Gaussian log likelihood, AIC, AICc, delta AICc, Akaike weights and BIC. Either candidate can load a session without replacing the main analysis; incompatible data or assumptions are blocked explicitly. **Export** also creates standalone Python/SciPy and C++/ROOT analyses from a current single fit. See [model comparison, guides and code export](docs/model-comparison-and-code-export.md).
+Choose **Analysis → Model comparison…** to refit two candidates on an identical sample and inspect Gaussian log likelihood, AIC, AICc, delta AICc, Akaike weights and BIC. Either candidate can load a session without replacing the main analysis; incompatible data or assumptions are blocked explicitly. **Export** also creates a ZIP analysis bundle from a current single fit. Its CSV measurements remain separate from the SciPy and ROOT programs so the generated fit can accept another compatible dataset. See [model comparison, guides and code export](docs/model-comparison-and-code-export.md).
 
 See [Tracker integration](docs/integration.md), [architecture](docs/architecture.md), [extraction notes](docs/extraction.md), and the [scientific specification](docs/scientific-spec.md). The protocol schemas are in `schemas/`. Scientific test fixtures and noise generators stay under `tests/` and are not part of the production module graph.
 

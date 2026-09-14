@@ -83,50 +83,74 @@ formal likelihood criteria are unavailable rather than presented with false
 precision.
 Nonlinear convergence, local-minimum and conditioning warnings remain visible.
 
-## Python/SciPy export
+## SciPy/ROOT analysis bundle
 
-After a single fit, choose **Export → Python / SciPy script**. The standalone
-`.py` file embeds the full-precision canonical arrays, row identities,
-inclusion mask, supplied uncertainties, model equation, original starting and
-fixed parameters, bounds, current axes, residual choice, error-bar choice and
-model-guide choice. It refits with `scipy.optimize.curve_fit`, prints parameter
-values and standard errors, compares them with the Data Tool result, draws the
-data/fit/residuals, saves a PNG and calls `show()`.
+After a single fit, choose **Export → SciPy / ROOT analysis bundle (.zip)**.
+The downloaded archive expands into one named directory containing:
 
-Run it in an environment with NumPy, SciPy and Matplotlib:
+- `data.csv` — row identity, X, Y, sigma, inclusion, and missing-value reason;
+- `analysis.json` — a versioned manifest with provenance, units, assumptions,
+  uncertainty model, fit setup, Data Tool result, graph choices, and outputs;
+- `fit_scipy.py` — the generated NumPy/SciPy/Matplotlib analysis;
+- `fit_root.C` — the generated C++/ROOT analysis; and
+- `README.md` — dependencies, the CSV contract, and exact run commands.
+
+The observations are never compiled into either program. Both read `data.csv`
+at execution and accept another compatible CSV path, making the export suitable
+for a repeated or batch workflow. Blank numeric cells represent missing values;
+the `included` column remains a separate scientific choice rather than being
+inferred from whether a row appears in the file.
+
+### Python/SciPy
+
+Run in the extracted directory with NumPy, SciPy and Matplotlib:
 
 ```bash
-python3 analysis-scipy.py
+python3 fit_scipy.py
+```
+
+The script reads both `data.csv` and `analysis.json`, refits with
+`scipy.optimize.curve_fit`, prints parameter values and standard errors, draws
+the data/fit/residuals, and saves a PNG. Plot display is opt-in with `--show`, so
+the default is suitable for unattended execution. Reuse the generated model
+with another table or output path without editing source:
+
+```bash
+python3 fit_scipy.py --data another-run.csv --output another-fit.png
 ```
 
 Supplied sigma uses `absolute_sigma=True`. Unknown equal scatter uses SciPy's
-residual-scaled covariance. The program starts from the saved inputs rather
-than inserting Data Tool's solution as the optimizer start. Different solver
-steps, versions, stopping rules and nonlinear basins can produce different
-answers; the embedded Data Tool coefficients make such differences visible.
-Data Tool does not execute Python.
+residual-scaled covariance. The program starts from the recorded starting values
+rather than using Data Tool's solution as the optimizer start. It compares
+coefficients with Data Tool only when using the bundled CSV and manifest.
 
-## C++/ROOT export
+### C++/ROOT
 
-Choose **Export → C++ / ROOT macro** and run the resulting `.C` file with ROOT:
+Run the macro from the extracted directory:
 
 ```bash
-root -l -q data_tool_analysis_root.C
+root -l -q fit_root.C
 ```
 
-The macro uses `TGraphErrors`, a local-lambda `TF1`, `TFitResultPtr`, and a
-`TCanvas`. It applies parameter starts, names, fixed values and physical/search
-bounds; prints coefficients, covariance-derived errors and fit statistics;
-draws included/excluded data, the fitted curve, optional guides and residuals;
-and saves both a PDF and a `.root` file containing the graph, fit, result and
-canvas objects.
+For another table and output stem:
 
-Supplied uncertainties are fitted directly. For unknown equal scatter the
-macro first obtains the unweighted solution, calculates
+```bash
+root -l -q 'fit_root.C("another-run.csv","another-fit")'
+```
+
+The macro parses quoted CSV records and uses `TGraphErrors`, a local-lambda
+`TF1`, `TFitResultPtr`, and a `TCanvas`. It applies parameter starts, names,
+fixed values and physical/search bounds; prints coefficients,
+covariance-derived errors and fit statistics; draws included/excluded data, the
+fitted curve, optional guides and residuals; and saves both a PDF and a `.root`
+file containing the graph, fit, result and canvas objects.
+
+Supplied uncertainties are fitted directly. For unknown equal scatter the macro
+first obtains the unweighted solution, calculates
 \(s=\sqrt{\mathrm{SSE}/df}\), assigns that uniform Y error and refits so ROOT's
 covariance scale matches Data Tool's convention. ROOT and Data Tool can still
 differ for nonlinear optimization and numerical rank decisions. Data Tool does
-not bundle or execute ROOT.
+not bundle or execute Python, SciPy, or ROOT.
 
 The restricted custom-equation syntax is translated from its validated syntax
 tree for both languages. Raw equation text is never pasted into executable

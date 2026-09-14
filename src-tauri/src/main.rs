@@ -27,13 +27,14 @@ fn parse_args(args: impl IntoIterator<Item=String>) -> Result<Option<Launch>> {
     }
     Ok(path.map(|path| Launch{path, ack}))
 }
-fn atomic_text(path: &Path, data: &str) -> Result<()> {
+fn atomic_bytes(path: &Path, data: &[u8]) -> Result<()> {
     let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
     let mut tmp = tempfile::NamedTempFile::new_in(parent).map_err(err)?;
-    tmp.write_all(data.as_bytes()).map_err(err)?;
+    tmp.write_all(data).map_err(err)?;
     tmp.as_file().sync_all().map_err(err)?;
     tmp.persist(path).map_err(err)?; Ok(())
 }
+fn atomic_text(path: &Path, data: &str) -> Result<()> {atomic_bytes(path,data.as_bytes())}
 fn validate_fit_json(data: &str) -> Result<()> {
     if data.len()>20_000_000 {return Err("Fit file exceeds 20 MB".into())}
     let value: serde_json::Value = serde_json::from_str(data).map_err(err)?;
@@ -79,13 +80,13 @@ fn write_fit_csv(path: String, data: String) -> Result<()> {
     atomic_text(Path::new(&path), &data)
 }
 #[tauri::command]
-fn write_analysis_code(path: String, data: String) -> Result<()> {
-    if data.len() > 20_000_000 {return Err("Code export exceeds 20 MB".into())}
-    let extension = Path::new(&path).extension().and_then(|value| value.to_str());
-    if !matches!(extension, Some("py" | "C")) {
-        return Err("Code export requires a .py script or .C ROOT macro".into())
+fn write_analysis_bundle(path: String, data: Vec<u8>) -> Result<()> {
+    if data.len() > 50_000_000 {return Err("Analysis bundle exceeds 50 MB".into())}
+    if !Path::new(&path).extension().and_then(|value| value.to_str()).is_some_and(|value|value.eq_ignore_ascii_case("zip")) {
+        return Err("Analysis bundle requires a .zip filename".into())
     }
-    atomic_text(Path::new(&path), &data)
+    if !data.starts_with(b"PK\x03\x04") {return Err("Analysis bundle is not a ZIP archive".into())}
+    atomic_bytes(Path::new(&path), &data)
 }
 #[tauri::command]
 fn take_launch(state: tauri::State<LaunchState>) -> Result<Option<Launch>> {state.pending.lock().map_err(err).map(|mut p|p.take())}
@@ -143,7 +144,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init()).manage(state)
         .setup(|app| {if let Some(window)=app.get_webview_window("main") {size_window(&window).map_err(std::io::Error::other)?} Ok(())})
-        .invoke_handler(tauri::generate_handler![open_fitting_reference,data_files_directory,read_fit_file,read_tracker_archive,write_fit_file,write_fit_csv,write_analysis_code,take_launch,acknowledge_launch])
+        .invoke_handler(tauri::generate_handler![open_fitting_reference,data_files_directory,read_fit_file,read_tracker_archive,write_fit_file,write_fit_csv,write_analysis_bundle,take_launch,acknowledge_launch])
         .build(tauri::generate_context!()).expect("Data Tool 2027 could not start")
         .run(|app,event| {
             #[cfg(target_os="macos")]
@@ -187,9 +188,9 @@ mod tests {
         write_fit_csv(path.to_string_lossy().into(),text.into()).unwrap();assert_eq!(read_fit_file(path.to_string_lossy().into()).unwrap(),text);
         assert!(write_fit_file(path.to_string_lossy().into(),"invalid".into()).is_err());assert_eq!(std::fs::read_to_string(path).unwrap(),text);
         assert!(write_fit_csv(dir.path().join("session.trksess").to_string_lossy().into(),text.into()).is_err());
-        let script=dir.path().join("analysis.py");write_analysis_code(script.to_string_lossy().into(),"print('fit')\n".into()).unwrap();assert_eq!(std::fs::read_to_string(script).unwrap(),"print('fit')\n");
-        let macro_path=dir.path().join("analysis.C");write_analysis_code(macro_path.to_string_lossy().into(),"void analysis() {}\n".into()).unwrap();
-        assert!(write_analysis_code(dir.path().join("analysis.txt").to_string_lossy().into(),"text".into()).is_err());
+        let bundle=dir.path().join("analysis.zip");let archive=b"PK\x03\x04bundle".to_vec();write_analysis_bundle(bundle.to_string_lossy().into(),archive.clone()).unwrap();assert_eq!(std::fs::read(bundle).unwrap(),archive);
+        assert!(write_analysis_bundle(dir.path().join("analysis.txt").to_string_lossy().into(),b"PK\x03\x04bundle".to_vec()).is_err());
+        let bundle=dir.path().join("analysis.zip");assert!(write_analysis_bundle(bundle.to_string_lossy().into(),b"not a zip".to_vec()).is_err());assert_eq!(std::fs::read(bundle).unwrap(),archive);
     }
     #[test] fn bounded_binary_archive_read() {
         let dir=tempfile::tempdir().unwrap(); let path=dir.path().join("project.trz");

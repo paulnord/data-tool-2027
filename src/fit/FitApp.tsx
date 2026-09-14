@@ -25,6 +25,7 @@ import { customFromModel } from "../core/fit/customFromModel";
 import { CustomEquationEditor } from "./CustomEquationEditor";
 import Assumptions from "./Assumptions";
 import CollisionDraft, { type CollisionActions } from "./CollisionDraft";
+import ModelComparison from "./ModelComparison";
 import {
   plotScale,
   automaticDomain,
@@ -48,6 +49,14 @@ import { ImportPanel } from "./ImportPanel";
 import { switchNoiseModel } from "../core/fit/noiseModel";
 import { suppliedYErrorBars } from "../core/fit/errorBars";
 import { meanConfidenceBand } from "../core/fit/confidenceBand";
+import { modelGuideValues } from "../core/fit/modelGuides";
+import { oscillationDerivedQuantities } from "../core/fit/derivedParameters";
+import {
+  buildCodeExportDescription,
+  codeExportFileName,
+  generatePythonCode,
+  generateRootCode,
+} from "../core/fit/codeExport";
 import {
   rectangleExclusions,
   type SelectionRectangle,
@@ -250,6 +259,7 @@ function Plot({
   manual = false,
   showBand = false,
   showErrorBars = false,
+  showGuides = false,
   showXAxis = true,
   idPrefix = "",
   printSize,
@@ -274,6 +284,7 @@ function Plot({
   manual?: boolean;
   showBand?: boolean;
   showErrorBars?: boolean;
+  showGuides?: boolean;
   showXAxis?: boolean;
   idPrefix?: string;
   printSize?: {
@@ -402,6 +413,20 @@ function Plot({
       ),
     };
   });
+  const guideCurves =
+    !residual && showGuides && showModel && curve.length
+      ? modelGuideValues(curve[0].x, state.settings, coeff).map((guide) => ({
+          id: guide.id,
+          label: guide.label,
+          points: curve.map((point) => ({
+            x: point.x,
+            y:
+              modelGuideValues(point.x, state.settings, coeff).find(
+                (candidate) => candidate.id === guide.id,
+              )?.value ?? NaN,
+          })),
+        }))
+      : [];
   const band =
     !residual && showBand && result
       ? meanConfidenceBand(
@@ -427,6 +452,9 @@ function Plot({
     ...ys,
     ...visibleErrorBars.flatMap((bar) => [bar.lower, bar.upper]),
     ...(!residual ? curve.map((p) => p.y).filter(Number.isFinite) : []),
+    ...guideCurves.flatMap((guide) =>
+      guide.points.map((point) => point.y).filter(Number.isFinite),
+    ),
     ...(band?.points.flatMap((p) => [p.lower, p.upper]) ?? []),
   ];
   const residualExtent =
@@ -774,7 +802,17 @@ function Plot({
               className="zero"
             />
           ) : !residual && showModel ? (
-            <path d={plotPath(curve, x, y)} className="curve" />
+            <>
+              {guideCurves.map((guide) => (
+                <path
+                  key={guide.id}
+                  d={plotPath(guide.points, x, y)}
+                  className={`model-guide model-guide-${guide.id}`}
+                  aria-label={guide.label}
+                />
+              ))}
+              <path d={plotPath(curve, x, y)} className="curve" />
+            </>
           ) : null}
           {visibleErrorBars.map((bar) => (
             <path
@@ -830,6 +868,7 @@ function PrintReport({
   range,
   showBand,
   showErrorBars,
+  showGuides,
   showResiduals,
   fullPageGraph,
   onFullPageGraphChange,
@@ -844,6 +883,7 @@ function PrintReport({
   range: [number, number];
   showBand: boolean;
   showErrorBars: boolean;
+  showGuides: boolean;
   showResiduals: boolean;
   fullPageGraph: boolean;
   onFullPageGraphChange: (enabled: boolean) => void;
@@ -853,6 +893,9 @@ function PrintReport({
   const [error, setError] = useState("");
   const graphWidth = fullPageGraph ? 960 : 720;
   const hasResidualPlot = showResiduals && !!result;
+  const derived = result
+    ? oscillationDerivedQuantities(state.request, state.settings, result)
+    : [];
   const dataHeight = fullPageGraph
     ? hasResidualPlot
       ? 402
@@ -949,6 +992,7 @@ function PrintReport({
                   onToggle={() => {}}
                   showBand={showBand}
                   showErrorBars={showErrorBars}
+                  showGuides={showGuides}
                   showXAxis={!hasResidualPlot}
                   printSize={{ width: graphWidth, height: dataHeight }}
                   idPrefix="print-measure-"
@@ -961,6 +1005,7 @@ function PrintReport({
                     range={range}
                     residual
                     onToggle={() => {}}
+                    showGuides={showGuides}
                     showXAxis
                     printSize={{ width: graphWidth, height: residualHeight }}
                     idPrefix="print-measure-"
@@ -974,6 +1019,9 @@ function PrintReport({
                   : ""}{" "}
                 {showErrorBars
                   ? "Error bars: supplied ±1σ when available."
+                  : ""}
+                {result && showGuides && state.settings.model === "damped-sine"
+                  ? " Dashed guides: fitted baseline and amplitude envelope."
                   : ""}
               </p>
             </div>
@@ -1050,6 +1098,35 @@ function PrintReport({
                       )}
                     </tbody>
                   </table>
+                  {derived.length > 0 && (
+                    <table aria-label="Print derived oscillation quantities">
+                      <thead>
+                        <tr>
+                          <th>Derived quantity</th>
+                          <th>Value</th>
+                          <th>Standard error</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {derived.map((quantity) => (
+                          <tr key={quantity.id}>
+                            <td>{quantity.label}</td>
+                            <td>
+                              {quantity.value === null
+                                ? "Unavailable"
+                                : printNumber(quantity.value)}{" "}
+                              [{quantity.unit}]
+                            </td>
+                            <td>
+                              {quantity.standardError.value === null
+                                ? quantity.standardError.reason
+                                : printNumber(quantity.standardError.value)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                   <table
                     className="fit-correlation-table"
                     aria-label="Print parameter correlation matrix"
@@ -1104,6 +1181,7 @@ function PrintReport({
 export default function FitApp() {
   const [appearance, setAppearance] = useState(defaultPlotAppearance);
   const [showResiduals, setShowResiduals] = useState(true);
+  const [showGuides, setShowGuides] = useState(false);
   const [exportSizing, setExportSizing] = useState<ExportSizing | null>(null);
   const [exportSizeOpen, setExportSizeOpen] = useState(false);
   const [exportRender, setExportRender] = useState<{
@@ -1171,6 +1249,7 @@ export default function FitApp() {
   const [equationPending, setEquationPending] = useState(false);
   const [collisionReady, setCollisionReady] = useState(false);
   const [collisionOpen, setCollisionOpen] = useState(false);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
   const [collisionRevision, setCollisionRevision] = useState(0);
   const [collisionSource, setCollisionSource] = useState<State | null>(null);
   const [mode, setMode] = useState<GraphMode>("linear");
@@ -1662,6 +1741,77 @@ export default function FitApp() {
       setExportRender(null);
     }
   }
+  async function exportCode(target: "python" | "root") {
+    exportMenu.current?.removeAttribute("open");
+    if (!current) {
+      setError("Fit the current analysis before exporting code.");
+      return;
+    }
+    try {
+      const plot = chartRef.current?.querySelector<SVGSVGElement>(
+        'svg[aria-label="Data and fitted curve"]',
+      );
+      const displayedY = plot
+        ? ([
+            Number(plot.getAttribute("data-y-min")),
+            Number(plot.getAttribute("data-y-max")),
+          ] as AxisRange)
+        : yRange;
+      const description = buildCodeExportDescription(
+        state.request,
+        state.settings,
+        current,
+        {
+          mode,
+          xRange: range,
+          yRange:
+            displayedY?.every(Number.isFinite) && displayedY[0] < displayedY[1]
+              ? displayedY
+              : null,
+          showResiduals,
+          showErrorBars,
+          showGuides,
+        },
+      );
+      const fileName = codeExportFileName(description, target);
+      const source =
+        target === "python"
+          ? generatePythonCode(description)
+          : generateRootCode(description);
+      if (isTauri()) {
+        const path = await save({
+          defaultPath: fileName,
+          filters: [
+            target === "python"
+              ? { name: "Python script", extensions: ["py"] }
+              : { name: "ROOT macro", extensions: ["C"] },
+          ],
+        });
+        if (!path) return;
+        await invoke("write_analysis_code", { path, data: source });
+      } else {
+        const url = URL.createObjectURL(
+          new Blob([source], {
+            type: target === "python" ? "text/x-python" : "text/x-c++src",
+          }),
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      setNotice(
+        target === "python"
+          ? "Python/SciPy script exported"
+          : "C++/ROOT macro exported",
+      );
+    } catch (cause) {
+      setError(`Code export failed: ${String(cause)}`);
+    }
+  }
   useEffect(() => {
     if (!isTauri()) return;
     async function loadLaunch() {
@@ -1767,24 +1917,33 @@ export default function FitApp() {
       <select
         aria-label="Analysis"
         value={
-          multiOpen
-            ? "multi-interval"
-            : collisionOpen
-              ? "collision"
-              : state.settings.model
+          comparisonOpen
+            ? "model-comparison"
+            : multiOpen
+              ? "multi-interval"
+              : collisionOpen
+                ? "collision"
+                : state.settings.model
         }
         onChange={(e) => {
           if (e.target.value === "multi-interval") {
             setMultiOpen(true);
             setCollisionOpen(false);
+            setComparisonOpen(false);
             return;
           }
           setMultiOpen(false);
           if (e.target.value === "collision") {
             setCollisionOpen(true);
+            setComparisonOpen(false);
             return;
           }
           setCollisionOpen(false);
+          if (e.target.value === "model-comparison") {
+            setComparisonOpen(true);
+            return;
+          }
+          setComparisonOpen(false);
           if (e.target.value === state.settings.model) return;
           change({
             ...state,
@@ -1841,11 +2000,17 @@ export default function FitApp() {
           <option value="multi-interval">Multi-interval fit…</option>
           <option value="collision">Collision · before and after</option>
         </optgroup>
+        <optgroup label="Compare fits">
+          <option value="model-comparison">Model comparison…</option>
+        </optgroup>
       </select>
     </label>
   );
   const names = parameterNames(state.settings.model, state.settings.custom),
     u = state.request.uncertainty;
+  const derived = current
+    ? oscillationDerivedQuantities(state.request, state.settings, current)
+    : [];
   const included = state.request.dataset.rows.filter(
     (r) => r.included && !state.settings.excludedIds.includes(r.id),
   ).length;
@@ -1863,6 +2028,7 @@ export default function FitApp() {
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
             e.preventDefault();
+            if (comparisonOpen) return;
             if (multiOpen) void multiActions.current?.print();
             else if (collisionOpen) void collisionActions.current?.print();
             else setPrintPreview(true);
@@ -1871,6 +2037,7 @@ export default function FitApp() {
           if (
             (e.metaKey || e.ctrlKey) &&
             e.key.toLowerCase() === "z" &&
+            !comparisonOpen &&
             !(e.target instanceof HTMLInputElement)
           ) {
             e.preventDefault();
@@ -1894,7 +2061,7 @@ export default function FitApp() {
               <button
                 aria-label="Undo analysis change"
                 title="Undo (⌘Z)"
-                disabled={multiOpen || !past.current.length}
+                disabled={multiOpen || comparisonOpen || !past.current.length}
                 onClick={() => history()}
               >
                 <span aria-hidden="true">↶</span> Undo
@@ -1902,7 +2069,7 @@ export default function FitApp() {
               <button
                 aria-label="Redo analysis change"
                 title="Redo (⇧⌘Z)"
-                disabled={multiOpen || !future.current.length}
+                disabled={multiOpen || comparisonOpen || !future.current.length}
                 onClick={() => history(true)}
               >
                 <span aria-hidden="true">↷</span> Redo
@@ -1940,9 +2107,22 @@ export default function FitApp() {
                     />
                     Show residual plots
                   </label>
-                  <p>Applies to all graphs, printing, and exports.</p>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showGuides}
+                      onChange={(e) => setShowGuides(e.target.checked)}
+                    />
+                    Show fit guides when available
+                  </label>
+                  <p>
+                    Residual visibility applies to all analyses. Fit guides
+                    follow single fits into printing and exports.
+                  </p>
                 </fieldset>
-                <fieldset disabled={collisionOpen || multiOpen}>
+                <fieldset
+                  disabled={collisionOpen || multiOpen || comparisonOpen}
+                >
                   <legend>Copy report sections</legend>
                   <p>Single-fit reports</p>
                   <label>
@@ -2038,11 +2218,12 @@ export default function FitApp() {
                 sigmaInvalid ||
                 collisionOpen ||
                 multiOpen ||
+                comparisonOpen ||
                 (state.settings.model === "custom" && equationPending)
               }
               title={
-                collisionOpen || multiOpen
-                  ? "Multi-interval setup is not yet saved in sessions; switch to a single fit to save the source table."
+                collisionOpen || multiOpen || comparisonOpen
+                  ? "This analysis workspace is not saved in sessions; switch to a single fit to save the source table."
                   : undefined
               }
               onClick={saveFile}
@@ -2051,11 +2232,13 @@ export default function FitApp() {
             </button>
             <button
               disabled={
-                multiOpen
-                  ? !multiReady
-                  : collisionOpen
-                    ? !collisionReady
-                    : !current
+                comparisonOpen
+                  ? true
+                  : multiOpen
+                    ? !multiReady
+                    : collisionOpen
+                      ? !collisionReady
+                      : !current
               }
               onClick={() =>
                 multiOpen
@@ -2069,7 +2252,11 @@ export default function FitApp() {
             </button>
             <button
               disabled={
-                multiOpen ? !multiReady : collisionOpen && !collisionReady
+                comparisonOpen
+                  ? true
+                  : multiOpen
+                    ? !multiReady
+                    : collisionOpen && !collisionReady
               }
               onClick={() =>
                 multiOpen
@@ -2082,19 +2269,51 @@ export default function FitApp() {
               Print
             </button>
             <details ref={exportMenu} className="fit-export-menu">
-              <summary>Export graph</summary>
+              <summary>Export</summary>
               <div className="fit-export-popover" role="menu">
-                <button role="menuitem" onClick={() => void exportGraph("svg")}>
+                <button
+                  role="menuitem"
+                  disabled={comparisonOpen}
+                  onClick={() => void exportGraph("svg")}
+                >
                   SVG vector graphic
-                </button>
-                <button role="menuitem" onClick={() => void exportGraph("png")}>
-                  PNG image
-                </button>
-                <button role="menuitem" onClick={() => void exportGraph("pdf")}>
-                  PDF vector graphic
                 </button>
                 <button
                   role="menuitem"
+                  disabled={comparisonOpen}
+                  onClick={() => void exportGraph("png")}
+                >
+                  PNG image
+                </button>
+                <button
+                  role="menuitem"
+                  disabled={comparisonOpen}
+                  onClick={() => void exportGraph("pdf")}
+                >
+                  PDF vector graphic
+                </button>
+                <hr />
+                <button
+                  role="menuitem"
+                  disabled={
+                    !current || collisionOpen || multiOpen || comparisonOpen
+                  }
+                  onClick={() => void exportCode("python")}
+                >
+                  Python / SciPy script
+                </button>
+                <button
+                  role="menuitem"
+                  disabled={
+                    !current || collisionOpen || multiOpen || comparisonOpen
+                  }
+                  onClick={() => void exportCode("root")}
+                >
+                  C++ / ROOT macro
+                </button>
+                <button
+                  role="menuitem"
+                  disabled={comparisonOpen}
                   onClick={() => {
                     exportMenu.current?.removeAttribute("open");
                     setExportSizeOpen(true);
@@ -2167,7 +2386,16 @@ export default function FitApp() {
             onReady={setMultiReady}
           />
         )}
-        {exportRender && !multiOpen && !collisionOpen && (
+        {comparisonOpen && (
+          <ModelComparison
+            key={state.request.snapshotId}
+            source={state}
+            sourceResult={current}
+            analysisControl={analysisControl}
+            showResiduals={showResiduals}
+          />
+        )}
+        {exportRender && !multiOpen && !collisionOpen && !comparisonOpen && (
           <div className="fit-export-render" aria-hidden="true" inert>
             {exportRender.sizes.map((size, index) => (
               <Plot
@@ -2180,6 +2408,7 @@ export default function FitApp() {
                 manual={manualState === state}
                 showBand={showBand}
                 showErrorBars={showErrorBars}
+                showGuides={showGuides}
                 showXAxis={index === exportRender.sizes.length - 1}
                 onToggle={() => {}}
                 fixedYRange={exportRender.yRanges[index]}
@@ -2222,6 +2451,7 @@ export default function FitApp() {
             range={range}
             showBand={showBand}
             showErrorBars={showErrorBars}
+            showGuides={showGuides}
             showResiduals={showResiduals}
             fullPageGraph={fullPageGraph}
             onFullPageGraphChange={setFullPageGraph}
@@ -2295,7 +2525,11 @@ export default function FitApp() {
         )}
         <div
           className="fit-layout"
-          style={collisionOpen || multiOpen ? { display: "none" } : undefined}
+          style={
+            collisionOpen || multiOpen || comparisonOpen
+              ? { display: "none" }
+              : undefined
+          }
         >
           <main className="fit-workspace">
             <section
@@ -2395,6 +2629,7 @@ export default function FitApp() {
                 onSelect={selectRectangle}
                 showBand={showBand}
                 showErrorBars={showErrorBars}
+                showGuides={showGuides}
                 showXAxis={!showResiduals}
               />
               {showResiduals && (
@@ -2439,6 +2674,45 @@ export default function FitApp() {
                         </div>
                       ))}
                     </div>
+                    {derived.length > 0 && (
+                      <div className="fit-derived">
+                        <h3>Derived oscillation quantities</h3>
+                        <table aria-label="Derived oscillation quantities">
+                          <thead>
+                            <tr>
+                              <th>Quantity</th>
+                              <th>Value</th>
+                              <th>Standard error</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {derived.map((quantity) => (
+                              <tr key={quantity.id}>
+                                <td>{quantity.label}</td>
+                                <td>
+                                  {number(quantity.value)} [{quantity.unit}]
+                                </td>
+                                <td
+                                  title={
+                                    quantity.standardError.reason ?? undefined
+                                  }
+                                >
+                                  {quantity.standardError.value === null
+                                    ? quantity.standardError.reason
+                                    : number(quantity.standardError.value)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <p>
+                          A and φ summarize s and c. Phase uses the current X
+                          origin; separate sine/cosine components would also be
+                          origin-dependent. Standard errors use the full fitted
+                          covariance and a local propagation.
+                        </p>
+                      </div>
+                    )}
                     <details className="fit-diagnostic-details">
                       <summary>
                         Inference: {current.inference} · details
@@ -2553,7 +2827,10 @@ export default function FitApp() {
           <aside className="fit-controls">
             <section>
               <div className="section-eyebrow">01 / ANALYSIS</div>
-              {!collisionOpen && !multiOpen && analysisControl}
+              {!collisionOpen &&
+                !multiOpen &&
+                !comparisonOpen &&
+                analysisControl}
               {state.settings.model !== "custom" && (
                 <button
                   className="edit-custom-equation"

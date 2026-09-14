@@ -136,6 +136,69 @@ function compiled(def: CustomEquation) {
   }
   return result;
 }
+
+export type EquationTarget = "python" | "root";
+
+/** Render the validated syntax tree for a generated analysis program.
+ * Names are mapped by the caller, so no expression text is ever evaluated or
+ * copied into executable source unchecked.
+ */
+export function renderEquation(
+  def: CustomEquation,
+  target: EquationTarget,
+  parameter: (index: number) => string,
+  variable = "x",
+) {
+  const root = compiled(def).root;
+  const calls: Record<EquationTarget, Record<string, string>> = {
+    python: {
+      sin: "np.sin",
+      cos: "np.cos",
+      tan: "np.tan",
+      exp: "np.exp",
+      ln: "np.log",
+      log: "np.log10",
+      sqrt: "np.sqrt",
+      asin: "np.arcsin",
+      acos: "np.arccos",
+      atan: "np.arctan",
+      sinh: "np.sinh",
+      cosh: "np.cosh",
+    },
+    root: {
+      sin: "std::sin",
+      cos: "std::cos",
+      tan: "std::tan",
+      exp: "std::exp",
+      ln: "std::log",
+      log: "std::log10",
+      sqrt: "std::sqrt",
+      asin: "std::asin",
+      acos: "std::acos",
+      atan: "std::atan",
+      sinh: "std::sinh",
+      cosh: "std::cosh",
+    },
+  };
+  function walk(node: Node): string {
+    if (node.kind === "number") return String(node.value);
+    if (node.kind === "name") {
+      const i = def.names.indexOf(node.name);
+      if (i >= 0) return parameter(i);
+      if (node.name === def.variable) return variable;
+      if (node.name === "pi")
+        return target === "python" ? "np.pi" : "TMath::Pi()";
+      return target === "python" ? "np.e" : "TMath::E()";
+    }
+    if (node.kind === "neg") return `(-${walk(node.child)})`;
+    if (node.kind === "call")
+      return `${calls[target][node.name]}(${walk(node.child)})`;
+    const op = node.op === "^" ? (target === "python" ? "**" : null) : node.op;
+    if (op) return `(${walk(node.left)} ${op} ${walk(node.right)})`;
+    return `std::pow(${walk(node.left)}, ${walk(node.right)})`;
+  }
+  return walk(root);
+}
 export function validateEquation(def: CustomEquation) {
   const { names } = compiled(def);
   if (

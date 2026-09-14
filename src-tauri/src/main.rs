@@ -79,6 +79,15 @@ fn write_fit_csv(path: String, data: String) -> Result<()> {
     atomic_text(Path::new(&path), &data)
 }
 #[tauri::command]
+fn write_analysis_code(path: String, data: String) -> Result<()> {
+    if data.len() > 20_000_000 {return Err("Code export exceeds 20 MB".into())}
+    let extension = Path::new(&path).extension().and_then(|value| value.to_str());
+    if !matches!(extension, Some("py" | "C")) {
+        return Err("Code export requires a .py script or .C ROOT macro".into())
+    }
+    atomic_text(Path::new(&path), &data)
+}
+#[tauri::command]
 fn take_launch(state: tauri::State<LaunchState>) -> Result<Option<Launch>> {state.pending.lock().map_err(err).map(|mut p|p.take())}
 fn validate_ack(data: &str) -> Result<()> {
     let v: serde_json::Value=serde_json::from_str(data).map_err(err)?;
@@ -134,7 +143,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init()).manage(state)
         .setup(|app| {if let Some(window)=app.get_webview_window("main") {size_window(&window).map_err(std::io::Error::other)?} Ok(())})
-        .invoke_handler(tauri::generate_handler![open_fitting_reference,data_files_directory,read_fit_file,read_tracker_archive,write_fit_file,write_fit_csv,take_launch,acknowledge_launch])
+        .invoke_handler(tauri::generate_handler![open_fitting_reference,data_files_directory,read_fit_file,read_tracker_archive,write_fit_file,write_fit_csv,write_analysis_code,take_launch,acknowledge_launch])
         .build(tauri::generate_context!()).expect("Data Tool 2027 could not start")
         .run(|app,event| {
             #[cfg(target_os="macos")]
@@ -178,6 +187,9 @@ mod tests {
         write_fit_csv(path.to_string_lossy().into(),text.into()).unwrap();assert_eq!(read_fit_file(path.to_string_lossy().into()).unwrap(),text);
         assert!(write_fit_file(path.to_string_lossy().into(),"invalid".into()).is_err());assert_eq!(std::fs::read_to_string(path).unwrap(),text);
         assert!(write_fit_csv(dir.path().join("session.trksess").to_string_lossy().into(),text.into()).is_err());
+        let script=dir.path().join("analysis.py");write_analysis_code(script.to_string_lossy().into(),"print('fit')\n".into()).unwrap();assert_eq!(std::fs::read_to_string(script).unwrap(),"print('fit')\n");
+        let macro_path=dir.path().join("analysis.C");write_analysis_code(macro_path.to_string_lossy().into(),"void analysis() {}\n".into()).unwrap();
+        assert!(write_analysis_code(dir.path().join("analysis.txt").to_string_lossy().into(),"text".into()).is_err());
     }
     #[test] fn bounded_binary_archive_read() {
         let dir=tempfile::tempdir().unwrap(); let path=dir.path().join("project.trz");

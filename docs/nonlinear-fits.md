@@ -26,6 +26,8 @@ When nonlinear parameters are free, standard errors, marginal intervals and poin
 
 The damped oscillation solver is local and does not perform the separate sine model's bounded frequency scan. The report warns that other minima may exist. Confidence intervals do not account for choosing a basin, model or exclusions after examining the data.
 
+An optional graph preference draws the damped fit's baseline and symmetric exponential amplitude envelope as muted dashed guides. It is off by default and does not change the fitted equation. Sine-family diagnostics derive amplitude, phase and frequency with local first-order uncertainty propagated through the complete covariance matrix. Phase is relative to the current X origin; component sine/cosine curves are not drawn because their individual appearance also depends on that origin. See [model comparison, guides and code export](model-comparison-and-code-export.md).
+
 ## Independent validation
 
 `tests/fit/nonlinear-reference.json` records independent SciPy least-squares optima, complex-step Jacobians and SVD covariance for all five models, including fixed-background and fixed-shape cases. The test-only generator records NumPy/SciPy versions and PCG64 seeds. SciPy is not a runtime dependency. See [SciPy's least-squares documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html) for the independent reference solver.

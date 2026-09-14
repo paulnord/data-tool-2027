@@ -397,6 +397,16 @@
   stroke: #cc9550;
   stroke-width: 2.5;
 }
+.fit-plot .model-guide {
+  fill: none;
+  stroke: #74817c;
+  stroke-width: 1.25;
+  stroke-dasharray: 7 5;
+  pointer-events: none;
+}
+.fit-plot .model-guide-baseline {
+  stroke-dasharray: 3 4;
+}
 .fit-plot .point {
   fill: var(--plot-data-color, #2875a4);
   color: var(--plot-data-color, #2875a4);
@@ -465,6 +475,36 @@
   color: var(--ink);
   font-weight: 550;
   font-variant-numeric: tabular-nums;
+}
+.fit-derived {
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+.fit-derived h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 13px;
+}
+.fit-derived table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.fit-derived th,
+.fit-derived td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.fit-derived th:nth-child(n + 2),
+.fit-derived td:nth-child(n + 2) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.fit-derived p {
+  margin: 8px 0 0;
 }
 .fit-controls {
   background: #fff;

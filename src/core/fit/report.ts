@@ -11,6 +11,7 @@ import {
   type FitSession,
 } from "./schema";
 import type { FitResult } from "./solve";
+import { oscillationDerivedQuantities } from "./derivedParameters";
 export type Cell = string | number | boolean | null;
 export type ReportRow = readonly [statistic: string, value: Cell];
 export type ReportSections = {
@@ -34,9 +35,7 @@ export function fitCorrelationMatrix(
         const denominator = Math.sqrt(
           result.covariance![i][i] * result.covariance![j][j],
         );
-        return denominator > 0
-          ? result.covariance![i][j] / denominator
-          : null;
+        return denominator > 0 ? result.covariance![i][j] / denominator : null;
       }),
     ]),
   ];
@@ -86,6 +85,7 @@ export function fitReportTable(
   sections: ReportSections = {},
 ): Cell[][] {
   const names = parameterNames(settings.model, settings.custom);
+  const derived = oscillationDerivedQuantities(request, settings, result);
   const equations = {
     ...(Object.fromEntries(
       nonlinearModelIds.map((m) => [m, nonlinearModels[m].equation]),
@@ -148,14 +148,6 @@ export function fitReportTable(
       ? [
           ["Minimum searched period", settings.periodMin!],
           ["Maximum searched period", settings.periodMax!],
-          [
-            "Amplitude",
-            Math.hypot(result.coefficients[1], result.coefficients[2]),
-          ],
-          [
-            "Phase (rad)",
-            Math.atan2(result.coefficients[2], result.coefficients[1]),
-          ],
           ["Interval method", "Local linear approximation when T is free"],
         ]
       : []),
@@ -200,6 +192,18 @@ export function fitReportTable(
       result.standardErrors[i].value ?? result.standardErrors[i].reason,
       ...(result.intervals[i] ?? [null, null]),
     ]),
+    ...(derived.length
+      ? [
+          [],
+          ["Derived quantity", "Value", "Unit", "Standard error"],
+          ...derived.map((quantity) => [
+            quantity.label,
+            quantity.value,
+            quantity.unit,
+            quantity.standardError.value ?? quantity.standardError.reason,
+          ]),
+        ]
+      : []),
     [],
     ["Statistic", "Value"],
     ...fitReportRows(request, settings, result).map((row) => [...row]),

@@ -688,7 +688,9 @@ test("fit-period sine recovers T, fixes it, and saves its search settings", asyn
   expect(
     Number(await page.getByLabel("T value", { exact: true }).inputValue()),
   ).toBeCloseTo(3, 2);
-  await expect(page.getByText(/Amplitude .*Phase/)).toBeVisible();
+  await expect(
+    page.locator(".fit-help").getByText(/Amplitude .*Phase/),
+  ).toBeVisible();
   await page.getByLabel("Fix T", { exact: true }).check();
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.locator(".fit-status")).toHaveText("Fitted");

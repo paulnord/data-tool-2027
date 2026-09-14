@@ -30,6 +30,12 @@ const statisticReasons: Readonly<Record<string, string>> = {
   "covariance-unavailable": "The fitted parameter covariance is unavailable",
   "invalid-propagated-variance":
     "The propagated variance is invalid or outside the numeric range",
+  "peak-moments-unresolved":
+    "Peak moment integration did not converge within the numerical tolerance",
+  "zero-derived-gradient":
+    "First-order sensitivity vanishes; a reliable local standard error is unavailable",
+  "zero-peak-amplitude":
+    "A zero-height peak has no defined normalized shape moments",
 };
 
 /** Keep an unfamiliar code visible rather than inventing an explanation for it. */

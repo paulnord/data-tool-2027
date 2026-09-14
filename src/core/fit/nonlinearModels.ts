@@ -1,4 +1,5 @@
 import type { FitRequest, FitSettings } from "./schema";
+import { gaussianShapeValueGradient } from "./gaussianShape";
 export const nonlinearV2ModelIds = [
   "exponential-decay",
   "power-law-free",
@@ -13,6 +14,7 @@ export const additionalNonlinearModelIds = [
 export const nonlinearModelIds = [
   ...nonlinearV2ModelIds,
   ...additionalNonlinearModelIds,
+  "gaussian-shape",
 ] as const;
 export type NonlinearModel = (typeof nonlinearModelIds)[number];
 export const nonlinearModels = {
@@ -56,6 +58,15 @@ export const nonlinearModels = {
     equation: "y = b + A exp[−½((x−μ)/σ)²]",
     defaults: [0, 1, 0, 1],
   },
+  "gaussian-shape": {
+    label: "Gaussian peak · adjustable shape",
+    names: ["b", "A", "mu", "w", "skew", "tail"],
+    positive: [3, 5],
+    linear: 2,
+    equation:
+      "y = b + A h(z)/h(zₘ); z = (x−μ)/w + zₘ; h(z) = cosh(u) exp[−½sinh²(u)]/√(1+z²); u = tail asinh(z) − skew",
+    defaults: [0, 1, 0, 1, 0, 1],
+  },
   "damped-sine": {
     label: "Damped oscillation",
     names: ["b", "s", "c", "T", "tau"],
@@ -95,6 +106,8 @@ export function nonlinearValueGradient(
   const [b, A, c, d, e] = p;
   let value: number, gradient: number[];
   switch (model) {
+    case "gaussian-shape":
+      return gaussianShapeValueGradient(x, p);
     case "exponential-decay": {
       const q = Math.exp(-x / c);
       value = b + A * q;
@@ -166,6 +179,7 @@ export function nonlinearParameterUnit(
   xUnit: string | null,
   yUnit: string | null,
 ) {
+  if (model === "gaussian-shape" && i >= 4) return "1";
   if (model === "power-law-free" && i === 2) return "1";
   return i < nonlinearModels[model].linear ? (yUnit ?? "?") : (xUnit ?? "?");
 }
@@ -192,12 +206,22 @@ export function suggestedParameters(
   const min = rows.reduce((a, r) => Math.min(a, r.y!), Infinity),
     max = rows.reduce((a, r) => Math.max(a, r.y!), -Infinity),
     amplitude = max - min || 1;
-  if (model === "gaussian" || model === "lorentzian") {
+  if (
+    model === "gaussian" ||
+    model === "lorentzian" ||
+    model === "gaussian-shape"
+  ) {
     const baseline = (rows[0].y! + rows.at(-1)!.y!) / 2;
     const peak = rows.reduce((a, r) =>
       Math.abs(r.y! - baseline) > Math.abs(a.y! - baseline) ? r : a,
     );
-    return [baseline, peak.y! - baseline || 1, peak.x!, span / 6];
+    return [
+      baseline,
+      peak.y! - baseline || 1,
+      peak.x!,
+      span / 6,
+      ...(model === "gaussian-shape" ? [0, 1] : []),
+    ];
   }
   if (model === "exponential-decay") {
     const tau = span / 2;

@@ -1,12 +1,78 @@
 import type { FitRequest, FitSettings } from "./schema";
 import type { FitResult, Statistic } from "./solve";
+import { gaussianShapeMoments } from "./gaussianShape";
 
 export interface DerivedQuantity {
-  id: "amplitude" | "phase" | "frequency";
+  id: "amplitude" | "phase" | "frequency" | "skewness" | "excessKurtosis";
   label: string;
   value: number | null;
   unit: string;
   standardError: Statistic;
+}
+
+export function fitDerivedQuantities(
+  request: FitRequest,
+  settings: FitSettings,
+  result: FitResult,
+): DerivedQuantity[] {
+  if (settings.model !== "gaussian" && settings.model !== "gaussian-shape")
+    return oscillationDerivedQuantities(request, settings, result);
+  const shaped = settings.model === "gaussian-shape";
+  const skew = shaped ? result.coefficients[4] : 0;
+  const tail = shaped ? result.coefficients[5] : 1;
+  const moments =
+    result.coefficients[1] === 0 ? null : gaussianShapeMoments(skew, tail);
+  return (["skewness", "excessKurtosis"] as const).map((id) => {
+    const gradient = result.coefficients.map(() => 0);
+    if (shaped && moments) {
+      for (const index of [4, 5]) {
+        if (settings.parameters[index].fixed) continue;
+        const value = result.coefficients[index];
+        const step =
+          index === 5
+            ? Math.min(value / 100, 1e-4 * Math.max(1, value))
+            : 1e-4 * Math.max(1, Math.abs(value));
+        const high = gaussianShapeMoments(
+          skew + (index === 4 ? step : 0),
+          tail + (index === 5 ? step : 0),
+        );
+        const low = gaussianShapeMoments(
+          skew - (index === 4 ? step : 0),
+          tail - (index === 5 ? step : 0),
+        );
+        gradient[index] = high && low ? (high[id] - low[id]) / (2 * step) : NaN;
+      }
+    }
+    // Kurtosis is even in skew: zero first-order sensitivity at symmetry
+    // does not mean the quantity is fixed when skew remains free.
+    if (id === "excessKurtosis" && skew === 0 && shaped) gradient[4] = 0;
+    const shapeFixed =
+      !shaped ||
+      (settings.parameters[4].fixed &&
+        ((id === "skewness" && skew === 0) || settings.parameters[5].fixed));
+    return {
+      id,
+      label:
+        id === "skewness"
+          ? "Peak skewness"
+          : "Peak excess kurtosis (Gaussian = 0)",
+      value: moments?.[id] ?? null,
+      unit: "1",
+      standardError: moments
+        ? shapeFixed
+          ? { value: null, reason: "fixed" }
+          : gradient.every((v) => v === 0)
+            ? { value: null, reason: "zero-derived-gradient" }
+            : propagated(gradient, settings, result)
+        : {
+            value: null,
+            reason:
+              result.coefficients[1] === 0
+                ? "zero-peak-amplitude"
+                : "peak-moments-unresolved",
+          },
+    };
+  });
 }
 
 function propagated(

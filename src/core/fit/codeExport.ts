@@ -1,6 +1,10 @@
 import { polynomialDegree, polynomialExpressions } from "./polynomialModels";
 import { renderEquation } from "./customEquation";
 import { isNonlinearModel, nonlinearModels } from "./nonlinearModels";
+import {
+  pythonPeakShapeHelpers,
+  rootPeakShapeHelpers,
+} from "./gaussianShapeCodeExport";
 import { parameterNames, type FitRequest, type FitSettings } from "./schema";
 import type { FitResult } from "./solve";
 
@@ -172,6 +176,7 @@ function pythonExpression(settings: FitSettings) {
     sigmoid: "p[0] + p[1]*np.exp(-np.logaddexp(0.0, -(x-p[2])/p[3]))",
     "power-law-free": "p[0] + p[1]*x**p[2]",
     gaussian: "p[0] + p[1]*np.exp(-0.5*((x-p[2])/p[3])**2)",
+    "gaussian-shape": "gaussian_peak(x, p)",
     "damped-sine":
       "p[0] + np.exp(-x/p[4])*(p[1]*np.sin(2*np.pi*x/p[3]) + p[2]*np.cos(2*np.pi*x/p[3]))",
     lorentzian: "p[0] + p[1]/(1 + ((x-p[2])/p[3])**2)",
@@ -316,9 +321,11 @@ export function generateCodeExportMetadata(
 /** Readable SciPy program for the bundle's external CSV and JSON inputs. */
 export function generatePythonCode(description: CodeExportDescription) {
   const polynomialJac =
-    polynomialDegree(description.settings.model) === undefined
-      ? ""
-      : "            # Analytic polynomial derivatives; update these if editing model().\n            jac=lambda x, *free: np.column_stack([x**i for i in free_index]),\n";
+    description.settings.model === "gaussian-shape"
+      ? '            jac="3-point", # Central differences include the mode recentering.\n'
+      : polynomialDegree(description.settings.model) === undefined
+        ? ""
+        : "            # Analytic polynomial derivatives; update these if editing model().\n            jac=lambda x, *free: np.column_stack([x**i for i in free_index]),\n";
   const meanGuide = `
 if view["showGuides"]:
     ax_data.axhline(fitted[0], linestyle="--", color="0.45", linewidth=1.1, label="mean position b")`;
@@ -329,6 +336,7 @@ if view["showGuides"] and curve_x[0] <= fitted[2] <= curve_x[-1]:
     sine: meanGuide,
     "sine-free-period": meanGuide,
     gaussian: centerGuide,
+    "gaussian-shape": centerGuide,
     lorentzian: centerGuide,
     sigmoid:
       centerGuide +
@@ -375,6 +383,7 @@ def model(x, *p):
     value = ${pythonExpression(description.settings)}
     # Constant custom equations are scalars; callers need one prediction per X.
     return np.broadcast_to(np.asarray(value, dtype=float), np.shape(x))
+${description.settings.model === "gaussian-shape" ? pythonPeakShapeHelpers : ""}
 
 def fit_data(data, analysis):
     fit_metadata = analysis["fit"]
@@ -569,6 +578,7 @@ def report_fit(result, reference_inputs):
     for index, name in enumerate(parameter_names):
         suffix = "fixed" if index not in free_index else "SE=unavailable" if uncertainty_reason else f"SE={np.sqrt(max(0.0, covariance[index, index])):.12g}"
         print(f"  {name} = {fitted[index]:.17g} ({suffix})")
+${description.settings.model === "gaussian-shape" ? "    report_peak_moments(fitted, covariance, free_index, uncertainty_reason)\n" : ""}
 
     if reference_inputs:
         print("Data Tool fit:", data_tool_fit)
@@ -711,6 +721,7 @@ function rootExpression(settings: FitSettings) {
       "p[0] + p[1]*((x-p[2])/p[3] >= 0 ? 1/(1+std::exp(-(x-p[2])/p[3])) : std::exp((x-p[2])/p[3])/(1+std::exp((x-p[2])/p[3])))",
     "power-law-free": "p[0] + p[1]*std::pow(x, p[2])",
     gaussian: "p[0] + p[1]*std::exp(-0.5*std::pow((x-p[2])/p[3], 2))",
+    "gaussian-shape": "gaussian_peak(x, p)",
     "damped-sine":
       "p[0] + std::exp(-x/p[4])*(p[1]*std::sin(2*TMath::Pi()*x/p[3]) + p[2]*std::cos(2*TMath::Pi()*x/p[3]))",
     lorentzian: "p[0] + p[1]/(1 + std::pow((x-p[2])/p[3], 2))",
@@ -778,6 +789,7 @@ export function generateRootCode(description: CodeExportDescription) {
     sine: meanGuide,
     "sine-free-period": meanGuide,
     gaussian: centerGuide,
+    "gaussian-shape": centerGuide,
     lorentzian: centerGuide,
     sigmoid:
       meanGuide +
@@ -848,12 +860,15 @@ export function generateRootCode(description: CodeExportDescription) {
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <utility>
+${settings.model === "gaussian-shape" ? "double gaussian_peak(double x, const double *p);" : ""}
 
 // The fitted function: the equation is the first function in this file.
 double model_function(double *xx, double *p) {
   const double x = xx[0];
   return ${rootExpression(settings)};
 }
+${settings.model === "gaussian-shape" ? rootPeakShapeHelpers : ""}
 
 struct Data {
   std::vector<double> data_x, data_y, data_ex, data_ey, excluded_x, excluded_y;
@@ -1088,6 +1103,7 @@ void report_fit(TF1 &model, FitOutcome &result, bool reference_inputs) {
     else std::cout << " (SE=unavailable)\\n";
   }
   std::cout << "chi2 = " << model.GetChisquare() << "; ndf = " << model.GetNDF() << "\\n";
+${settings.model === "gaussian-shape" ? "  report_peak_moments(model, fit_result, fixed_parameters, errors_available);\n" : ""}
 
   if (reference_inputs) {
     const double data_tool_fit[] = {${description.dataToolFit.map(number).join(", ")}};

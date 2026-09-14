@@ -266,7 +266,32 @@ export const settingsV4Schema = settingsV2Schema
             message: `${nonlinearModels[s.model].names[j]} must be positive`,
           });
   });
-export const settingsSchema = z.union([settingsV3Schema, settingsV4Schema]);
+export const settingsV5Schema = settingsV4Schema
+  .extend({
+    model: z.literal("gaussian-shape"),
+    parameters: z
+      .array(z.object({ value: finite, fixed: z.boolean() }).strict())
+      .length(6),
+  })
+  .superRefine(checkSettings)
+  .superRefine((s, ctx) => {
+    if (s.custom)
+      ctx.addIssue({
+        code: "custom",
+        message: "Custom equation is only valid for a custom model",
+      });
+    for (const i of [3, 5])
+      if (!(s.parameters[i]?.value > 0))
+        ctx.addIssue({
+          code: "custom",
+          message: `${nonlinearModels["gaussian-shape"].names[i]} must be positive`,
+        });
+  });
+export const settingsSchema = z.union([
+  settingsV3Schema,
+  settingsV4Schema,
+  settingsV5Schema,
+]);
 export const dataTableSchema = z
   .object({
     cells: z.array(z.array(z.string()).max(1000)).max(100001),
@@ -305,12 +330,18 @@ const sessionV4Object = sessionV1Object.extend({
   settings: settingsV4Schema,
   engine: z.enum(["qr-vp-sine-2", "qr-lm-3"]),
 });
+const sessionV5Object = sessionV1Object.extend({
+  version: z.literal(5),
+  settings: settingsV5Schema,
+  engine: z.literal("qr-lm-3"),
+});
 function checkSession(
   s:
     | z.infer<typeof sessionV1Object>
     | z.infer<typeof sessionV2Object>
     | z.infer<typeof sessionV3Object>
-    | z.infer<typeof sessionV4Object>,
+    | z.infer<typeof sessionV4Object>
+    | z.infer<typeof sessionV5Object>,
   ctx: z.RefinementCtx,
 ) {
   if (s.version === 4 && s.engine !== sessionEngine(s.settings))
@@ -401,21 +432,27 @@ export const sessionV1Schema = sessionV1Object.superRefine(checkSession);
 export const sessionV2Schema = sessionV2Object.superRefine(checkSession);
 export const sessionV3Schema = sessionV3Object.superRefine(checkSession);
 export const sessionV4Schema = sessionV4Object.superRefine(checkSession);
+export const sessionV5Schema = sessionV5Object.superRefine(checkSession);
 export const sessionSchema = z.union([
   sessionV1Schema,
   sessionV2Schema,
   sessionV3Schema,
   sessionV4Schema,
+  sessionV5Schema,
 ]);
 export const sessionVersion = (settings: { model: string }) =>
-  (higherPolynomialIds as readonly string[]).includes(settings.model) ||
-  (additionalNonlinearModelIds as readonly string[]).includes(settings.model)
-    ? (4 as const)
-    : settings.model === "custom"
-      ? (3 as const)
-      : isNonlinearModel(settings.model)
-        ? (2 as const)
-        : (1 as const);
+  settings.model === "gaussian-shape"
+    ? (5 as const)
+    : (higherPolynomialIds as readonly string[]).includes(settings.model) ||
+        (additionalNonlinearModelIds as readonly string[]).includes(
+          settings.model,
+        )
+      ? (4 as const)
+      : settings.model === "custom"
+        ? (3 as const)
+        : isNonlinearModel(settings.model)
+          ? (2 as const)
+          : (1 as const);
 export const sessionEngine = (settings: { model: string }) =>
   settings.model === "custom"
     ? ("qr-expression-4" as const)
@@ -468,7 +505,7 @@ export function parameterNames(
 export function initialSettings(
   model: FitSettings["model"] = "constant-acceleration",
 ): FitSettings {
-  return {
+  return settingsSchema.parse({
     model,
     ...(model === "custom"
       ? {
@@ -493,13 +530,13 @@ export function initialSettings(
         : model === "sine-free-period" && i === 3
           ? 3
           : 0,
-      fixed: false,
+      fixed: model === "gaussian-shape" && i >= 4,
     })),
     excludedIds: [],
     conditionalInference: false,
     physicalTimeConfirmed: false,
     selectionAfterInspection: false,
-  };
+  });
 }
 
 /** Decimal/scientific notation only; blanks mean missing, never zero. */

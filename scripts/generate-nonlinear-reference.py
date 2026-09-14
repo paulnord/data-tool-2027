@@ -38,5 +38,10 @@ for index,(name,truth,x,fn,positive,xhead,yhead) in enumerate(models):
  references.append(dict(model=name,truth=truth,initial=initial.tolist(),x=x.tolist(),y=y.tolist(),mean=fn(x,truth).tolist(),sigma=sigma.tolist(),cases=cases))
  with Path('examples/data',name+'.csv').open('w',newline='') as f:
   f.write('# Synthetic classroom data: '+name+'. Choose the corresponding model and inspect the residuals.\n')
-  w=csv.writer(f);w.writerow([xhead,yhead]);w.writerows(zip(x,y))
+  w=csv.writer(f,lineterminator='\n')
+  if name == 'lorentzian':
+   f.write('# Independent Gaussian y uncertainties: sigma_i = 0.02*(1+i/81) V, i=0..80. Assign the third column as Y uncertainty when importing.\n')
+   w.writerow([xhead,yhead,'Y uncertainty (V)']);w.writerows(zip(x,y,sigma))
+  else:
+   w.writerow([xhead,yhead]);w.writerows(zip(x,y))
 Path('tests/fit/nonlinear-reference.json').write_text(json.dumps(dict(scipy=scipy.__version__,numpy=np.__version__,generator='PCG64; seeds 93000..93004; complex-step Jacobians and SVD covariance',coverage=dict(trials=500,seed=94000,alpha=0.001,gates=19,lower=int(binom.ppf(0.001/(2*19),500,.95)),upper=int(binom.ppf(1-0.001/(2*19),500,.95))),fixtures=references),indent=2)+'\n')

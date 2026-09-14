@@ -24,7 +24,11 @@ export function modelGuideValues(
   };
   if (settings.model === "sine" || settings.model === "sine-free-period")
     return [baselineGuide];
-  if (settings.model === "gaussian" || settings.model === "lorentzian")
+  if (
+    settings.model === "gaussian" ||
+    settings.model === "lorentzian" ||
+    settings.model === "gaussian-shape"
+  )
     return [
       {
         id: "center",

@@ -97,7 +97,7 @@ test("unsaved replacement requires visible discard; both numerical plot domains 
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText("Keep or discard");
+  await expect(page.getByRole("alertdialog")).toContainText("Keep or discard");
   await page.getByRole("button", { name: "Keep working" }).click();
   await expect(page.getByLabel("y0 value", { exact: true })).toHaveValue("1");
   await page

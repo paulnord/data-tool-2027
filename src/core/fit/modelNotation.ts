@@ -29,6 +29,8 @@ export function modelParameterUnit(
 }
 
 export function modelNotationNote(model: string): string | null {
+  if (model === "gaussian-shape")
+    return "Sinh–arcsinh peak: A is peak height above b, μ is peak position, and w is a positive width scale (not generally a standard deviation). zₘ is the mode of h. skew = 0 is symmetric; tail = 1 retains the Gaussian tail parameter, below 1 is heavier and above 1 lighter. Derived skewness and excess kurtosis describe the normalized peak, not measurement uncertainty.";
   if (model === "sine-free-period")
     return "T is the period in x-units. Fix T to use a supplied period. Amplitude and phase are derived from the fitted sine and cosine coefficients.";
   if (model === "sigmoid")

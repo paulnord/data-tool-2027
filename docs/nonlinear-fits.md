@@ -10,9 +10,9 @@ Choose a model after loading an ordinary data file. Selecting one of these model
 | Damped oscillation           | `y = b + exp(-x/tau)*(s*sin(2*pi*x/T) + c*cos(2*pi*x/T))` | b, s and c: y-unit; positive period T and decay time tau: x-unit. s and c describe phase without a discontinuous phase parameter.    |
 | Lorentzian peak              | `y = b + A/(1+((x-mu)/gamma)^2)`                          | b and peak height A: y-unit; center mu and positive half-width gamma: x-unit. Full width at half maximum is `2*gamma`.               |
 
-The supplied-rate exponential and supplied-exponent power law remain available. The new decay-time model describes decay toward a background, with either sign of amplitude; it does not fit an exponential growth rate. A peak amplitude may also be negative to describe a dip. Units are labels, never guessed conversions. Unit entry preserves case.
+Saved supplied-rate exponentials remain editable; supplied-exponent power laws remain available. The new decay-time model describes decay toward a background, with either sign of amplitude; it does not fit an exponential growth rate. A peak amplitude may also be negative to describe a dip. Units are labels, never guessed conversions. Unit entry preserves case.
 
-Ordinary synthetic examples are in `examples/data/exponential-decay.csv`, `power-law-free.csv`, `gaussian.csv`, `damped-sine.csv` and `lorentzian.csv`. Use the **Examples** menu to open them directly, or choose **Data… → Load file…**; these files are also included in the normal Examples directory. They contain no fitting settings or automatic uncertainty assignments.
+Ordinary synthetic examples are in `examples/data/exponential-decay.csv`, `power-law-free.csv`, `gaussian.csv`, `damped-sine.csv` and `lorentzian.csv`. Open them through **Data… → Load file…**. They contain no fitting settings or automatic uncertainty assignments.
 
 ## Numerical method and diagnostics
 
@@ -37,3 +37,5 @@ Tests compare coefficients, weighted objectives and full covariance, check analy
 The scientific core remains independent of React, native APIs, file access and generators. All random generation and independent numerical reference tooling stay under tests/scripts.
 
 The additional exponential-growth and logistic-sigmoid models are described in [equation families](equation-families.md) and use session v4.
+
+Gaussian peaks also support optional [skew and tail controls](peak-shapes.md), using session v5. The Lorentzian CSV includes its original per-point generating uncertainties; assign the third column as Y uncertainty on import.

@@ -27,6 +27,13 @@ Custom equations retain their existing eight-parameter limit. Conversion to a cu
 
 [Session v4](integration.md#session-v4-for-additional-model-families--2026-09-14) handles the added models without changing v1–v3 files. Independent reference fixtures in `tests/fit/extended-model-reference.json` are generated with SciPy least squares, complex-step Jacobians, and SVD covariance. Checks cover fitted and fixed coefficients, starting suggestions, analytic derivatives, rank failure, positive widths, and session boundaries. These are numerical validation cases, not a claim that every dataset or nonlinear starting point will converge.
 
+## Peak shape
+
+Gaussian peaks offer optional skew and tail controls, with derived skewness and
+excess kurtosis. Both off gives an ordinary Gaussian; see [peak shape definitions,
+validation and limits](peak-shapes.md). These settings are shared across analysis
+views and preserved in session v5 and SciPy/ROOT exports.
+
 ## Number display
 
 Numeric results and controls switch to scientific notation for nonzero magnitudes below 0.0001 (more than three leading zeros after the decimal point). For example, 0.0001 stays decimal and 0.00003594 displays as 3.594e-5. Large results use scientific notation from 10^7; graph ticks may use it earlier to keep axes readable. Result displays use up to seven significant digits. Editable controls preserve complete numeric values and unfinished typing; this display rule does not round stored observations, fit parameters, or exported data.

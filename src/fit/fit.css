@@ -461,6 +461,20 @@
 .fit-plot .model-guide-baseline {
   stroke-dasharray: 3 4;
 }
+.peak-shape-controls {
+  margin: 10px 0;
+}
+.peak-shape-controls label.fit-check {
+  display: flex;
+  align-items: start;
+  gap: 7px;
+}
+.peak-shape-controls label input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  flex: none;
+  margin: 2px 0 0;
+}
 .fit-plot .point {
   fill: var(--plot-data-color, #2875a4);
   color: var(--plot-data-color, #2875a4);
@@ -686,6 +700,21 @@
   display: flex;
   gap: 15px;
   align-items: center;
+}
+.fit-confirm-dialog {
+  display: block;
+  margin: auto;
+  width: min(32rem, calc(100vw - 3rem));
+  max-height: calc(100vh - 3rem);
+  white-space: normal;
+}
+.fit-confirm-dialog::backdrop {
+  background: #172c4266;
+}
+.fit-confirm-dialog > div {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
 }
 .fit-warning {
   color: #815c20;

@@ -159,7 +159,7 @@ test("applying table edits requires a choice before discarding interval work", a
   await panel
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.getByRole("alertdialog")).toContainText(
     "Apply these data and discard the unsaved interval analyses?",
   );
   await page.getByRole("button", { name: "Keep working", exact: true }).click();

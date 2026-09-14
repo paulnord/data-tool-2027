@@ -69,7 +69,9 @@ import { switchNoiseModel } from "../core/fit/noiseModel";
 import { suppliedYErrorBars } from "../core/fit/errorBars";
 import { meanConfidenceBand } from "../core/fit/confidenceBand";
 import { modelGuideValues } from "../core/fit/modelGuides";
-import { oscillationDerivedQuantities } from "../core/fit/derivedParameters";
+import { fitDerivedQuantities } from "../core/fit/derivedParameters";
+import { PeakShapeControls } from "./PeakShapeControls";
+import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import {
   buildCodeExportDescription,
   generateCodeExportBundle,
@@ -1029,7 +1031,7 @@ function PrintReport({
   const graphWidth = fullPageGraph ? 960 : 720;
   const hasResidualPlot = showResiduals && !!result;
   const derived = result
-    ? oscillationDerivedQuantities(state.request, state.settings, result)
+    ? fitDerivedQuantities(state.request, state.settings, result)
     : [];
   const dataHeight = fullPageGraph
     ? hasResidualPlot
@@ -1236,7 +1238,13 @@ function PrintReport({
                     </tbody>
                   </table>
                   {derived.length > 0 && (
-                    <table aria-label="Print derived oscillation quantities">
+                    <table
+                      aria-label={
+                        state.settings.model.startsWith("gaussian")
+                          ? "Print derived peak quantities"
+                          : "Print derived oscillation quantities"
+                      }
+                    >
                       <thead>
                         <tr>
                           <th>Derived quantity</th>
@@ -2179,7 +2187,11 @@ export default function FitApp() {
           return;
         }
         setComparisonOpen(false);
-        if (value === state.settings.model) return;
+        if (
+          value === state.settings.model ||
+          (value === "gaussian" && state.settings.model === "gaussian-shape")
+        )
+          return;
         change({
           ...state,
           request: {
@@ -2215,7 +2227,7 @@ export default function FitApp() {
   const names = parameterNames(state.settings.model, state.settings.custom),
     u = state.request.uncertainty;
   const derived = current
-    ? oscillationDerivedQuantities(state.request, state.settings, current)
+    ? fitDerivedQuantities(state.request, state.settings, current)
     : [];
   const included = state.request.dataset.rows.filter(
     (r) => r.included && !state.settings.excludedIds.includes(r.id),
@@ -2801,41 +2813,38 @@ export default function FitApp() {
             />
           )}
           {(pending || closePending) && (
-            <div className="fit-confirm" role="alert">
-              <span>
-                {pendingDataEdit
-                  ? "Apply these data and discard the unsaved interval analyses?"
-                  : unsavedDraftWork
-                    ? "Keep or discard your unsaved analysis? Multi-interval and collision setups are not saved in sessions."
-                    : "Keep or discard your unsaved analysis changes?"}
-              </span>
-              <button
-                onClick={() => {
-                  setPending(null);
+            <UnsavedChangesDialog
+              message={
+                pendingDataEdit
+                  ? comparisonOpen
+                    ? "Apply these data to every comparison candidate? Existing fit results will be cleared."
+                    : "Apply these data and discard the unsaved interval analyses?"
+                  : pending && comparisonOpen
+                    ? "Load the new dataset for every comparison candidate? Candidate equations and settings will be kept; existing fit results will be cleared."
+                    : unsavedDraftWork
+                      ? "Keep or discard your unsaved analysis? Multi-interval and collision setups are not saved in sessions."
+                      : "Keep or discard your unsaved analysis changes?"
+              }
+              onKeep={() => {
+                setPending(null);
+                setPendingDataEdit(false);
+                setClosePending(false);
+              }}
+              onApply={() => {
+                if (pending && pendingDataEdit) {
+                  setUnsavedDraftWork(false);
                   setPendingDataEdit(false);
-                  setClosePending(false);
-                }}
-              >
-                Keep working
-              </button>
-              <button
-                onClick={() => {
-                  if (pending && pendingDataEdit) {
-                    setUnsavedDraftWork(false);
-                    setPendingDataEdit(false);
-                    setPending(null);
-                    change(pending);
-                    bounds();
-                  } else if (pending) replace(pending);
-                  else if (isTauri()) {
-                    dirtyRef.current = false;
-                    void getCurrentWindow().destroy();
-                  }
-                }}
-              >
-                {pendingDataEdit ? "Apply data" : "Discard changes"}
-              </button>
-            </div>
+                  setPending(null);
+                  change(pending);
+                  bounds();
+                } else if (pending) replace(pending);
+                else if (isTauri()) {
+                  dirtyRef.current = false;
+                  void getCurrentWindow().destroy();
+                }
+              }}
+              action={pendingDataEdit ? "Apply data" : "Discard changes"}
+            />
           )}
           {error && (
             <div role="alert" className="fit-error">
@@ -2997,8 +3006,18 @@ export default function FitApp() {
                       </div>
                       {derived.length > 0 && (
                         <div className="fit-derived">
-                          <h3>Derived oscillation quantities</h3>
-                          <table aria-label="Derived oscillation quantities">
+                          <h3>
+                            {state.settings.model.startsWith("gaussian")
+                              ? "Derived peak quantities"
+                              : "Derived oscillation quantities"}
+                          </h3>
+                          <table
+                            aria-label={
+                              state.settings.model.startsWith("gaussian")
+                                ? "Derived peak quantities"
+                                : "Derived oscillation quantities"
+                            }
+                          >
                             <thead>
                               <tr>
                                 <th>Quantity</th>
@@ -3033,10 +3052,17 @@ export default function FitApp() {
                             </tbody>
                           </table>
                           <p>
-                            A and φ summarize s and c. Phase uses the current X
-                            origin; separate sine/cosine components would also
-                            be origin-dependent. Standard errors use the full
-                            fitted covariance and a local propagation.
+                            {state.settings.model.startsWith("gaussian") ? (
+                              "These moments describe the normalized peak, including its extrapolated tails. Standard errors use the full fitted covariance and a local approximation."
+                            ) : (
+                              <>
+                                A and φ summarize s and c. Phase uses the
+                                current X origin; separate sine/cosine
+                                components would also be origin-dependent.
+                                Standard errors use the full fitted covariance
+                                and a local propagation.
+                              </>
+                            )}
                           </p>
                         </div>
                       )}
@@ -3167,11 +3193,16 @@ export default function FitApp() {
                 {state.settings.model !== "custom" && (
                   <button
                     className="edit-custom-equation"
-                    disabled={state.settings.parameters.length > 8}
+                    disabled={
+                      state.settings.parameters.length > 8 ||
+                      state.settings.model === "gaussian-shape"
+                    }
                     title={
-                      state.settings.parameters.length > 8
-                        ? "Custom equations support at most eight parameters."
-                        : undefined
+                      state.settings.model === "gaussian-shape"
+                        ? "This shape uses a mode calculation; export its SciPy/ROOT program to edit it."
+                        : state.settings.parameters.length > 8
+                          ? "Custom equations support at most eight parameters."
+                          : undefined
                     }
                     onClick={() =>
                       change({
@@ -3410,6 +3441,16 @@ export default function FitApp() {
                     Independent variable is physical time
                   </label>
                 )}
+                <PeakShapeControls
+                  settings={{
+                    ...state.settings,
+                    parameters: state.settings.parameters.map((p, i) => ({
+                      ...p,
+                      value: current?.coefficients[i] ?? p.value,
+                    })),
+                  }}
+                  onChange={(settings) => change({ ...state, settings })}
+                />
                 <div className="parameter-heading">
                   <span>Parameter</span>
                   <span>Value</span>

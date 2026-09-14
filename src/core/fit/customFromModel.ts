@@ -14,6 +14,10 @@ export function customFromModel(
   coefficients?: number[],
 ): FitSettings {
   if (settings.model === "custom") return settings;
+  if (settings.model === "gaussian-shape")
+    throw Error(
+      "The adjustable Gaussian shape uses a mode calculation; retain this built-in model or export its SciPy/ROOT program.",
+    );
   if (settings.parameters.length > 8)
     throw Error(
       "Custom equations support at most eight parameters; keep this polynomial as a built-in model.",

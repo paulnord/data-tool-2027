@@ -1105,6 +1105,7 @@ export default function ModelComparison({
   }
   function useSharedData(analysis: Analysis) {
     setSelectionHistory([]);
+    setInvalid({});
     changeAll(
       drafts.map((draft) => ({
         ...analysis,
@@ -1115,6 +1116,8 @@ export default function ModelComparison({
           retainedPerRowUncertainty:
             analysis.settings.retainedPerRowUncertainty,
           conditionalInference: analysis.settings.conditionalInference,
+          physicalTimeConfirmed: analysis.settings.physicalTimeConfirmed,
+          selectionAfterInspection: analysis.settings.selectionAfterInspection,
         },
       })),
     );

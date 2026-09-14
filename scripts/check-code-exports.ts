@@ -1,4 +1,6 @@
 import extendedReference from "../tests/fit/extended-model-reference.json";
+import peakReference from "../tests/fit/peak-shape-reference.json";
+import { fitDerivedQuantities } from "../src/core/fit/derivedParameters";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -140,6 +142,34 @@ for (const fixture of extendedReference.fixtures) {
   settings.parameters = fixture.start.map((value) => ({ value, fixed: false }));
   scenarios.push({ input: fixture.model, session: { request, settings } });
 }
+for (const fixture of peakReference.cases) {
+  const request = syntheticRequest(),
+    settings = initialSettings("gaussian-shape");
+  request.dataset.rows = fixture.x.map((x, i) => ({
+    id: String(i),
+    x,
+    y: fixture.y[i],
+    included: true,
+    missingReason: null,
+  }));
+  request.uncertainty = {
+    kind: "supplied-common",
+    errorStructure: "uncorrelated",
+    sigmaY: fixture.sigma,
+    provenance: {
+      kind: "user-asserted",
+      description: "Independent peak reference",
+    },
+  };
+  settings.parameters = fixture.start.map((value, i) => ({
+    value,
+    fixed: fixture.fixed.includes(i),
+  }));
+  scenarios.push({
+    input: `peak-shape-${fixture.name}`,
+    session: { request, settings },
+  });
+}
 const rootProbe = spawnSync("root", ["--version"], { encoding: "utf8" });
 const hasRoot = !rootProbe.error;
 if (!hasRoot && (rootProbe.error as NodeJS.ErrnoException).code !== "ENOENT")
@@ -197,6 +227,33 @@ try {
       encoding: "utf8",
     });
     process.stdout.write(output);
+    function checkPeakMoments(text: string) {
+      if (session.settings.model !== "gaussian-shape") return;
+      for (const quantity of fitDerivedQuantities(
+        session.request,
+        session.settings,
+        result,
+      )) {
+        const line = text
+          .split("\n")
+          .find((line) => line.trim().startsWith(quantity.label + " = "));
+        const value = Number(
+          line
+            ?.trim()
+            .slice((quantity.label + " = ").length)
+            .split(" (")[0],
+        );
+        if (
+          !Number.isFinite(value) ||
+          Math.abs(value - quantity.value!) >
+            1e-5 * (1 + Math.abs(quantity.value!))
+        )
+          throw Error(
+            `${input}: exported ${quantity.label} disagrees with Data Tool`,
+          );
+      }
+    }
+    checkPeakMoments(output);
     const difference = output.match(
       /maximum absolute coefficient difference:\s*([\d.eE+-]+)/,
     );
@@ -224,6 +281,7 @@ try {
         { cwd: directory, encoding: "utf8", timeout: 60000 },
       );
       process.stdout.write(rootOutput);
+      checkPeakMoments(rootOutput);
       const delta = Number(
         rootOutput.match(
           /max coefficient difference from Data Tool =\s*([\d.eE+-]+)/,

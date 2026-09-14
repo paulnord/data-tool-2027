@@ -35,6 +35,7 @@ const groups: { label: string; models: [FitSettings["model"], string][] }[] = [
   },
 ];
 export function modelLabel(model: string): string {
+  if (model === "gaussian-shape") return "Gaussian peak · adjustable shape";
   const degree = polynomialDegree(model);
   if (degree !== undefined) return `Polynomial · degree ${degree}`;
   return (
@@ -73,7 +74,13 @@ export function ModelSelector({
         {label}
         <select
           aria-label={ariaLabel}
-          value={degree ? "polynomial" : value}
+          value={
+            degree
+              ? "polynomial"
+              : value === "gaussian-shape"
+                ? "gaussian"
+                : value
+          }
           onChange={(e) =>
             onChange(
               e.target.value === "polynomial" ? "quadratic" : e.target.value,

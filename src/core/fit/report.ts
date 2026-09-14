@@ -13,7 +13,7 @@ import {
 } from "./schema";
 import type { FitResult } from "./solve";
 import { statisticReasonText } from "./diagnosticText";
-import { oscillationDerivedQuantities } from "./derivedParameters";
+import { fitDerivedQuantities } from "./derivedParameters";
 export type Cell = string | number | boolean | null;
 export type ReportRow = readonly [statistic: string, value: Cell];
 export type ReportSections = {
@@ -95,7 +95,7 @@ export function fitReportTable(
   const rowNumbers = new Map(
     request.dataset.rows.map((row, index) => [row.id, index + 1]),
   );
-  const derived = oscillationDerivedQuantities(request, settings, result);
+  const derived = fitDerivedQuantities(request, settings, result);
   const equations = {
     ...(Object.fromEntries(
       Object.entries(

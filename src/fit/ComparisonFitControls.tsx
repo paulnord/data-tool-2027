@@ -14,9 +14,10 @@ import {
 import type { FitResult } from "../core/fit/solve";
 import { statisticReasonText } from "../core/fit/diagnosticText";
 import { fitCorrelationMatrix, fitReportRows } from "../core/fit/report";
-import { oscillationDerivedQuantities } from "../core/fit/derivedParameters";
+import { fitDerivedQuantities } from "../core/fit/derivedParameters";
 import { EditableNumber } from "./EditableNumber";
 import { CustomEquationEditor } from "./CustomEquationEditor";
+import { PeakShapeControls } from "./PeakShapeControls";
 
 export type ComparisonAnalysis = {
   request: FitRequest;
@@ -105,6 +106,20 @@ export function CandidateSettings({
   }
   return (
     <div className="comparison-model-settings">
+      <PeakShapeControls
+        settings={{
+          ...settings,
+          parameters: settings.parameters.map((p, i) => ({
+            ...p,
+            value: result?.coefficients[i] ?? p.value,
+          })),
+        }}
+        labelPrefix={`${labelPrefix} `}
+        onChange={(settings) => {
+          setInvalidNumbers({});
+          onChange({ ...draft, settings });
+        }}
+      />
       <p className="fit-equation" aria-label="Model equation">
         {settings.model === "custom"
           ? `y = ${settings.custom!.expression}`
@@ -295,11 +310,7 @@ export function CandidateDiagnostics({
   result: FitResult;
 }) {
   const names = parameterNames(draft.settings.model, draft.settings.custom);
-  const derived = oscillationDerivedQuantities(
-    draft.request,
-    draft.settings,
-    result,
-  );
+  const derived = fitDerivedQuantities(draft.request, draft.settings, result);
   const correlation = fitCorrelationMatrix(draft.settings, result);
   return (
     <section className="comparison-candidate-diagnostics">

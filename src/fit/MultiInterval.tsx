@@ -4,6 +4,8 @@ import {
   modelNotationNote,
 } from "../core/fit/modelNotation";
 import { ModelSelector, modelLabel } from "./ModelSelector";
+import { PeakShapeControls } from "./PeakShapeControls";
+import { fitDerivedQuantities } from "../core/fit/derivedParameters";
 import { equations } from "./modelEquations";
 import SourceNotes from "./SourceNotes";
 import {
@@ -721,6 +723,11 @@ export default forwardRef<
           value={settings.model}
           onChange={(value) => chooseModel(value as FitSettings["model"])}
         />
+        <PeakShapeControls
+          settings={settings}
+          labelPrefix="Interval "
+          onChange={changeSettings}
+        />
         {modelNotationNote(settings.model) && (
           <p className="fit-help">{modelNotationNote(settings.model)}</p>
         )}
@@ -1149,6 +1156,36 @@ export default forwardRef<
                         {fmt(entry.result.rms)} · {entry.result.inference}{" "}
                         inference.
                       </p>
+                      {entry.settings.model.startsWith("gaussian") && (
+                        <table
+                          aria-label={`${item.name} derived peak quantities`}
+                        >
+                          <thead>
+                            <tr>
+                              <th>Derived quantity</th>
+                              <th>Value</th>
+                              <th>Standard error</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {fitDerivedQuantities(
+                              entry.request,
+                              entry.settings,
+                              entry.result,
+                            ).map((q) => (
+                              <tr key={q.id}>
+                                <th>{q.label}</th>
+                                <td>{fmt(q.value)}</td>
+                                <td>
+                                  {q.standardError.reason === "fixed"
+                                    ? "Fixed"
+                                    : fmt(q.standardError.value)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                       <details
                         className="interval-result-diagnostics"
                         open={includeDetails || undefined}

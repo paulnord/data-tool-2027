@@ -118,7 +118,6 @@
   color: var(--ink);
   border: 1px solid #ccd6cf;
   border-radius: 6px;
-  padding: 8px 12px;
   cursor: pointer;
 }
 .fit-settings-menu summary::-webkit-details-marker,
@@ -894,11 +893,6 @@
   background: transparent;
   justify-content: flex-end;
 }
-.fit-header nav button {
-  font-size: 11px;
-  padding: 6px 8px;
-  min-height: 29px;
-}
 .fit-header .fit-primary {
   padding: 6px 10px;
 }
@@ -1343,12 +1337,9 @@
 }
 .fit-export-menu summary {
   list-style: none;
-  padding: 4px 7px;
   border: 1px solid #ccd6cf;
-  border-radius: 5px;
   background: #fff;
   color: var(--ink);
-  font-size: 11px;
   cursor: pointer;
 }
 .fit-export-menu summary::-webkit-details-marker {
@@ -1669,6 +1660,23 @@
 }
 .fit-header nav {
   margin-left: auto;
+  align-items: center;
+}
+/* Buttons and disclosure triggers use the same toolbar dimensions. */
+.fit-header .fit-history-controls > button,
+.fit-header nav > button,
+.fit-header
+  :is(.fit-display-menu, .fit-settings-menu, .fit-export-menu)
+  > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
 }
 .fit-header-start .fit-settings-popover {
   left: 0;
@@ -1679,12 +1687,7 @@
   gap: 5px;
 }
 .fit-history-controls button {
-  display: inline-flex;
-  align-items: center;
   gap: 5px;
-  min-height: 34px;
-  padding: 5px 9px;
-  font-size: 12px;
 }
 .fit-history-controls button:disabled {
   opacity: 0.6;

@@ -345,6 +345,16 @@ test("synthetic time intervals fit independently and keep distinct monochrome gu
   );
   const main = plots.first();
   await expect(main.locator('[data-fit-part="fitted"]')).toHaveCount(2);
+  await expect(main.locator(".model-guide")).toHaveCount(0);
+  await enableMeanGuides(page);
+  await expect(main.locator(".model-guide")).toHaveCount(6);
+  await expect(main.locator(".model-guide-upper-envelope")).toHaveCount(2);
+  await expect(main.locator(".model-guide-lower-envelope")).toHaveCount(2);
+  const frame = await main.locator(".fit-plot-frame").boundingBox();
+  for (const label of await main.locator("[data-mean-position-label]").all()) {
+    const box = await label.boundingBox();
+    expect(box!.y + box!.height).toBeLessThan(frame!.y);
+  }
   const baselines = await main
     .locator("line[data-mean-position]")
     .evaluateAll((lines) =>
@@ -385,6 +395,29 @@ test("synthetic time intervals fit independently and keep distinct monochrome gu
   );
   expect(await tables.allTextContents()).toEqual(resultsBeforeAppearance);
   await expect(main.locator("line[data-mean-position]")).toHaveCount(2);
+  await page.locator(".fit-settings-menu summary").click();
+  await page
+    .getByRole("checkbox", {
+      name: "Show fit guides when available",
+      exact: true,
+    })
+    .uncheck();
+  await page.keyboard.press("Escape");
+  await expect(
+    main.locator(".model-guide,[data-mean-position-label]"),
+  ).toHaveCount(0);
+  expect(await tables.allTextContents()).toEqual(resultsBeforeAppearance);
+  await enableMeanGuides(page);
+
+  await page.locator(".fit-export-menu summary").click();
+  const exported = page.waitForEvent("download");
+  await page
+    .getByRole("menuitem", { name: "SVG vector graphic", exact: true })
+    .click();
+  const svg = await readFile((await (await exported).path())!, "utf8");
+  expect(svg).toContain("Positive fitted amplitude envelope");
+  expect(svg).toContain("Negative fitted amplitude envelope");
+  expect(svg).toContain("Fit guide labels");
   await workspace
     .locator(".interval-overview .interval-graphs")
     .screenshot({ path: testInfo.outputPath("synthetic-interval-guides.png") });

@@ -98,23 +98,23 @@ Known unavailable-statistic codes are explained in ordinary language in the inte
 
 The current single-fit catalog has 16 built-ins plus custom equations. Preserve model identifiers and physical parameter meaning; presentation labels may improve. Parameter order, defaults, domain validation, and unit derivation are defined in [schema.ts](../src/core/fit/schema.ts), [solve.ts](../src/core/fit/solve.ts), and [nonlinearModels.ts](../src/core/fit/nonlinearModels.ts).
 
-| Family / identifier             | Equation or role                                      | Important distinction                                                               |
-| ------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `line`                          | `b + m*x`                                             | Intercept and slope.                                                                |
-| `quadratic`, `cubic`, `quartic` | Polynomial through degree 2, 3, or 4                  | Coefficients remain in the declared physical basis.                                 |
-| `constant-acceleration`         | `y0 + v0*t + a*t^2/2`                                 | Explicit confirmation of physical time.                                             |
-| `logarithmic`                   | `b + a*ln(x/xref)`                                    | Positive X; `xref` is one declared X-unit.                                          |
-| `reciprocal`                    | `b + a*xref/x`                                        | The current implementation requires positive X; same explicit reference convention. |
-| `exponential`                   | `b + a*exp(k*x)`                                      | Supplied rate `k`; amplitudes are linear fit parameters.                            |
-| `power-law`                     | `b + a*(x/xref)^p`                                    | Supplied exponent `p`, positive X.                                                  |
-| `sine`                          | `b + s*sin(2*pi*x/T) + c*cos(2*pi*x/T)`               | Supplied positive period; linear amplitudes/background.                             |
-| `sine-free-period`              | Same sine equation with fitted period                 | Bounded frequency search, competing-basin and boundary diagnostics.                 |
-| `exponential-decay`             | `b + A*exp(-x/tau)`                                   | Fit positive decay time, not a general growth rate.                                 |
-| `power-law-free`                | `b + A*(x/xref)^n`                                    | Fit the exponent; positive X.                                                       |
-| `gaussian`                      | `b + A*exp(-0.5*((x-mu)/sigma)^2)`                    | Positive peak width; width is not measurement sigma.                                |
-| `damped-sine`                   | `b + exp(-x/tau)*(s*sin(2*pi*x/T) + c*cos(2*pi*x/T))` | Positive period/decay time; local nonlinear fit.                                    |
-| `lorentzian`                    | `b + A/(1+((x-mu)/gamma)^2)`                          | Positive half-width; full width is `2*gamma`.                                       |
-| `custom`                        | User-supplied restricted expression                   | Explicit parameter names, units, starting values and fixed flags.                   |
+| Family / identifier             | Equation or role                                      | Important distinction                                               |
+| ------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| `line`                          | `b + m*x`                                             | Intercept and slope.                                                |
+| `quadratic`, `cubic`, `quartic` | Polynomial through degree 2, 3, or 4                  | Coefficients remain in the declared physical basis.                 |
+| `constant-acceleration`         | `y0 + v0*t + a*t^2/2`                                 | Explicit confirmation of physical time.                             |
+| `logarithmic`                   | `b + a*ln(x)`                                         | Positive numerical X in the selected unit.                          |
+| `reciprocal`                    | `b + a/x`                                             | Positive X; a has units of Y times X.                               |
+| `exponential`                   | `b + a*exp(k*x)`                                      | Supplied rate `k`; amplitudes are linear fit parameters.            |
+| `power-law`                     | `b + a*x^p`                                           | Supplied exponent `p`, positive X.                                  |
+| `sine`                          | `b + s*sin(2*pi*x/T) + c*cos(2*pi*x/T)`               | Supplied positive period; linear amplitudes/background.             |
+| `sine-free-period`              | Same sine equation with fitted period                 | Bounded frequency search, competing-basin and boundary diagnostics. |
+| `exponential-decay`             | `b + A*exp(-x/tau)`                                   | Fit positive decay time, not a general growth rate.                 |
+| `power-law-free`                | `b + A*x^n`                                           | Fit the exponent; positive X.                                       |
+| `gaussian`                      | `b + A*exp(-0.5*((x-mu)/sigma)^2)`                    | Positive peak width; width is not measurement sigma.                |
+| `damped-sine`                   | `b + exp(-x/tau)*(s*sin(2*pi*x/T) + c*cos(2*pi*x/T))` | Positive period/decay time; local nonlinear fit.                    |
+| `lorentzian`                    | `b + A/(1+((x-mu)/gamma)^2)`                          | Positive half-width; full width is `2*gamma`.                       |
+| `custom`                        | User-supplied restricted expression                   | Explicit parameter names, units, starting values and fixed flags.   |
 
 ### 4.1 Solvers and diagnostics
 
@@ -371,3 +371,5 @@ Possible future methods—general parameter bounds, robust regression, X-error f
 The next implementation is successful when a user can confidently move from exact local observations to a scientifically qualified result and a usable paper figure with fewer surprises—and an independent maintainer can verify why the result, file, and figure are correct.
 
 The [September 2026 usability audit](usability-audit-2026-09-12.md) records reproducible findings, local corrections, verification, and remaining design decisions, including the distinction between saved fit provenance and later source-note edits in draft workspaces.
+
+The shared equation chooser groups related functions and supports polynomial degrees 2–10. See [equation families](equation-families.md) for the additional growth/sigmoid models, numerical limits, and session v4.

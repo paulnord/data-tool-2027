@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { oscillationDerivedQuantities } from "../../src/core/fit/derivedParameters";
 import { modelGuideValues } from "../../src/core/fit/modelGuides";
 import { initialSettings } from "../../src/core/fit/schema";
-import { fit, type FitResult } from "../../src/core/fit/solve";
+import { fit, predict, type FitResult } from "../../src/core/fit/solve";
 import { syntheticRequest } from "../support/synthetic";
 
 function result(coefficients: number[], covariance: number[][]): FitResult {
@@ -177,5 +177,48 @@ it("returns unavailable derived values for nonfinite inputs without calling them
       value: null,
       reason: "nonfinite-derived-quantity",
     });
+  }
+});
+
+it("peak center guides follow the symmetric fitted extremum for positive and negative peaks", () => {
+  for (const model of ["gaussian", "lorentzian"] as const) {
+    for (const A of [4, -4]) {
+      const p = [1, A, -2, 0.7];
+      const before = [...p];
+      const center = modelGuideValues(13, initialSettings(model), p)[0];
+      expect(center.axis).toBe("x");
+      expect(predict(center.value, model, p)).toBe(1 + A);
+      expect(predict(center.value - 0.5, model, p)).toBeCloseTo(
+        predict(center.value + 0.5, model, p),
+        14,
+      );
+      expect(p).toEqual(before);
+    }
+  }
+});
+it("sine mean guides bisect opposite phases for both period parameterizations", () => {
+  for (const model of ["sine", "sine-free-period"] as const) {
+    const settings = initialSettings(model),
+      p = model === "sine" ? [3, 4, -2] : [3, 4, -2, 2.3];
+    settings.sinePeriod = 2.3;
+    const mean = modelGuideValues(0.12, settings, p)[0];
+    expect(mean.axis).not.toBe("x");
+    expect(
+      (predict(0.12, model, p, 2.3) + predict(0.12 + 2.3 / 2, model, p, 2.3)) /
+        2,
+    ).toBeCloseTo(mean.value, 14);
+  }
+});
+it("sigmoid center is halfway between its asymptotes for rising and falling curves", () => {
+  for (const A of [4, -4]) {
+    const p = [5, A, 2, 0.5];
+    const guides = modelGuideValues(0, initialSettings("sigmoid"), p);
+    const center = guides.find((g) => g.axis === "x")!;
+    const levels = guides.filter((g) => !g.axis).map((g) => g.value);
+    expect(predict(center.value, "sigmoid", p)).toBe(
+      (levels[0] + levels[1]) / 2,
+    );
+    expect(predict(center.value - 100, "sigmoid", p)).toBe(levels[0]);
+    expect(predict(center.value + 100, "sigmoid", p)).toBe(levels[1]);
   }
 });

@@ -48,7 +48,7 @@ test("fit window: known-scatter data, constraints, exclusions, save/reopen and i
     .click();
   await expect(page.getByLabel("Include row 3", { exact: true })).toBeChecked();
   await page
-    .getByLabel("Noise model", { exact: true })
+    .getByLabel("Y uncertainty model", { exact: true })
     .selectOption("unknown-equal");
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await page.getByRole("button", { name: "Fit diagnostics" }).click();
@@ -542,8 +542,12 @@ test("new example sessions open with their models, fit and preserve sine period"
     });
     if (await discard.isVisible()) await discard.click();
     await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-      model,
+      ["cubic", "quartic"].includes(model) ? "polynomial" : model,
     );
+    if (["cubic", "quartic"].includes(model))
+      await expect(
+        page.getByLabel("Analysis polynomial degree", { exact: true }),
+      ).toHaveValue(model);
     await page
       .getByRole("button", { name: "Fit selected observations" })
       .click();
@@ -750,7 +754,7 @@ test("supplied error bars follow uncertainty values, selection, visibility and u
   await data.locator("circle").nth(20).click();
   await expect(bars.nth(20)).toHaveClass(/excluded/);
   await page
-    .getByLabel("Noise model", { exact: true })
+    .getByLabel("Y uncertainty model", { exact: true })
     .selectOption("unknown-equal");
   await expect(bars).toHaveCount(0);
   await expect(
@@ -796,7 +800,7 @@ test("per-row uncertainties remain available after noise/model changes and sessi
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  const noise = page.getByLabel("Noise model", { exact: true });
+  const noise = page.getByLabel("Y uncertainty model", { exact: true });
   const bars = page
     .getByRole("img", { name: "Data and fitted curve" })
     .locator(".fit-error-bar");
@@ -809,7 +813,7 @@ test("per-row uncertainties remain available after noise/model changes and sessi
     1,
   );
   await expect(bars).toHaveCount(0);
-  await page.getByLabel("Analysis", { exact: true }).selectOption("quadratic");
+  await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
   await page.getByLabel("Analysis", { exact: true }).selectOption("line");
   await noise.selectOption("supplied-common");
   const pending = page.waitForEvent("download");
@@ -1334,7 +1338,7 @@ test("deleting an unused column preserves assignments, values and undo", async (
   const panel = page.getByRole("dialog", { name: "Data", exact: true });
   await panel.getByLabel("sigma column", { exact: true }).selectOption("3");
   await panel.getByRole("button", { name: "Use these data" }).click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("quadratic");
+  await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
   await page.getByRole("button", { name: "Data…", exact: true }).click();
   await panel
     .getByLabel("Select column 2", { exact: true })
@@ -1363,7 +1367,7 @@ test("deleting an unused column preserves assignments, values and undo", async (
   await panel.getByLabel("Redo table change").click();
   await panel.getByRole("button", { name: "Use these data" }).click();
   await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-    "quadratic",
+    "polynomial",
   );
   await page.getByRole("button", { name: "Data…", exact: true }).click();
   await expect(panel.getByLabel("Row 2 column 3", { exact: true })).toHaveValue(
@@ -1464,7 +1468,7 @@ test("sessions open for review and Cancel preserves the current analysis", async
     .setInputFiles("examples/fit/cubic-demo.trksess");
   await panel.getByRole("button", { name: "Use these data" }).click();
   await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-    "cubic",
+    "polynomial",
   );
 });
 
@@ -2074,12 +2078,12 @@ test("Millikan source columns survive noise changes, exclusions and fitting", as
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
   await page
-    .getByLabel("Noise model", { exact: true })
+    .getByLabel("Y uncertainty model", { exact: true })
     .selectOption("supplied-common");
   await page.getByLabel("Y uncertainty", { exact: true }).fill("0.01");
   await page.getByLabel("Y uncertainty", { exact: true }).press("Enter");
   await page
-    .getByLabel("Noise model", { exact: true })
+    .getByLabel("Y uncertainty model", { exact: true })
     .selectOption("unknown-equal");
   await page
     .getByRole("button", { name: "Observations & exclusions", exact: true })

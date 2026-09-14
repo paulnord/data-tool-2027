@@ -1,27 +1,51 @@
 import type { FitRequest, FitSettings } from "./schema";
-export const nonlinearModelIds = [
+export const nonlinearV2ModelIds = [
   "exponential-decay",
   "power-law-free",
   "gaussian",
   "damped-sine",
   "lorentzian",
 ] as const;
+export const additionalNonlinearModelIds = [
+  "exponential-growth",
+  "sigmoid",
+] as const;
+export const nonlinearModelIds = [
+  ...nonlinearV2ModelIds,
+  ...additionalNonlinearModelIds,
+] as const;
 export type NonlinearModel = (typeof nonlinearModelIds)[number];
 export const nonlinearModels = {
   "exponential-decay": {
-    label: "Exponential · fit decay time",
+    label: "Exponential decay",
     names: ["b", "A", "tau"],
     positive: [2],
     linear: 2,
     equation: "y = b + A exp(−x/τ)",
     defaults: [0, 1, 1],
   },
+  "exponential-growth": {
+    label: "Exponential growth",
+    names: ["b", "A", "tau"],
+    positive: [2],
+    linear: 2,
+    equation: "y = b + A exp(x/τ)",
+    defaults: [0, 1, 1],
+  },
+  sigmoid: {
+    label: "Sigmoid · logistic",
+    names: ["b", "A", "x0", "w"],
+    positive: [3],
+    linear: 2,
+    equation: "y = b + A / [1 + exp(−(x−x₀)/w)]",
+    defaults: [0, 1, 0, 1],
+  },
   "power-law-free": {
     label: "Power law · fit exponent",
     names: ["b", "A", "n"],
     positive: [],
     linear: 2,
-    equation: "y = b + A (x/xref)ⁿ; xref = 1 x-unit",
+    equation: "y = b + A xⁿ",
     defaults: [0, 1, 2],
   },
   gaussian: {
@@ -75,6 +99,26 @@ export function nonlinearValueGradient(
       const q = Math.exp(-x / c);
       value = b + A * q;
       gradient = [1, q, (A * q * x) / (c * c)];
+      break;
+    }
+    case "exponential-growth": {
+      const q = Math.exp(x / c);
+      value = b + A * q;
+      gradient = [1, q, -(A * q * x) / (c * c)];
+      break;
+    }
+    case "sigmoid": {
+      const z = (x - c) / d;
+      const q =
+        z >= 0 ? 1 / (1 + Math.exp(-z)) : Math.exp(z) / (1 + Math.exp(z));
+      const slope = q * (1 - q);
+      value = b + A * q;
+      gradient = [
+        1,
+        q,
+        (-A * slope) / d,
+        Number.isFinite(z) ? (-A * slope * z) / d : 0,
+      ];
       break;
     }
     case "power-law-free": {
@@ -162,6 +206,23 @@ export function suggestedParameters(
       (rows[0].y! - rows.at(-1)!.y!) * Math.exp(lo / tau) || 1,
       tau,
     ];
+  }
+  if (model === "exponential-growth") {
+    const tau = span / 2;
+    const A =
+      (rows.at(-1)!.y! - rows[0].y!) /
+        (Math.exp(hi / tau) - Math.exp(lo / tau)) || 1;
+    return [rows[0].y! - A * Math.exp(lo / tau), A, tau];
+  }
+  if (model === "sigmoid") {
+    const b = rows[0].y!,
+      A = rows.at(-1)!.y! - b || 1;
+    const midpoint = rows.reduce((best, row) =>
+      Math.abs(row.y! - (b + A / 2)) < Math.abs(best.y! - (b + A / 2))
+        ? row
+        : best,
+    );
+    return [b, A, midpoint.x!, span / 8];
   }
   if (model === "power-law-free")
     return [0, rows.at(-1)!.y! / (hi > 0 ? hi : 1) || 1, 1];

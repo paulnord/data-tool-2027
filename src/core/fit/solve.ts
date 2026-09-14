@@ -10,6 +10,7 @@ import {
 } from "./nonlinearModels";
 import { nonlinearSolve } from "./nonlinearSolve";
 import { searchPeriod } from "./periodSearch";
+import { polynomialDegree } from "./polynomialModels";
 import {
   requestSchema,
   sessionSchema,
@@ -63,6 +64,9 @@ export function basis(
 ): number[] {
   if (model === "custom" || isNonlinearModel(model))
     throw Error("Nonlinear models require parameter-dependent evaluation");
+  const degree = polynomialDegree(model);
+  if (degree !== undefined)
+    return Array.from({ length: degree + 1 }, (_, i) => x ** i);
   switch (model) {
     case "line":
       return [1, x];
@@ -91,6 +95,7 @@ export function basis(
     case "constant-acceleration":
       return [1, x, 0.5 * x * x];
   }
+  throw Error(`Unsupported model: ${model}`);
 }
 export function predict(
   x: number,

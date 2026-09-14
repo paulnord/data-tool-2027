@@ -33,10 +33,15 @@ test("compares refitted candidates and safely stages two session files", async (
     buffer: Buffer.from("not json"),
   });
   await expect(page.getByRole("alert")).toContainText("was not changed");
-  await expect(page.getByLabel("Candidate 2 model")).toHaveValue("sine");
+  await expect(
+    page.getByLabel("Candidate 2 model", { exact: true }),
+  ).toHaveValue("sine");
 
   await loaders.nth(1).setInputFiles("examples/data/ball-toss.trksess");
-  await page.getByLabel("Candidate 2 model").selectOption("line");
+  await page.getByRole("tab", { name: "Candidate 2", exact: true }).click();
+  await page
+    .getByLabel("Candidate 2 model", { exact: true })
+    .selectOption("line");
   await page.getByRole("button", { name: "Refit and compare" }).click();
   await expect(page.getByRole("status")).toHaveText("Comparison complete");
   const table = page.getByRole("table", {
@@ -81,9 +86,9 @@ test("compares refitted candidates and safely stages two session files", async (
     ),
   ).toBeLessThanOrEqual(1);
 
-  await page.getByLabel("Analysis", { exact: true }).selectOption("quadratic");
+  await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
   await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-    "quadratic",
+    "polynomial",
   );
   await expect(page.getByLabel("m value", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("c2 value", { exact: true })).toBeVisible();

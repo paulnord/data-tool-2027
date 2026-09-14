@@ -1,8 +1,9 @@
+import { polynomialExpressions } from "./polynomialModels";
+import { modelNotationNote, modelParameterUnit } from "./modelNotation";
 import {
   nonlinearModels,
   nonlinearModelIds,
   isNonlinearModel,
-  nonlinearParameterUnit,
 } from "./nonlinearModels";
 import {
   parameterNames,
@@ -97,6 +98,11 @@ export function fitReportTable(
   const derived = oscillationDerivedQuantities(request, settings, result);
   const equations = {
     ...(Object.fromEntries(
+      Object.entries(
+        polynomialExpressions((i) => (i === 0 ? "c0" : `c${i}*x^${i}`)),
+      ).map(([model, expression]) => [model, `y = ${expression}`]),
+    ) as ReturnType<typeof polynomialExpressions>),
+    ...(Object.fromEntries(
       nonlinearModelIds.map((m) => [m, nonlinearModels[m].equation]),
     ) as Record<(typeof nonlinearModelIds)[number], string>),
     line: "y = b + m*x",
@@ -106,9 +112,9 @@ export function fitReportTable(
     sine: "y = b + s sin(2πx/T) + c cos(2πx/T)",
     "sine-free-period": "y = b + s sin(2πx/T) + c cos(2πx/T)",
     exponential: "y = b + a exp(kx)",
-    "power-law": "y = b + a (x/xref)^p",
-    reciprocal: "y = b + a xref/x",
-    logarithmic: "y = b + a ln(x / xref)",
+    "power-law": "y = b + a x^p",
+    reciprocal: "y = b + a/x",
+    logarithmic: "y = b + a ln(x)",
     "constant-acceleration": "y = y0 + v0*t + 0.5*a*t^2",
   };
   const rows: Cell[][] = [
@@ -150,8 +156,8 @@ export function fitReportTable(
     ...(settings.model === "sine"
       ? [["Supplied period T", settings.sinePeriod ?? 2 * Math.PI]]
       : []),
-    ...(settings.model === "logarithmic"
-      ? [["Log reference xref", "1 declared x-unit"]]
+    ...(modelNotationNote(settings.model)
+      ? [["Unit convention", modelNotationNote(settings.model)]]
       : []),
     ...(settings.model === "sine-free-period"
       ? [
@@ -184,7 +190,20 @@ export function fitReportTable(
             names
               .map(
                 (name, i) =>
-                  `${name}: ${nonlinearParameterUnit(settings.model as (typeof nonlinearModelIds)[number], i, request.dataset.xColumn.unit, request.dataset.yColumn.unit)}`,
+                  `${name}: ${modelParameterUnit(settings, i, request.dataset.xColumn.unit, request.dataset.yColumn.unit)}`,
+              )
+              .join("; "),
+          ],
+        ]
+      : []),
+    ...(settings.model !== "custom" && !isNonlinearModel(settings.model)
+      ? [
+          [
+            "Parameter units",
+            names
+              .map(
+                (name, i) =>
+                  `${name}: ${modelParameterUnit(settings, i, request.dataset.xColumn.unit, request.dataset.yColumn.unit)}`,
               )
               .join("; "),
           ],

@@ -136,8 +136,9 @@ test("draw a range, select sine for contact, and use custom equations with case-
   ).not.toHaveValue("");
   await page
     .getByLabel("Interval equation", { exact: true })
-    .selectOption("sine");
-  await page.getByLabel("Interval supplied period").fill("0.04");
+    .selectOption("sine-free-period");
+  await page.getByLabel("T interval value", { exact: true }).fill("0.04");
+  await page.getByLabel("Fix interval T", { exact: true }).check();
   await page
     .getByRole("button", { name: "Fit Interval 1", exact: true })
     .click();
@@ -207,7 +208,7 @@ test("one-dimensional carts and four-component data use independent curves", asy
   await expect(workspace.getByRole("status")).toHaveText(
     "Interval 1: 4 of 4 data series fitted",
   );
-  await page.getByLabel("Interval noise model").selectOption("supplied");
+  await page.getByLabel("Interval uncertainty model").selectOption("supplied");
   await expect(
     page.getByRole("button", { name: "Fit Interval 1", exact: true }),
   ).toBeDisabled();

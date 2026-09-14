@@ -26,7 +26,7 @@ async function load(page: Page, scale = 1) {
     .selectOption("model-comparison");
 }
 
-test("comparison drafts and results survive navigation and each staged source can be refreshed explicitly", async ({
+test("comparison models survive navigation and new data refreshes every candidate", async ({
   page,
 }) => {
   await load(page);
@@ -34,15 +34,20 @@ test("comparison drafts and results survive navigation and each staged source ca
   const first = workspace.locator("fieldset").nth(0);
   const second = workspace.locator("fieldset").nth(1);
   await first.getByLabel("Label", { exact: true }).fill("My first fit");
+  await workspace
+    .getByRole("tab", { name: "Candidate 2", exact: true })
+    .click();
   await second.getByLabel("Label", { exact: true }).fill("My second fit");
-  await second.getByLabel("Candidate 2 model").selectOption("quartic");
+  await second
+    .getByLabel("Candidate 2 model", { exact: true })
+    .selectOption("polynomial");
+  await second
+    .getByLabel("Candidate 2 model polynomial degree")
+    .selectOption("quartic");
   await page
     .getByRole("button", { name: "Refit and compare", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText("Comparison complete");
-  const before = await workspace
-    .getByRole("table", { name: "Model comparison statistics" })
-    .textContent();
   await page.getByLabel("Analysis", { exact: true }).selectOption("line");
   await expect(workspace).not.toBeVisible();
   // A new main dataset must not silently edit or discard staged comparisons.
@@ -64,26 +69,31 @@ test("comparison drafts and results survive navigation and each staged source ca
   await expect(first.getByLabel("Label", { exact: true })).toHaveValue(
     "My first fit",
   );
-  await expect(second.getByLabel("Candidate 2 model")).toHaveValue("quartic");
-  expect(
-    await workspace
-      .getByRole("table", { name: "Model comparison statistics" })
-      .textContent(),
-  ).toBe(before);
-  await expect(first.locator(".comparison-source")).toContainText("Ball toss");
-  await first
-    .getByRole("button", { name: "Use current analysis", exact: true })
-    .click();
-  await expect(workspace.locator(".comparison-warning")).toBeVisible();
-  await second
-    .getByRole("button", { name: "Use current analysis", exact: true })
-    .click();
-  await expect(workspace.locator(".comparison-warning")).toHaveCount(0);
+  await expect(
+    second.getByLabel("Candidate 2 model polynomial degree"),
+  ).toHaveValue("quartic");
   await expect(
     workspace.getByRole("table", { name: "Model comparison statistics" }),
   ).toHaveCount(0);
-  await expect(first.getByLabel("Candidate 1 model")).toHaveValue("sine");
-  await expect(second.getByLabel("Candidate 2 model")).toHaveValue("sine");
+  await expect(first.locator(".comparison-source")).toContainText("sine");
+  await workspace
+    .getByRole("tab", { name: "Candidate 1", exact: true })
+    .click();
+  await first
+    .getByRole("button", { name: "Use current analysis", exact: true })
+    .click();
+  await workspace
+    .getByRole("tab", { name: "Candidate 2", exact: true })
+    .click();
+  await second
+    .getByRole("button", { name: "Use current analysis", exact: true })
+    .click();
+  await expect(
+    first.getByLabel("Candidate 1 model", { exact: true }),
+  ).toHaveValue("sine");
+  await expect(
+    second.getByLabel("Candidate 2 model", { exact: true }),
+  ).toHaveValue("sine");
   await page
     .getByRole("button", { name: "Refit and compare", exact: true })
     .click();

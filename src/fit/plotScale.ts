@@ -127,7 +127,7 @@ export function tickLabel(v: number, step?: number): string {
           ),
         )
       : 3;
-  return Math.abs(v) < 0.01 || Math.abs(v) >= 1e5
+  return Math.abs(v) < 1e-4 || Math.abs(v) >= 1e5
     ? v.toExponential(Math.max(2, precision - 1))
     : Number(v.toPrecision(Math.max(4, precision))).toString();
 }

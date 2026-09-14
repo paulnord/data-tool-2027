@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type InputHTMLAttributes } from "react";
+import { formatEditableNumber } from "./formatNumber";
 
 type EditableNumberProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -79,7 +80,7 @@ export function EditableNumber({
       autoCorrect="off"
       autoComplete="off"
       spellCheck={false}
-      value={currentDraft?.text ?? String(value)}
+      value={currentDraft?.text ?? formatEditableNumber(value)}
       aria-invalid={invalid || inputProps["aria-invalid"]}
       onChange={(event) => {
         const text = event.target.value,

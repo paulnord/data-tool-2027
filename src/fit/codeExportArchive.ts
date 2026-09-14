@@ -8,7 +8,11 @@ export function encodeCodeExportBundle(bundle: CodeExportBundle) {
   return zipSync(
     Object.fromEntries(
       Object.entries(bundle.files).map(([name, contents]) => {
-        if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name))
+        if (
+          !name
+            .split("/")
+            .every((segment) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(segment))
+        )
           throw new Error("Analysis bundle contains an invalid filename.");
         return [`${bundle.directoryName}/${name}`, strToU8(contents)];
       }),

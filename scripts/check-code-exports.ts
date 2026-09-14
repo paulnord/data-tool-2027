@@ -1,3 +1,4 @@
+import extendedReference from "../tests/fit/extended-model-reference.json";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -85,9 +86,11 @@ for (const name of [
       request.dataset.rows = request.dataset.rows.slice(0, 1);
   }
   if (name === "quoted-label") {
+    request.source.context =
+      'Comments: "quoted", mH\r\n# extra line\n\nlast line';
     request.dataset.xColumn.label = 'Time "sample"';
     request.dataset.xColumn.unit = "s\\sample";
-    request.dataset.rows[0].id = 'row,"quoted"\nnext';
+    request.dataset.rows[0].id = 'row,"quoted"\n# next';
   }
   scenarios.push({
     input: name,
@@ -123,6 +126,19 @@ for (const [name, model, parameters, signal] of [
   });
   settings.parameters = parameters.map((value) => ({ value, fixed: false }));
   scenarios.push({ input: name, session: { request, settings } });
+}
+for (const fixture of extendedReference.fixtures) {
+  const request = syntheticRequest(),
+    settings = initialSettings(fixture.model as FitSettings["model"]);
+  request.dataset.rows = fixture.x.map((x, i) => ({
+    id: String(i),
+    x,
+    y: fixture.y[i],
+    included: true,
+    missingReason: null,
+  }));
+  settings.parameters = fixture.start.map((value) => ({ value, fixed: false }));
+  scenarios.push({ input: fixture.model, session: { request, settings } });
 }
 const rootProbe = spawnSync("root", ["--version"], { encoding: "utf8" });
 const hasRoot = !rootProbe.error;
@@ -239,6 +255,17 @@ try {
     }
 
     if (input === inputs[0]) {
+      const imported = execFileSync(
+        "python3",
+        ["-c", "import fit_scipy; print('imported without running')"],
+        {
+          cwd: directory,
+          env: { ...process.env, MPLBACKEND: "Agg" },
+          encoding: "utf8",
+        },
+      );
+      if (imported.trim() !== "imported without running")
+        throw Error("Importing SciPy source ran an analysis");
       const alternate = join(directory, "alternate.csv");
       const alternateImage = join(directory, "alternate.png");
       writeFileSync(alternate, bundle.files["data.csv"]);
@@ -317,7 +344,7 @@ try {
   const rootName = "fit_root.C";
   const rootSource = readFileSync(join(directory, rootName), "utf8");
   const helperStart = rootSource.indexOf("bool data_tool_csv_record");
-  const helperEnd = rootSource.indexOf("void fit_root");
+  const helperEnd = rootSource.indexOf("Data load_data");
   if (helperStart < 0 || helperEnd <= helperStart)
     throw Error("ROOT CSV reader was not generated");
   const parserSource = `#include <algorithm>

@@ -43,6 +43,10 @@ test("damped guides stay optional and derived quantities carry through print and
     .check();
   await page.keyboard.press("Escape");
   await expect(plot.locator(".model-guide")).toHaveCount(3);
+  const frame = await plot.locator(".fit-plot-frame").boundingBox();
+  const label = await plot.locator("[data-mean-position-label]").boundingBox();
+  expect(label!.y + label!.height).toBeLessThan(frame!.y);
+
   await expect(
     plot.locator('[aria-label="Fitted baseline y = b"]'),
   ).toHaveCount(1);
@@ -66,70 +70,76 @@ test("damped guides stay optional and derived quantities carry through print and
   await expect(preview.locator(".model-guide")).toHaveCount(3);
 });
 
-test("exports a CSV-backed SciPy and ROOT analysis bundle", async ({
-  page,
-}) => {
-  await openDamped(page);
-  await page.locator(".fit-settings-menu summary").click();
-  await page
-    .getByRole("checkbox", {
-      name: "Show fit guides when available",
-      exact: true,
-    })
-    .check();
-  await page.keyboard.press("Escape");
+for (const target of ["scipy", "root"] as const) {
+  test(`exports a CSV-backed ${target} analysis bundle`, async ({ page }) => {
+    await openDamped(page);
+    await page.locator(".fit-settings-menu summary").click();
+    await page
+      .getByRole("checkbox", {
+        name: "Show fit guides when available",
+        exact: true,
+      })
+      .check();
+    await page.keyboard.press("Escape");
 
-  await page.locator(".fit-export-menu summary").click();
-  const pending = page.waitForEvent("download");
-  await page
-    .getByRole("menuitem", {
-      name: "SciPy / ROOT analysis bundle (.zip)",
-      exact: true,
-    })
-    .click();
-  const download = await pending;
-  expect(download.suggestedFilename()).toMatch(/-analysis-bundle\.zip$/);
-  const bytes = await readFile((await download.path())!);
-  const archive = unzipSync(new Uint8Array(bytes));
-  const files = Object.fromEntries(
-    Object.entries(archive).map(([path, contents]) => [
-      path.replace(/^[^/]+\//, ""),
-      strFromU8(contents),
-    ]),
-  );
-  expect(Object.keys(files).sort()).toEqual([
-    "README.md",
-    "analysis.json",
-    "data.csv",
-    "fit_root.C",
-    "fit_scipy.py",
-  ]);
+    await page.locator(".fit-export-menu summary").click();
+    const pending = page.waitForEvent("download");
+    await page
+      .getByRole("menuitem", {
+        name:
+          target === "scipy"
+            ? "Python / SciPy analysis bundle (.zip)"
+            : "C++ / ROOT analysis bundle (.zip)",
+        exact: true,
+      })
+      .click();
+    const download = await pending;
+    expect(download.suggestedFilename()).toMatch(/-analysis-bundle\.zip$/);
+    const bytes = await readFile((await download.path())!);
+    const archive = unzipSync(new Uint8Array(bytes));
+    const files = Object.fromEntries(
+      Object.entries(archive).map(([path, contents]) => [
+        path.replace(/^[^/]+\//, ""),
+        strFromU8(contents),
+      ]),
+    );
+    expect(Object.keys(files).sort()).toEqual([
+      "README.md",
+      "analysis.json",
+      "data.csv",
+      ...(target === "scipy"
+        ? ["fit_scipy.py", "requirements.txt"]
+        : ["fit_root.C"]),
+    ]);
 
-  expect(files["data.csv"]).toMatch(
-    /^row_id,x,y,sigma,included,missing_reason\r?\n/,
-  );
-  const metadata = JSON.parse(files["analysis.json"]);
-  expect(metadata).toMatchObject({
-    format: "data-tool-analysis-bundle",
-    version: 1,
-    fit: { model: "damped-sine" },
-    view: { showGuides: true },
+    expect(files["data.csv"]).toMatch(
+      /^(?:# .*\r?\n)*row_id,x,y,sigma,included,missing_reason\r?\n/,
+    );
+    const metadata = JSON.parse(files["analysis.json"]);
+    expect(metadata).toMatchObject({
+      format: "data-tool-analysis-bundle",
+      version: 1,
+      fit: { model: "damped-sine" },
+      view: { showGuides: true },
+    });
+
+    if (target === "scipy") {
+      const python = files["fit_scipy.py"];
+      expect(python).toContain("from scipy.optimize import curve_fit");
+      expect(python).toContain("reader = csv.DictReader(handle)");
+      expect(python).not.toContain("x_all = np.array([");
+      expect(python).toContain("envelope = amplitude*np.exp");
+      expect(python).toContain("fig.savefig");
+    } else {
+      const root = files["fit_root.C"];
+      expect(root).toContain("std::ifstream input(csv_path)");
+      expect(root).not.toContain("const std::vector<double> x_all = {");
+      expect(root).toContain("ROOT::Fit::Fitter fitter");
+      expect(root).toContain("TFitResult fit_result = run_fit()");
+      expect(root).toContain("upper_envelope");
+      expect(root).toContain("TGraphErrors residuals");
+      expect(root).toContain("TFile output(");
+    }
+    expect(files["README.md"]).toContain("another-run.csv");
   });
-
-  const python = files["fit_scipy.py"];
-  expect(python).toContain("from scipy.optimize import curve_fit");
-  expect(python).toContain("reader = csv.DictReader(handle)");
-  expect(python).not.toContain("x_all = np.array([");
-  expect(python).toContain("envelope = amplitude*np.exp");
-  expect(python).toContain("fig.savefig");
-
-  const root = files["fit_root.C"];
-  expect(root).toContain("std::ifstream input(csv_path)");
-  expect(root).not.toContain("const std::vector<double> x_all = {");
-  expect(root).toContain("ROOT::Fit::Fitter fitter");
-  expect(root).toContain("TFitResult fit_result = run_fit()");
-  expect(root).toContain("upper_envelope");
-  expect(root).toContain("TGraphErrors residuals");
-  expect(root).toContain("TFile output(");
-  expect(files["README.md"]).toContain("--data another-run.csv");
-});
+}

@@ -1,3 +1,29 @@
+import { formatNumber as format } from "./formatNumber";
+import { modelGuideValues } from "../core/fit/modelGuides";
+import { FitGuideLegend, layoutGuideLabels } from "./FitGuideLegend";
+import { ModelSelector } from "./ModelSelector";
+import {
+  CandidateSettings,
+  CandidateDiagnostics,
+  weightingText,
+  type ComparisonAnalysis,
+  type ComparisonDraft,
+} from "./ComparisonFitControls";
+import { switchNoiseModel } from "../core/fit/noiseModel";
+import {
+  rectangleExclusions,
+  type SelectionRectangle,
+  type SelectionMode,
+} from "../core/fit/selection";
+import { EditableNumber } from "./EditableNumber";
+import Assumptions from "./Assumptions";
+import {
+  buildCodeExportDescription,
+  generateCodeExportBundle,
+  type CodeExportBundle,
+} from "../core/fit/codeExport";
+import { sessionVersion, sessionEngine } from "../core/fit/schema";
+import { fitReportTsv } from "../core/fit/report";
 import {
   useEffect,
   useImperativeHandle,
@@ -19,15 +45,12 @@ import {
 import { statisticReasonText } from "../core/fit/diagnosticText";
 import {
   initialSettings,
-  parameterNames,
   sessionSchema,
   type FitRequest,
   type FitSettings,
 } from "../core/fit/schema";
 import {
   isNonlinearModel,
-  nonlinearModelIds,
-  nonlinearModels,
   suggestedParameters,
 } from "../core/fit/nonlinearModels";
 import { predict, type FitResult, type Statistic } from "../core/fit/solve";
@@ -42,37 +65,21 @@ import { automaticDomain, plotPath, plotScale } from "./plotScale";
 import { FitErrorMessage } from "./FitErrorMessage";
 import "./modelComparison.css";
 
-type Analysis = { request: FitRequest; settings: FitSettings };
-type Draft = Analysis & { label: string };
+type Analysis = ComparisonAnalysis;
+type Draft = ComparisonDraft;
 
-const models: [FitSettings["model"], string][] = [
-  ["line", "Straight line"],
-  ["quadratic", "Quadratic"],
-  ["cubic", "Cubic"],
-  ["quartic", "Quartic"],
-  ["logarithmic", "Logarithmic"],
-  ["sine", "Sine · supplied period"],
-  ["sine-free-period", "Sine · fit period"],
-  ["exponential", "Exponential · supplied rate"],
-  ["power-law", "Power law · supplied exponent"],
-  ["reciprocal", "Reciprocal"],
-  ...nonlinearModelIds.map(
-    (model) =>
-      [model, nonlinearModels[model].label] as [FitSettings["model"], string],
-  ),
-  ["constant-acceleration", "Constant acceleration"],
-  ["custom", "Custom equation (load a session to configure)"],
+const candidateColors = [
+  "#cc7f32",
+  "#176b8e",
+  "#457a45",
+  "#92519d",
+  "#9b6539",
+  "#337e8d",
 ];
-
-const format = (value: number | null) => {
-  if (value === null) return "Unavailable";
-  if (value !== 0 && (Math.abs(value) < 1e-4 || Math.abs(value) >= 1e7))
-    return value.toExponential(5);
-  return value.toLocaleString("en-US", { maximumSignificantDigits: 7 });
-};
 
 function fromCurrent(source: Analysis, result: FitResult | null): Draft {
   return {
+    ...source,
     label: "Current analysis",
     request: source.request,
     settings: result
@@ -117,24 +124,62 @@ function ComparisonPlot({
   candidates,
   showResiduals,
   showErrorBars,
+  showGuides,
   sizes,
+  onSelect,
+  onToggle,
 }: {
-  candidates: ComparisonCandidate[];
+  onSelect?: (box: SelectionRectangle, mode: SelectionMode) => void;
+  onToggle?: (id: string) => void;
+  candidates: (Omit<ComparisonCandidate, "result"> & { result?: FitResult })[];
   showResiduals: boolean;
   showErrorBars: boolean;
+  showGuides: boolean;
   sizes?: ExportPlotSize[];
 }) {
   const font = sizes?.[0].fontSizePx ?? 12;
-  const legendHeight = font * 3;
+  const width = sizes?.[0].width ?? 760,
+    left = sizes?.[0].leftMarginPx ?? (sizes ? Math.max(58, font * 5.2) : 90),
+    right = sizes ? Math.max(12, font) : 22;
+  const guides = showGuides
+    ? candidates.flatMap((candidate, candidateIndex) =>
+        candidate.result
+          ? modelGuideValues(
+              0,
+              candidate.settings,
+              candidate.result.coefficients,
+            ).map((guide) => ({ ...guide, candidateIndex }))
+          : [],
+      )
+    : [];
+  const guideLabels = layoutGuideLabels(
+    guides
+      .filter((guide) => guide.symbol && Number.isFinite(guide.value))
+      .map((guide) => ({
+        id: guide.id,
+        candidateIndex: guide.candidateIndex,
+        text: `${guide.candidateIndex + 1}: ${guide.symbol} = ${format(guide.value)}`,
+        description: `${candidates[guide.candidateIndex].label}: ${guide.label}; ${format(guide.value)} ${guide.axis === "x" ? (candidates[guide.candidateIndex].request.dataset.xColumn.unit ?? "") : (candidates[guide.candidateIndex].request.dataset.yColumn.unit ?? "")}`,
+        color: candidateColors[guide.candidateIndex],
+      })),
+    width - left - right,
+    font,
+  );
+  const candidateLegendHeight =
+    font * Math.max(3, candidates.length * 1.3 + 0.4);
+  const legendHeight = candidateLegendHeight + guideLabels.height;
   const sizedTop = legendHeight + font;
   const sizedGap = Math.max(6, font * 0.6);
   const sizedResidualBottom = Math.max(40, font * 3.3);
   const sizedFrames =
     sizes && showResiduals
-      ? sizes.reduce((sum, size) => sum + size.height, 0) -
-        sizedTop -
-        sizedGap * 2 -
-        sizedResidualBottom
+      ? Math.max(
+          1,
+          sizes.reduce((sum, size) => sum + size.height, 0) -
+            sizedTop -
+            sizedGap * 2 -
+            sizedResidualBottom,
+        )
       : null;
   const sizedDataHeight =
     sizedFrames === null ? null : sizedTop + sizedGap + sizedFrames * 0.75;
@@ -142,13 +187,10 @@ function ComparisonPlot({
     sizedFrames === null
       ? null
       : sizedGap + sizedResidualBottom + sizedFrames * 0.25;
-  const width = sizes?.[0].width ?? 760,
-    height =
+  const height =
       sizedDataHeight ??
       sizes?.[0].height ??
       (showResiduals ? 326 : 474) + legendHeight,
-    left = sizes?.[0].leftMarginPx ?? (sizes ? Math.max(58, font * 5.2) : 90),
-    right = sizes ? Math.max(12, font) : 22,
     top = legendHeight + (sizes ? font : 18),
     bottom = sizes
       ? showResiduals
@@ -166,8 +208,18 @@ function ComparisonPlot({
     "--comparison-marker-stroke": sizes ? 0.75 : 1.5,
   } as CSSProperties;
   const clipId = useId();
-  const observations = candidates[0].result.residuals;
-  const includedIds = new Set(observations.map((row) => row.id));
+  const observations = candidates[0].request.dataset.rows.filter(
+    (row): row is typeof row & { x: number; y: number } =>
+      row.x !== null && row.y !== null,
+  );
+  const includedIds = new Set(
+    observations
+      .filter(
+        (row) =>
+          row.included && !candidates[0].settings.excludedIds.includes(row.id),
+      )
+      .map((row) => row.id),
+  );
   const errorBars = showErrorBars
     ? suppliedYErrorBars(candidates[0].request)
     : { bars: [], unavailable: 0 };
@@ -182,23 +234,40 @@ function ComparisonPlot({
     (_, i) => xDomain[0] + (i * (xDomain[1] - xDomain[0])) / 419,
   );
   const curves = candidates.map((candidate) =>
-    sample.map((x) => ({
-      x,
-      y: predict(
-        x,
-        candidate.settings.model,
-        candidate.result.coefficients,
-        candidate.settings.sinePeriod,
-        candidate.settings.shape,
-        candidate.settings.custom,
-      ),
-    })),
+    candidate.result
+      ? sample.map((x) => ({
+          x,
+          y: predict(
+            x,
+            candidate.settings.model,
+            candidate.result!.coefficients,
+            candidate.settings.sinePeriod,
+            candidate.settings.shape,
+            candidate.settings.custom,
+          ),
+        }))
+      : [],
   );
+  const guideCurves = guides.map((guide) => ({
+    ...guide,
+    points:
+      guide.axis === "x"
+        ? []
+        : sample.map((x) => ({
+            x,
+            y: modelGuideValues(
+              x,
+              candidates[guide.candidateIndex].settings,
+              candidates[guide.candidateIndex].result!.coefficients,
+            ).find((value) => value.id === guide.id)!.value,
+          })),
+  }));
   const yDomain = automaticDomain(
     [
       ...observations.map((row) => row.y),
       ...bars.flatMap((bar) => [bar.lower, bar.upper]),
       ...curves.flatMap((curve) => curve.map((point) => point.y)),
+      ...guideCurves.flatMap((guide) => guide.points.map((point) => point.y)),
     ],
     false,
     0.12,
@@ -219,7 +288,7 @@ function ComparisonPlot({
     residualBottom = Math.max(40, font * 3.3);
   const residualMaximum = candidates.reduce(
     (maximum, candidate) =>
-      candidate.result.residuals.reduce(
+      (candidate.result?.residuals ?? []).reduce(
         (value, row) =>
           Number.isFinite(row.residual)
             ? Math.max(value, Math.abs(row.residual))
@@ -240,6 +309,29 @@ function ComparisonPlot({
     residualTop +
     ((1 - value / residualExtent) / 2) *
       (residualHeight - residualTop - residualBottom);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    pointerId: number;
+    mode: SelectionMode;
+    rowId: string | null;
+  } | null>(null);
+  const [rubberBand, setRubberBand] = useState<SelectionRectangle | null>(null);
+  function localPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return null;
+    const point = new DOMPoint(clientX, clientY).matrixTransform(
+      matrix.inverse(),
+    );
+    return {
+      x: Math.max(left, Math.min(width - right, point.x)),
+      y: Math.max(top, Math.min(height - bottom, point.y)),
+    };
+  }
+  function cancelSelection() {
+    drag.current = null;
+    setRubberBand(null);
+  }
   return (
     <div className="comparison-plot-wrap">
       <svg
@@ -250,6 +342,92 @@ function ComparisonPlot({
         role="img"
         aria-label="Compared fitted curves"
         style={svgStyle}
+        data-x-min={xDomain[0]}
+        data-x-max={xDomain[1]}
+        data-guide-minimum-height={
+          guideLabels.height ? top + bottom + font * 2.5 : undefined
+        }
+        data-guide-minimum-width={
+          guideLabels.height
+            ? left + right + guideLabels.minimumWidth
+            : undefined
+        }
+        tabIndex={onSelect ? 0 : undefined}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") cancelSelection();
+        }}
+        onPointerDown={(event) => {
+          if (!onSelect || event.button !== 0) return;
+          const point = localPoint(
+            event.currentTarget,
+            event.clientX,
+            event.clientY,
+          );
+          if (!point) return;
+          drag.current = {
+            ...point,
+            pointerId: event.pointerId,
+            mode: event.altKey
+              ? "subtract"
+              : event.shiftKey
+                ? "add"
+                : "replace",
+            rowId:
+              (event.target as Element)
+                .closest("[data-row-id]")
+                ?.getAttribute("data-row-id") ?? null,
+          };
+          event.currentTarget.setPointerCapture(event.pointerId);
+          event.currentTarget.focus();
+        }}
+        onPointerMove={(event) => {
+          const start = drag.current;
+          if (!start || event.pointerId !== start.pointerId) return;
+          const point = localPoint(
+            event.currentTarget,
+            event.clientX,
+            event.clientY,
+          );
+          if (point && Math.hypot(point.x - start.x, point.y - start.y) >= 4)
+            setRubberBand({
+              x0: start.x,
+              y0: start.y,
+              x1: point.x,
+              y1: point.y,
+            });
+        }}
+        onPointerUp={(event) => {
+          const start = drag.current;
+          if (!start || event.pointerId !== start.pointerId) return;
+          const point = localPoint(
+            event.currentTarget,
+            event.clientX,
+            event.clientY,
+          );
+          cancelSelection();
+          if (event.currentTarget.hasPointerCapture(event.pointerId))
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          if (!point) return;
+          if (Math.hypot(point.x - start.x, point.y - start.y) < 4) {
+            if (start.rowId) onToggle?.(start.rowId);
+            return;
+          }
+          const worldX = (v: number) =>
+            xScale.value((v - left) / (width - left - right));
+          const worldY = (v: number) =>
+            yScale.value(1 - (v - top) / (height - top - bottom));
+          onSelect?.(
+            {
+              x0: worldX(start.x),
+              x1: worldX(point.x),
+              y0: worldY(start.y),
+              y1: worldY(point.y),
+            },
+            start.mode,
+          );
+        }}
+        onPointerCancel={cancelSelection}
+        onLostPointerCapture={cancelSelection}
         data-y-min={yDomain[0]}
         data-y-max={yDomain[1]}
       >
@@ -282,6 +460,12 @@ function ComparisonPlot({
             >{`${i + 1}: ${candidate.settings.model}`}</text>
           </g>
         ))}
+        <FitGuideLegend
+          layout={guideLabels}
+          left={left}
+          top={candidateLegendHeight}
+          fontSize={font}
+        />
         <defs>
           <clipPath id={`${clipId}-data`}>
             <rect
@@ -362,6 +546,35 @@ function ComparisonPlot({
           fontSize={font}
         />
         <g clipPath={`url(#${clipId}-data)`}>
+          {guideCurves.map((guide) => {
+            const attributes = {
+              className: `model-guide model-guide-${guide.id} comparison-curve-${guide.candidateIndex + 1}`,
+              "aria-label": `${candidates[guide.candidateIndex].label}: ${guide.label}`,
+              "data-candidate-index": guide.candidateIndex,
+            };
+            return guide.axis === "x" ? (
+              Number.isFinite(guide.value) &&
+              guide.value >= xDomain[0] &&
+              guide.value <= xDomain[1] ? (
+                <line
+                  key={`${guide.candidateIndex}-${guide.id}`}
+                  {...attributes}
+                  data-guide-axis="x"
+                  data-guide-value={guide.value}
+                  x1={x(guide.value)}
+                  x2={x(guide.value)}
+                  y1={top}
+                  y2={height - bottom}
+                />
+              ) : null
+            ) : (
+              <path
+                key={`${guide.candidateIndex}-${guide.id}`}
+                {...attributes}
+                d={plotPath(guide.points, x, y)}
+              />
+            );
+          })}
           {bars.map((bar) => (
             <path
               key={bar.id}
@@ -382,15 +595,26 @@ function ComparisonPlot({
           {observations.map((row) => (
             <circle
               key={row.id}
-              className="comparison-point"
+              data-row-id={row.id}
+              data-included={includedIds.has(row.id)}
+              className={`comparison-point ${includedIds.has(row.id) ? "" : "is-excluded"}`}
               cx={x(row.x)}
               cy={y(row.y)}
               r={markerRadius}
             />
           ))}
         </g>
+        {rubberBand && (
+          <rect
+            className="comparison-selection-box"
+            x={Math.min(rubberBand.x0, rubberBand.x1)}
+            y={Math.min(rubberBand.y0, rubberBand.y1)}
+            width={Math.abs(rubberBand.x1 - rubberBand.x0)}
+            height={Math.abs(rubberBand.y1 - rubberBand.y0)}
+          />
+        )}
       </svg>
-      {showResiduals && (
+      {showResiduals && candidates.every((candidate) => candidate.result) && (
         <svg
           className="comparison-residual-plot"
           width={width}
@@ -491,7 +715,7 @@ function ComparisonPlot({
           </text>
           <g clipPath={`url(#${clipId}-residual)`}>
             {candidates.flatMap((candidate, candidateIndex) =>
-              candidate.result.residuals.map((row) =>
+              (candidate.result?.residuals ?? []).map((row) =>
                 candidateIndex === 0 ? (
                   <circle
                     key={`${candidate.id}-${row.id}`}
@@ -503,7 +727,7 @@ function ComparisonPlot({
                 ) : (
                   <rect
                     key={`${candidate.id}-${row.id}`}
-                    className="comparison-residual-2"
+                    className={`comparison-residual-${candidateIndex + 1}`}
                     x={x(row.x) - squareHalf}
                     y={residualY(row.residual) - squareHalf}
                     width={squareHalf * 2}
@@ -531,12 +755,14 @@ function ComparisonPrintReport({
   comparison,
   showResiduals,
   showErrorBars,
+  showGuides,
   onClose,
 }: {
   candidates: ComparisonCandidate[];
   comparison: ComparisonResult;
   showResiduals: boolean;
   showErrorBars: boolean;
+  showGuides: boolean;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -634,6 +860,7 @@ function ComparisonPrintReport({
                   candidates={candidates}
                   showResiduals={showResiduals}
                   showErrorBars={showErrorBars}
+                  showGuides={showGuides}
                   sizes={
                     showResiduals
                       ? [
@@ -723,6 +950,8 @@ function ComparisonPrintReport({
 export type ModelComparisonActions = {
   copy: () => Promise<void>;
   print: () => void;
+  exportCode: (target: "scipy" | "root") => CodeExportBundle | null;
+  saveSessions: () => CodeExportBundle | null;
 };
 
 export default function ModelComparison({
@@ -731,8 +960,10 @@ export default function ModelComparison({
   analysisControl,
   showResiduals,
   showErrorBars,
+  showGuides,
   onErrorBarsChange,
   onReady,
+  onDirty,
   exportSizes,
   ref,
 }: {
@@ -741,25 +972,79 @@ export default function ModelComparison({
   analysisControl: ReactNode;
   showResiduals: boolean;
   showErrorBars: boolean;
+  showGuides: boolean;
   onErrorBarsChange: (show: boolean) => void;
   onReady: (ready: boolean) => void;
+  onDirty: () => void;
   exportSizes?: ExportPlotSize[];
   ref?: Ref<ModelComparisonActions>;
 }) {
-  const [drafts, setDrafts] = useState<[Draft, Draft]>(() => [
+  const [drafts, setDrafts] = useState<Draft[]>(() => [
     fromCurrent(source, sourceResult),
     alternate(source),
   ]);
+  const [activeCandidate, setActiveCandidate] = useState(0);
+  const previousSource = useRef(source.request);
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
   const [fitted, setFitted] = useState<ComparisonCandidate[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
-  const ready = !!comparison?.compatible && !!fitted && !busy;
+  const [invalid, setInvalid] = useState<Record<string, boolean>>({});
+  const invalidDraft = Object.values(invalid).some(Boolean);
+  const invalidCallbacks = useMemo(
+    () =>
+      drafts.map(
+        (_, i) => (value: boolean) =>
+          setInvalid((previous) =>
+            previous[`candidate-${i}`] === value
+              ? previous
+              : { ...previous, [`candidate-${i}`]: value },
+          ),
+      ),
+    [drafts.length],
+  );
+  const ready = !!comparison?.compatible && !!fitted && !busy && !invalidDraft;
+  const [selectionHistory, setSelectionHistory] = useState<FitSettings[][]>([]);
+  const observations = drafts[0].request.dataset.rows;
+  const selectionAvailable = drafts.every(
+    (d) =>
+      JSON.stringify(
+        d.request.dataset.rows.map((row) => [row.x, row.y, row.included]),
+      ) ===
+      JSON.stringify(
+        drafts[0].request.dataset.rows.map((row) => [
+          row.x,
+          row.y,
+          row.included,
+        ]),
+      ),
+  );
+  const usedCount = observations.filter(
+    (row) =>
+      row.included &&
+      row.x !== null &&
+      row.y !== null &&
+      !drafts[0].settings.excludedIds.includes(row.id),
+  ).length;
+  useEffect(() => {
+    const previous = previousSource.current;
+    previousSource.current = source.request;
+    if (
+      previous.dataset.rows !== source.request.dataset.rows ||
+      previous.requestId !== source.request.requestId ||
+      (drafts.every((d) => d.request.dataset.rows.length === 0) &&
+        source.request.dataset.rows.length > 0)
+    ) {
+      useSharedData(source);
+    }
+  }, [source.request]);
   useEffect(() => onReady(ready), [ready, onReady]);
   useImperativeHandle(ref, () => ({
     copy,
+    exportCode,
+    saveSessions,
     print: () => {
       if (ready) setPrintOpen(true);
     },
@@ -775,7 +1060,13 @@ export default function ModelComparison({
     [],
   );
   const incompatibilities = useMemo(
-    () => comparisonCompatibility(drafts[0], drafts[1]),
+    () => [
+      ...new Set(
+        drafts
+          .slice(1)
+          .flatMap((draft) => comparisonCompatibility(drafts[0], draft)),
+      ),
+    ],
     [drafts],
   );
   const unavailableReasons = comparison
@@ -799,20 +1090,151 @@ export default function ModelComparison({
         ),
       ]
     : [];
-  function change(index: number, draft: Draft) {
+  function changeAll(next: Draft[]) {
     revision.current += 1;
     setBusy(false);
-    setDrafts(
-      (current) =>
-        current.map((value, i) => (i === index ? draft : value)) as [
-          Draft,
-          Draft,
-        ],
-    );
+    setDrafts(next);
     setComparison(null);
     setFitted(null);
     setError("");
     setNotice("");
+    onDirty();
+  }
+  function change(index: number, draft: Draft) {
+    changeAll(drafts.map((value, i) => (i === index ? draft : value)));
+  }
+  function useSharedData(analysis: Analysis) {
+    setSelectionHistory([]);
+    changeAll(
+      drafts.map((draft) => ({
+        ...analysis,
+        label: draft.label,
+        settings: {
+          ...draft.settings,
+          excludedIds: analysis.settings.excludedIds.slice(),
+          retainedPerRowUncertainty:
+            analysis.settings.retainedPerRowUncertainty,
+          conditionalInference: analysis.settings.conditionalInference,
+        },
+      })),
+    );
+  }
+  function selectPoints(box: SelectionRectangle, mode: SelectionMode) {
+    if (!selectionAvailable) return;
+    setSelectionHistory((previous) => [
+      ...previous,
+      drafts.map((d) => d.settings),
+    ]);
+    changeAll(
+      drafts.map((draft) => ({
+        ...draft,
+        settings: {
+          ...draft.settings,
+          excludedIds: rectangleExclusions(
+            draft.request.dataset.rows,
+            box,
+            draft.settings.excludedIds,
+            mode,
+          ),
+          selectionAfterInspection: true,
+        },
+      })),
+    );
+  }
+  function togglePoint(id: string) {
+    if (!selectionAvailable) return;
+    const index = observations.findIndex((row) => row.id === id);
+    const row = observations[index];
+    if (!row?.included || row.x === null || row.y === null) return;
+    const excluded = drafts[0].settings.excludedIds.includes(id);
+    setSelectionHistory((previous) => [
+      ...previous,
+      drafts.map((d) => d.settings),
+    ]);
+    changeAll(
+      drafts.map((draft) => {
+        const rowId = draft.request.dataset.rows[index].id;
+        const ids = new Set(draft.settings.excludedIds);
+        if (excluded) ids.delete(rowId);
+        else ids.add(rowId);
+        return {
+          ...draft,
+          settings: {
+            ...draft.settings,
+            excludedIds: [...ids],
+            selectionAfterInspection: true,
+          },
+        };
+      }),
+    );
+  }
+  function exportCode(target: "scipy" | "root") {
+    if (!ready || !fitted) return null;
+    const plot = document.querySelector(
+      ".comparison-workspace > .comparison-plot-wrap .comparison-plot",
+    );
+    const xRange = [
+      Number(plot?.getAttribute("data-x-min")),
+      Number(plot?.getAttribute("data-x-max")),
+    ] as [number, number];
+    const yRange = [
+      Number(plot?.getAttribute("data-y-min")),
+      Number(plot?.getAttribute("data-y-max")),
+    ] as [number, number];
+    const files: Record<string, string> = {
+      "README.md":
+        "# Model comparison analyses\n\nEach candidate folder contains its own CSV, model setup, and executable analysis. Run each from its folder. comparison.tsv contains the Data Tool comparison.\n",
+      "comparison.tsv": comparisonText(),
+    };
+    fitted.forEach((candidate, i) => {
+      const bundle = generateCodeExportBundle(
+        buildCodeExportDescription(
+          candidate.request,
+          candidate.settings,
+          candidate.result,
+          {
+            mode: "linear",
+            xRange,
+            yRange,
+            showResiduals,
+            showErrorBars,
+            showGuides,
+          },
+        ),
+        target,
+      );
+      for (const [name, contents] of Object.entries(bundle.files))
+        files[`candidate-${i + 1}/${name}`] = contents;
+    });
+    return {
+      archiveName: `model-comparison-${target}.zip`,
+      directoryName: `model-comparison-${target}`,
+      files,
+    };
+  }
+  function saveSessions(): CodeExportBundle | null {
+    if (invalidDraft || busy) return null;
+    const files: Record<string, string> = {
+      "README.md":
+        "# Model comparison sessions\n\nEach candidate is a standard .trksess file. Open Model comparison and load these files into the candidate panels to restore the fits. Refitting recalculates results. Display preferences are not saved.\n",
+    };
+    drafts.forEach((draft, i) => {
+      const session = sessionSchema.parse({
+        format: "tracker-fit-session",
+        version: sessionVersion(draft.settings),
+        request: draft.request,
+        settings: draft.settings,
+        originalRequest: draft.originalRequest,
+        dataTable: draft.dataTable,
+        engine: sessionEngine(draft.settings),
+      });
+      files[`candidate-${i + 1}.trksess`] = JSON.stringify(session, null, 2);
+    });
+    return {
+      archiveName: "model-comparison-sessions.zip",
+      directoryName: "model-comparison-sessions",
+      files,
+    };
   }
   function fitDraft(draft: Draft) {
     return new Promise<FitResult>((resolve, reject) => {
@@ -839,6 +1261,7 @@ export default function ModelComparison({
     });
   }
   async function run() {
+    if (invalidDraft || !usedCount) return;
     if (incompatibilities.length) {
       setError(`Comparison blocked: ${incompatibilities.join("; ")}.`);
       return;
@@ -848,7 +1271,7 @@ export default function ModelComparison({
     setComparison(null);
     setFitted(null);
     setError("");
-    setNotice("Refitting both candidates…");
+    setNotice("Refitting all candidates…");
     try {
       const results = await Promise.all(drafts.map(fitDraft));
       const candidates = drafts.map((draft, i) => ({
@@ -879,10 +1302,13 @@ export default function ModelComparison({
     try {
       const session = sessionSchema.parse(JSON.parse(await file.text()));
       if (revision.current !== token) return;
+      setActiveCandidate(index);
       change(index, {
         label: file.name.replace(/\.trksess$/i, ""),
         request: session.request,
         settings: session.settings,
+        originalRequest: session.originalRequest,
+        dataTable: session.dataTable,
       });
     } catch (cause) {
       if (revision.current !== token) return;
@@ -891,8 +1317,8 @@ export default function ModelComparison({
       );
     }
   }
-  async function copy() {
-    if (!comparison?.compatible) return;
+  function comparisonText() {
+    if (!comparison?.compatible) return "";
     const headers = [
       "Candidate",
       "Model",
@@ -931,8 +1357,21 @@ export default function ModelComparison({
         metric.inference,
       ]),
     ]);
+    return (
+      text +
+      "\n\n" +
+      (fitted ?? [])
+        .map(
+          (candidate) =>
+            `${candidate.label}\n${weightingText(candidate.request)}\n${fitReportTsv(candidate.request, candidate.settings, candidate.result)}`,
+        )
+        .join("\n\n")
+    );
+  }
+  async function copy() {
+    if (!ready) return;
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(comparisonText());
       setNotice("Comparison table copied");
     } catch {
       setError("Clipboard unavailable.");
@@ -942,9 +1381,25 @@ export default function ModelComparison({
     <section className="model-comparison">
       <aside className="comparison-controls">
         {analysisControl}
-        <h2>Candidate fits</h2>
+        <h2>Models</h2>
+        <div
+          className="comparison-candidate-tabs"
+          role="tablist"
+          aria-label="Candidate models"
+        >
+          {drafts.map((_, i) => (
+            <button
+              key={i}
+              role="tab"
+              aria-selected={activeCandidate === i}
+              onClick={() => setActiveCandidate(i)}
+            >
+              Candidate {i + 1}
+            </button>
+          ))}
+        </div>
         {drafts.map((draft, i) => (
-          <fieldset key={i} disabled={busy}>
+          <fieldset key={i} disabled={busy} hidden={i !== activeCandidate}>
             <legend>Candidate {i + 1}</legend>
             <p className="comparison-source">
               Data: {draft.request.dataset.label}
@@ -959,35 +1414,28 @@ export default function ModelComparison({
                 }
               />
             </label>
-            <label>
-              Model
-              <select
-                aria-label={`Candidate ${i + 1} model`}
-                value={draft.settings.model}
-                onChange={(event) => {
-                  const model = event.target.value as FitSettings["model"];
-                  change(i, {
-                    ...draft,
-                    settings: settingsFor(model, draft),
-                  });
-                }}
-              >
-                {models.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p>
-              <strong>{fitted ? "Fitted" : "Starting"} parameters:</strong>{" "}
-              {parameterNames(draft.settings.model, draft.settings.custom)
-                .map(
-                  (name, j) =>
-                    `${name}=${format(fitted?.[i].result.coefficients[j] ?? draft.settings.parameters[j].value)}${draft.settings.parameters[j].fixed ? " (fixed)" : ""}`,
-                )
-                .join("; ")}
+            <ModelSelector
+              label="Model"
+              ariaLabel={`Candidate ${i + 1} model`}
+              value={draft.settings.model}
+              onChange={(value) =>
+                change(i, {
+                  ...draft,
+                  settings: settingsFor(value as FitSettings["model"], draft),
+                })
+              }
+            />
+            <p className="comparison-candidate-weighting">
+              {weightingText(draft.request)}
             </p>
+            <CandidateSettings
+              key={`${draft.request.requestId}-${draft.settings.model}`}
+              draft={draft}
+              labelPrefix={`Candidate ${i + 1}`}
+              result={fitted?.[i].result}
+              onChange={(next) => change(i, next)}
+              onInvalid={invalidCallbacks[i]}
+            />
             <label className="comparison-file">
               Load fit session…
               <input
@@ -1006,19 +1454,155 @@ export default function ModelComparison({
             >
               Use current analysis
             </button>
+            {drafts.length > 2 && (
+              <button
+                onClick={() => {
+                  setInvalid({});
+                  setSelectionHistory([]);
+                  setActiveCandidate(0);
+                  changeAll(drafts.filter((_, index) => index !== i));
+                }}
+              >
+                Remove candidate
+              </button>
+            )}
           </fieldset>
         ))}
         <button
+          disabled={busy || drafts.length >= 6}
+          onClick={() => {
+            setSelectionHistory([]);
+            setActiveCandidate(drafts.length);
+            changeAll([
+              ...drafts,
+              {
+                ...alternate(drafts[0]),
+                label: `Candidate ${drafts.length + 1}`,
+              },
+            ]);
+          }}
+        >
+          Add model
+        </button>
+        <section className="comparison-shared-controls">
+          <h2>Shared data and uncertainties</h2>
+          <p>
+            {drafts[0].request.dataset.label} · {usedCount} of{" "}
+            {observations.length} observations included
+          </p>
+          <button onClick={() => useSharedData(source)}>
+            Use opened data for all models
+          </button>
+          {incompatibilities.length > 0 && (
+            <button onClick={() => useSharedData(drafts[0])}>
+              Use candidate 1 data for all models
+            </button>
+          )}
+          <label>
+            Y uncertainty model
+            <select
+              aria-label="Comparison Y uncertainty model"
+              value={drafts[0].request.uncertainty.kind}
+              disabled={busy}
+              onChange={(event) => {
+                try {
+                  changeAll(
+                    drafts.map((draft) => ({
+                      ...draft,
+                      ...switchNoiseModel(
+                        draft.request,
+                        draft.settings,
+                        event.target.value as FitRequest["uncertainty"]["kind"],
+                      ),
+                    })),
+                  );
+                } catch (cause) {
+                  setError(String(cause));
+                }
+              }}
+            >
+              <option value="unknown-equal">
+                Unknown · estimate equal scatter
+              </option>
+              <option value="supplied-common">Supplied common σ</option>
+              {drafts.every(
+                (d) =>
+                  d.request.uncertainty.kind === "supplied-per-row" ||
+                  d.settings.retainedPerRowUncertainty,
+              ) && (
+                <option value="supplied-per-row">
+                  Supplied per observation
+                </option>
+              )}
+            </select>
+          </label>
+          {drafts[0].request.uncertainty.kind === "supplied-common" && (
+            <label>
+              σ y [{drafts[0].request.dataset.yColumn.unit ?? "unspecified"}]
+              <EditableNumber
+                aria-label="Comparison Y uncertainty"
+                value={drafts[0].request.uncertainty.sigmaY}
+                isValid={(value) => value > 0}
+                onInvalidChange={(value) =>
+                  setInvalid((previous) => ({ ...previous, sigma: value }))
+                }
+                onRestoreInvalid={() => {}}
+                onChange={(sigmaY) =>
+                  changeAll(
+                    drafts.map((draft) => ({
+                      ...draft,
+                      request: {
+                        ...draft.request,
+                        uncertainty: {
+                          kind: "supplied-common",
+                          sigmaY,
+                          errorStructure:
+                            draft.request.uncertainty.errorStructure,
+                          provenance: {
+                            kind: "user-asserted",
+                            description:
+                              "Common sigma edited in model comparison",
+                          },
+                        },
+                      },
+                    })),
+                  )
+                }
+              />
+            </label>
+          )}
+          <p className="comparison-weighting">
+            {weightingText(drafts[0].request)}
+          </p>
+          <p>
+            Showing or hiding error bars does not change these fitting weights.
+          </p>
+          <Assumptions
+            checked={drafts.every((d) => d.settings.conditionalInference)}
+            onChange={(checked) =>
+              changeAll(
+                drafts.map((d) => ({
+                  ...d,
+                  settings: { ...d.settings, conditionalInference: checked },
+                })),
+              )
+            }
+          />
+        </section>
+        <button
           className="comparison-run"
-          disabled={busy || incompatibilities.length > 0}
+          disabled={
+            busy || invalidDraft || !usedCount || incompatibilities.length > 0
+          }
           onClick={run}
         >
           {busy ? "Comparing…" : "Refit and compare"}
         </button>
 
         <p>
-          Both candidates are refitted. Formal criteria require the same
-          observations, exclusions, uncertainties, and likelihood assumptions.
+          All candidates are refitted here; no separate single fit is required.
+          Formal criteria require the same observations, exclusions,
+          uncertainties, and likelihood assumptions.
         </p>
       </aside>
       <main className="comparison-workspace">
@@ -1028,7 +1612,8 @@ export default function ModelComparison({
             <p>Relative support among the fitted candidates</p>
           </div>
           <p role="status">
-            {notice || "Configure two candidates, then compare."}
+            {notice ||
+              "Configure models, choose shared data and uncertainties, then compare."}
           </p>
         </header>
         {incompatibilities.length > 0 && !error && (
@@ -1041,38 +1626,159 @@ export default function ModelComparison({
             <FitErrorMessage message={error} />
           </div>
         )}
-        {comparison?.compatible && fitted ? (
+        <p className="comparison-fit-basis">
+          {usedCount} observations · {weightingText(drafts[0].request)}
+        </p>
+        <label
+          className="comparison-error-control"
+          title="Supplied marginal y uncertainty, ±1 standard deviation. Only shown on the data plot."
+        >
+          <input
+            type="checkbox"
+            checked={
+              showErrorBars &&
+              drafts[0].request.uncertainty.kind !== "unknown-equal"
+            }
+            disabled={drafts[0].request.uncertainty.kind === "unknown-equal"}
+            onChange={(event) => onErrorBarsChange(event.target.checked)}
+          />
+          {drafts[0].request.uncertainty.kind === "unknown-equal"
+            ? "Error bars unavailable · σ unknown"
+            : "Show y error bars (±1σ)"}
+        </label>
+        <p className="comparison-selection-help">
+          Click a point to toggle · Drag to select · Shift-drag adds ·
+          Option/Alt-drag excludes · Selection applies to all models
+        </p>
+        <ComparisonPlot
+          candidates={
+            fitted && !invalidDraft
+              ? fitted
+              : drafts.map((draft, i) => ({
+                  ...draft,
+                  id: `candidate-${i + 1}`,
+                }))
+          }
+          showResiduals={showResiduals}
+          showErrorBars={showErrorBars}
+          showGuides={showGuides}
+          onSelect={!busy && selectionAvailable ? selectPoints : undefined}
+          onToggle={togglePoint}
+        />
+        <details className="comparison-observations">
+          <summary>Observations & exclusions · {usedCount} included</summary>
+          <p>
+            Selection applies to all models. Source-excluded and missing rows
+            remain excluded.
+          </p>
+          <button
+            disabled={!selectionHistory.length}
+            onClick={() => {
+              const previous = selectionHistory[selectionHistory.length - 1];
+              setSelectionHistory((history) => history.slice(0, -1));
+              changeAll(
+                drafts.map((d, i) => ({
+                  ...d,
+                  settings: {
+                    ...d.settings,
+                    excludedIds: previous[i].excludedIds.slice(),
+                    selectionAfterInspection:
+                      previous[i].selectionAfterInspection,
+                  },
+                })),
+              );
+            }}
+          >
+            Undo selection
+          </button>
+          <button
+            disabled={!drafts[0].settings.excludedIds.length}
+            onClick={() => {
+              setSelectionHistory((history) => [
+                ...history,
+                drafts.map((d) => d.settings),
+              ]);
+              changeAll(
+                drafts.map((d) => ({
+                  ...d,
+                  settings: {
+                    ...d.settings,
+                    excludedIds: [],
+                    selectionAfterInspection: true,
+                  },
+                })),
+              );
+            }}
+          >
+            Include all available points
+          </button>
+          <div className="comparison-observation-scroll">
+            <table aria-label="Comparison observations">
+              <thead>
+                <tr>
+                  <th>Use</th>
+                  <th>Row</th>
+                  <th>
+                    {drafts[0].request.dataset.xColumn.label} [
+                    {drafts[0].request.dataset.xColumn.unit ?? "unspecified"}]
+                  </th>
+                  <th>
+                    {drafts[0].request.dataset.yColumn.label} [
+                    {drafts[0].request.dataset.yColumn.unit ?? "unspecified"}]
+                  </th>
+                  <th>σ y used</th>
+                </tr>
+              </thead>
+              <tbody>
+                {observations.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Include ${row.id}`}
+                        checked={
+                          row.included &&
+                          row.x !== null &&
+                          row.y !== null &&
+                          !drafts[0].settings.excludedIds.includes(row.id)
+                        }
+                        disabled={
+                          !row.included ||
+                          row.x === null ||
+                          row.y === null ||
+                          busy ||
+                          !selectionAvailable
+                        }
+                        onChange={() => togglePoint(row.id)}
+                      />
+                    </td>
+                    <th>{row.id}</th>
+                    <td>{row.x ?? "Missing"}</td>
+                    <td>{row.y ?? "Missing"}</td>
+                    <td>
+                      {drafts[0].request.uncertainty.kind === "unknown-equal"
+                        ? "Estimated"
+                        : drafts[0].request.uncertainty.kind ===
+                            "supplied-common"
+                          ? drafts[0].request.uncertainty.sigmaY
+                          : (drafts[0].request.uncertainty.sigmaByRow[row.id] ??
+                            "Missing")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+        {comparison?.compatible && fitted && !invalidDraft ? (
           <>
-            <label
-              className="comparison-error-control"
-              title="Supplied marginal y uncertainty, ±1 standard deviation. Only shown on the data plot."
-            >
-              <input
-                type="checkbox"
-                checked={
-                  showErrorBars &&
-                  fitted[0].request.uncertainty.kind !== "unknown-equal"
-                }
-                disabled={
-                  fitted[0].request.uncertainty.kind === "unknown-equal"
-                }
-                onChange={(event) => onErrorBarsChange(event.target.checked)}
-              />
-              {fitted[0].request.uncertainty.kind === "unknown-equal"
-                ? "Error bars unavailable · σ unknown"
-                : "Show y error bars (±1σ)"}
-            </label>
-            <ComparisonPlot
-              candidates={fitted}
-              showResiduals={showResiduals}
-              showErrorBars={showErrorBars}
-            />
             {exportSizes && (
               <div className="fit-export-render" aria-hidden="true" inert>
                 <ComparisonPlot
                   candidates={fitted}
                   showResiduals={showResiduals}
                   showErrorBars={showErrorBars}
+                  showGuides={showGuides}
                   sizes={exportSizes}
                 />
               </div>
@@ -1084,10 +1790,70 @@ export default function ModelComparison({
                   comparison={comparison}
                   showResiduals={showResiduals}
                   showErrorBars={showErrorBars}
+                  showGuides={showGuides}
                   onClose={() => setPrintOpen(false)}
                 />,
                 document.querySelector(".fit-app")!,
               )}
+            <details className="comparison-statistics-help">
+              <summary>How to read these statistics</summary>
+              <p>
+                First inspect the residuals and supplied uncertainties; then
+                compare models. Every model here uses the same included
+                observations and uncertainty treatment.
+              </p>
+              <dl>
+                <dt>n, k model, and df</dt>
+                <dd>
+                  n is the included observation count; k counts adjustable curve
+                  parameters, excluding fixed parameters. Residual degrees of
+                  freedom are df = n − k.
+                </dd>
+                <dt>χ² or SSE</dt>
+                <dd>
+                  With supplied σ, χ² = Σ[(y − fitted y)/σ]². Without supplied
+                  σ, SSE = Σ(y − fitted y)² in squared Y units. Smaller means
+                  closer agreement with the observations, before accounting for
+                  extra parameters.
+                </dd>
+                <dt>χ²/df</dt>
+                <dd>
+                  Values near 1 are plausible when the model and supplied
+                  uncertainties describe the data. Large values can reflect
+                  model mismatch or underestimated uncertainties; unusually
+                  small values can reflect overestimated uncertainties or
+                  correlated errors. This is not proof that a model is correct.
+                  It is unavailable as an independent check when scatter is
+                  estimated from the same residuals.
+                </dd>
+                <dt>K likelihood and log L</dt>
+                <dd>
+                  K counts free curve parameters plus one if common variance is
+                  estimated. log L measures agreement under the Gaussian
+                  uncertainty model; larger is better before the parameter
+                  penalty.
+                </dd>
+                <dt>AIC, AICc, and BIC</dt>
+                <dd>
+                  These scores balance agreement against parameter count. Lower
+                  is preferred. AIC = 2K − 2 log L; BIC = K log n − 2 log L.
+                  This app uses AIC with supplied absolute σ and AICc with
+                  estimated common scatter. The AICc correction is approximate
+                  for nonlinear models and requires n &gt; K + 1. Absolute
+                  scores can be negative; compare differences, not closeness to
+                  zero.
+                </dd>
+                <dt>Δ and Akaike weight</dt>
+                <dd>
+                  Δ is the chosen score minus the lowest eligible score.
+                  Relative weights are proportional to exp(−Δ/2) and sum to 1
+                  over eligible candidates. For two candidates with Δ = 0 and 4,
+                  their weights are about 0.88 and 0.12. They describe relative
+                  support within this set, not probabilities that a model is
+                  true. All candidates can still be poor descriptions.
+                </dd>
+              </dl>
+            </details>
             <div className="comparison-table-wrap">
               <table aria-label="Model comparison statistics">
                 <thead>
@@ -1167,6 +1933,18 @@ export default function ModelComparison({
                 )}
               </div>
             )}
+            <details className="comparison-individual-results">
+              <summary>Individual fit parameters and diagnostics</summary>
+              <div className="comparison-diagnostics">
+                {fitted.map((candidate) => (
+                  <CandidateDiagnostics
+                    key={candidate.id}
+                    draft={candidate}
+                    result={candidate.result}
+                  />
+                ))}
+              </div>
+            </details>
             <div className="comparison-notes">
               <p>
                 Relative support uses {comparison.rankingCriterion}: lower is
@@ -1212,8 +1990,9 @@ export default function ModelComparison({
           </>
         ) : (
           <div className="comparison-empty">
-            No comparison results yet. A candidate loaded from a session is
-            staged here and does not replace the analysis in the main workspace.
+            Choose models and refit here. You can import data before any single
+            fit, bring over the current custom equation, or configure a custom
+            equation directly in a candidate panel.
           </div>
         )}
       </main>

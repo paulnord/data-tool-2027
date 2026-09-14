@@ -16,6 +16,8 @@ import { syntheticRequest } from "../support/synthetic";
 
 it("generates a portable bundle with external data and explicit fit metadata", () => {
   const request = syntheticRequest();
+  request.source.context =
+    'Imported notes: "copper", mH\r\n# second line\n\nlast line';
   const settings = initialSettings("quadratic");
   settings.parameters[0] = { value: 1.2345678901234567, fixed: true };
   settings.excludedIds = [request.dataset.rows[2].id];
@@ -56,7 +58,15 @@ it("generates a portable bundle with external data and explicit fit metadata", (
   expect(root).not.toContain("const std::vector<double> x_all = {");
 
   const csv = generateCodeExportCsv(description);
-  const records = parseDelimited(csv, ",");
+  expect(
+    csv.startsWith(
+      '# Imported notes: "copper", mH\r\n# # second line\r\n# \r\n# last line\r\n',
+    ),
+  ).toBe(true);
+  const records = parseDelimited(
+    csv.slice(csv.indexOf("row_id,x,y,sigma,included,missing_reason")),
+    ",",
+  );
   expect(records[0]).toEqual([
     "row_id",
     "x",
@@ -83,6 +93,9 @@ it("generates a portable bundle with external data and explicit fit metadata", (
   expect(metadata.uncertainty.values).toBe("data.csv:sigma");
 
   const bundle = generateCodeExportBundle(description);
+  expect(bundle.files["requirements.txt"]).toBe("numpy\nscipy\nmatplotlib\n");
+  expect(root).toContain("if (!gROOT->IsBatch()) canvas.DrawClone();");
+  expect(bundle.files["README.md"]).toContain("root -l fit_root.C");
   expect(bundle.archiveName).toMatch(/-analysis-bundle\.zip$/);
   expect(Object.keys(bundle.files).sort()).toEqual([
     "README.md",
@@ -90,8 +103,35 @@ it("generates a portable bundle with external data and explicit fit metadata", (
     "data.csv",
     "fit_root.C",
     "fit_scipy.py",
+    "requirements.txt",
   ]);
   expect(bundle.files["README.md"]).toContain("--data another-run.csv");
+  for (const target of ["scipy", "root"] as const) {
+    const separate = generateCodeExportBundle(description, target);
+    expect(separate.archiveName).toContain(`-${target}-analysis-bundle.zip`);
+    expect(separate.files["data.csv"]).toBe(csv);
+    expect(Object.keys(separate.files).sort()).toEqual([
+      "README.md",
+      "analysis.json",
+      "data.csv",
+      ...(target === "scipy"
+        ? ["fit_scipy.py", "requirements.txt"]
+        : ["fit_root.C"]),
+    ]);
+    expect(
+      Object.keys(JSON.parse(separate.files["analysis.json"]).programs),
+    ).toEqual([target]);
+    expect(separate.files["README.md"]).not.toContain(
+      target === "scipy" ? "## C++ / ROOT" : "## Python / SciPy",
+    );
+  }
+  expect(python.indexOf("def model(")).toBeLessThan(
+    python.indexOf("def fit_data("),
+  );
+  expect(python).toContain('if __name__ == "__main__":');
+  expect(root.indexOf("double model_function(")).toBeLessThan(
+    root.indexOf("FitOutcome fit_data("),
+  );
   const archive = unzipSync(encodeCodeExportBundle(bundle));
   expect(Object.keys(archive).sort()).toEqual(
     Object.keys(bundle.files)
@@ -217,7 +257,11 @@ it("keeps hostile labels inert and exported filenames bounded", () => {
   });
   expect(description.fileStem.length).toBeLessThanOrEqual(80);
   description.rowIds[0] = 'row,"quoted"\nnext';
-  const records = parseDelimited(generateCodeExportCsv(description), ",");
+  const csv = generateCodeExportCsv(description);
+  const records = parseDelimited(
+    csv.slice(csv.indexOf("row_id,x,y,sigma,included,missing_reason")),
+    ",",
+  );
   expect(records[1][0]).toBe('row,"quoted"\nnext');
   const metadata = JSON.parse(generateCodeExportMetadata(description));
   expect(metadata.dataset.title).toContain("print('not code')");
@@ -292,4 +336,30 @@ it("uses one-sided physical ROOT limits and distinguishes unavailable residual s
   expect(generatePythonCode(description)).toContain(
     "Standard errors unavailable:",
   );
+});
+
+it("archives separate candidate directories without allowing traversal paths", () => {
+  const bundle = {
+    archiveName: "comparison.zip",
+    directoryName: "comparison",
+    files: {
+      "candidate-1/data.csv": "# preserved notes\r\nx,y\r\n1,2\r\n",
+      "candidate-2/data.csv": "x,y\r\n1,2\r\n",
+    },
+  };
+  const archive = unzipSync(encodeCodeExportBundle(bundle));
+  expect(strFromU8(archive["comparison/candidate-1/data.csv"])).toBe(
+    bundle.files["candidate-1/data.csv"],
+  );
+  for (const path of [
+    "../outside",
+    "candidate-1/../../outside",
+    "/absolute",
+    "candidate-1//data.csv",
+    "candidate-1/./data.csv",
+  ]) {
+    expect(() =>
+      encodeCodeExportBundle({ ...bundle, files: { [path]: "test" } }),
+    ).toThrow("invalid filename");
+  }
 });

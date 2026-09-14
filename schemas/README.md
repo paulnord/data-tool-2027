@@ -40,3 +40,5 @@ In addition to the existing semantic checks, enforce parameter counts and domain
 ## Custom equation session v3
 
 `tracker-fit-session.v3.json` adds `custom` settings and engine `qr-expression-4`. Enforce the restricted expression grammar, identifier and complexity limits, exact first-occurrence parameter order, matching parameter/name/unit lengths (1–8), and valid non-reserved independent variable. `custom` metadata is required for the custom model and forbidden on built-in models. Units are case-sensitive strings, with blank meaning unknown. Built-in settings still undergo their original count/domain checks. Requests and acknowledgments remain v1. See [v3 migration](../docs/integration.md#session-v3-for-custom-equations--2026-09-10).
+
+Session v4 adds degree-5 through degree-10 polynomials, exponential growth, and logistic sigmoid. Enforce the model-specific coefficient count, positive widths/time constants, and matching engine as described in [the migration](../docs/integration.md#session-v4-for-additional-model-families--2026-09-14); v1–v3 schemas remain unchanged.

@@ -2,12 +2,13 @@ import { z } from "zod/v4";
 import { writeFileSync } from "node:fs";
 import { build } from "esbuild";
 const bundled = await build({stdin: {contents: 'export * from "./src/core/fit/schema.ts"; export * from "./tests/support/synthetic.ts";', resolveDir: process.cwd()}, bundle: true, platform: "node", format: "esm", write: false});
-const { requestSchema, sessionSchema, sessionV1Schema, sessionV2Schema, sessionV3Schema, acknowledgmentSchema, initialSettings, syntheticRequest, gaussianGenerator } = await import("data:text/javascript;base64," + Buffer.from(bundled.outputFiles[0].text).toString("base64"));
+const { requestSchema, sessionSchema, sessionV1Schema, sessionV2Schema, sessionV3Schema, sessionV4Schema, acknowledgmentSchema, initialSettings, syntheticRequest, gaussianGenerator } = await import("data:text/javascript;base64," + Buffer.from(bundled.outputFiles[0].text).toString("base64"));
 for (const [name, schema, version] of [
   ["request", requestSchema, 1],
   ["session", sessionV1Schema, 1],
   ["session", sessionV2Schema, 2],
   ["session", sessionV3Schema, 3],
+  ["session", sessionV4Schema, 4],
   ["ack", acknowledgmentSchema, 1],
 ]) {
   const json = z.toJSONSchema(schema, { target: "draft-7" });

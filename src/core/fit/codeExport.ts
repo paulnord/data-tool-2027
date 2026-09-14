@@ -1,3 +1,4 @@
+import { polynomialDegree, polynomialExpressions } from "./polynomialModels";
 import { renderEquation } from "./customEquation";
 import { isNonlinearModel, nonlinearModels } from "./nonlinearModels";
 import { parameterNames, type FitRequest, type FitSettings } from "./schema";
@@ -40,14 +41,19 @@ export interface CodeExportDescription {
   inference: FitResult["inference"];
 }
 
+export type CodeExportTarget = "scipy" | "root" | "both";
+
 export interface CodeExportBundle {
   archiveName: string;
   directoryName: string;
   files: Record<string, string>;
 }
 
-export function codeExportBundleFileName(description: CodeExportDescription) {
-  return `${description.fileStem}-analysis-bundle.zip`;
+export function codeExportBundleFileName(
+  description: CodeExportDescription,
+  target: CodeExportTarget = "both",
+) {
+  return `${description.fileStem}${target === "both" ? "" : `-${target}`}-analysis-bundle.zip`;
 }
 
 export function buildCodeExportDescription(
@@ -129,8 +135,14 @@ export function generateCodeExportCsv(description: CodeExportDescription) {
       .map(csvField)
       .join(","),
   );
+  const comments =
+    description.source.context
+      ?.split(/\r\n|\r|\n/)
+      .map((line) => `# ${line}`) ?? [];
   return (
-    ["row_id,x,y,sigma,included,missing_reason", ...rows].join("\r\n") + "\r\n"
+    [...comments, "row_id,x,y,sigma,included,missing_reason", ...rows].join(
+      "\r\n",
+    ) + "\r\n"
   );
 }
 
@@ -142,6 +154,7 @@ function pythonExpression(settings: FitSettings) {
     settings.shape ?? (settings.model === "exponential" ? -1 : 2),
   );
   const expressions: Record<Exclude<FitSettings["model"], "custom">, string> = {
+    ...polynomialExpressions((i) => (i === 0 ? "p[0]" : `p[${i}]*x**${i}`)),
     line: "p[0] + p[1]*x",
     quadratic: "p[0] + p[1]*x + p[2]*x**2",
     cubic: "p[0] + p[1]*x + p[2]*x**2 + p[3]*x**3",
@@ -155,6 +168,8 @@ function pythonExpression(settings: FitSettings) {
     reciprocal: "p[0] + p[1]/x",
     "constant-acceleration": "p[0] + p[1]*x + 0.5*p[2]*x**2",
     "exponential-decay": "p[0] + p[1]*np.exp(-x/p[2])",
+    "exponential-growth": "p[0] + p[1]*np.exp(x/p[2])",
+    sigmoid: "p[0] + p[1]*np.exp(-np.logaddexp(0.0, -(x-p[2])/p[3]))",
     "power-law-free": "p[0] + p[1]*x**p[2]",
     gaussian: "p[0] + p[1]*np.exp(-0.5*((x-p[2])/p[3])**2)",
     "damped-sine":
@@ -211,7 +226,10 @@ function executableIdentity(settings: FitSettings) {
   };
 }
 
-export function generateCodeExportMetadata(description: CodeExportDescription) {
+export function generateCodeExportMetadata(
+  description: CodeExportDescription,
+  target: CodeExportTarget = "both",
+) {
   const names = parameterNames(
     description.settings.model,
     description.settings.custom,
@@ -275,13 +293,19 @@ export function generateCodeExportMetadata(description: CodeExportDescription) {
       },
       view: description.view,
       programs: {
-        scipy: "fit_scipy.py",
-        root: "fit_root.C",
+        ...(target !== "root" ? { scipy: "fit_scipy.py" } : {}),
+        ...(target !== "scipy" ? { root: "fit_root.C" } : {}),
       },
       outputs: {
-        scipyFigure: `${description.fileStem}-scipy.png`,
-        rootFigure: `${description.fileStem}-root.pdf`,
-        rootObjects: `${description.fileStem}-root.root`,
+        ...(target !== "root"
+          ? { scipyFigure: `${description.fileStem}-scipy.png` }
+          : {}),
+        ...(target !== "scipy"
+          ? {
+              rootFigure: `${description.fileStem}-root.pdf`,
+              rootObjects: `${description.fileStem}-root.root`,
+            }
+          : {}),
       },
     },
     null,
@@ -291,6 +315,28 @@ export function generateCodeExportMetadata(description: CodeExportDescription) {
 
 /** Readable SciPy program for the bundle's external CSV and JSON inputs. */
 export function generatePythonCode(description: CodeExportDescription) {
+  const polynomialJac =
+    polynomialDegree(description.settings.model) === undefined
+      ? ""
+      : "            # Analytic polynomial derivatives; update these if editing model().\n            jac=lambda x, *free: np.column_stack([x**i for i in free_index]),\n";
+  const meanGuide = `
+if view["showGuides"]:
+    ax_data.axhline(fitted[0], linestyle="--", color="0.45", linewidth=1.1, label="mean position b")`;
+  const centerGuide = `
+if view["showGuides"] and curve_x[0] <= fitted[2] <= curve_x[-1]:
+    ax_data.axvline(fitted[2], linestyle="--", color="0.45", linewidth=1.1, label="center")`;
+  const otherGuides: Partial<Record<FitSettings["model"], string>> = {
+    sine: meanGuide,
+    "sine-free-period": meanGuide,
+    gaussian: centerGuide,
+    lorentzian: centerGuide,
+    sigmoid:
+      centerGuide +
+      `
+if view["showGuides"]:
+    ax_data.axhline(fitted[0], linestyle="--", color="0.45", linewidth=1.1, label="asymptote b")
+    ax_data.axhline(fitted[0]+fitted[1], linestyle="--", color="0.55", linewidth=1.1, label="asymptote b+A")`,
+  };
   const guideCode =
     description.settings.model === "damped-sine"
       ? `
@@ -300,7 +346,7 @@ if view["showGuides"]:
     ax_data.plot(curve_x, np.full_like(curve_x, fitted[0]), "--", color="0.45", linewidth=1.1, label="baseline")
     ax_data.plot(curve_x, fitted[0] + envelope, "--", color="0.55", linewidth=1.0, label="envelope")
     ax_data.plot(curve_x, fitted[0] - envelope, "--", color="0.55", linewidth=1.0)`
-      : "";
+      : (otherGuides[description.settings.model] ?? "");
   return `#!/usr/bin/env python3
 """Refit a Data Tool 2027 CSV with NumPy, SciPy, and Matplotlib.
 
@@ -314,6 +360,7 @@ import argparse
 import csv
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -323,31 +370,133 @@ BUNDLE_DIR = Path(__file__).resolve().parent
 DEFAULT_DATA = BUNDLE_DIR / "data.csv"
 DEFAULT_ANALYSIS = BUNDLE_DIR / "analysis.json"
 
-parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--data", type=Path, default=DEFAULT_DATA, help="CSV input (default: bundled data.csv)")
-parser.add_argument("--analysis", type=Path, default=DEFAULT_ANALYSIS, help="analysis metadata (default: bundled analysis.json)")
-parser.add_argument("--output", type=Path, help="PNG output path")
-parser.add_argument("--show", action="store_true", help="open the Matplotlib window after saving")
-args = parser.parse_args()
+# The fitted function: edit the equation here when adapting this program.
+def model(x, *p):
+    value = ${pythonExpression(description.settings)}
+    # Constant custom equations are scalars; callers need one prediction per X.
+    return np.broadcast_to(np.asarray(value, dtype=float), np.shape(x))
 
-with args.analysis.open(encoding="utf-8") as handle:
-    analysis = json.load(handle)
-if analysis.get("format") != "data-tool-analysis-bundle" or analysis.get("version") != 1:
-    raise ValueError(f"{args.analysis}: unsupported analysis metadata")
+def fit_data(data, analysis):
+    fit_metadata = analysis["fit"]
+    row_ids, x_all, y_all, sigma_all, included = data
+    use = included & np.isfinite(x_all) & np.isfinite(y_all)
+    excluded = ~included & np.isfinite(x_all) & np.isfinite(y_all)
+    if not np.any(use):
+        raise ValueError(f"CSV: no finite included observations")
 
-# The function below is generated from a validated equation. Alternate metadata
-# may change starts, fixed flags, uncertainty, or view, but cannot change that code.
-expected_identity = json.loads(${JSON.stringify(JSON.stringify(executableIdentity(description.settings)))})
-fit_metadata = analysis["fit"]
-custom = fit_metadata.get("customEquation")
-identity = {
-    "model": fit_metadata["model"],
-    "parameterNames": [parameter["name"] for parameter in fit_metadata["parameters"]],
-    "customEquation": {key: custom[key] for key in ("expression", "variable", "names")} if custom else None,
-    "options": {key: fit_metadata["options"].get(key) for key in expected_identity["options"]},
-}
-if identity != expected_identity:
-    raise ValueError(f"{args.analysis}: model, parameter order, or equation options do not match this generated program")
+    parameter_metadata = fit_metadata["parameters"]
+    parameter_names = [parameter["name"] for parameter in parameter_metadata]
+    start = np.asarray([parameter["start"] for parameter in parameter_metadata], dtype=float)
+    if not np.all(np.isfinite(start)) or any(type(parameter["fixed"]) is not bool for parameter in parameter_metadata):
+        raise ValueError(f"Model metadata: starts must be finite and fixed flags must be boolean")
+    free_index = np.asarray(
+        [index for index, parameter in enumerate(parameter_metadata) if not parameter["fixed"]],
+        dtype=int,
+    )
+
+    def lower_bound(parameter):
+        lower = parameter["lowerBound"]
+        if lower is None:
+            return -np.inf
+        if parameter.get("lowerExclusive") and float(lower) == 0:
+            return np.nextafter(0.0, 1.0)
+        return float(lower)
+
+    lower = np.asarray([lower_bound(parameter_metadata[index]) for index in free_index], dtype=float)
+    upper = np.asarray([
+        np.inf if parameter_metadata[index]["upperBound"] is None else float(parameter_metadata[index]["upperBound"])
+        for index in free_index
+    ], dtype=float)
+    if np.any(np.isnan(lower)) or np.any(np.isnan(upper)) or np.any(lower >= upper):
+        raise ValueError(f"Model metadata: invalid parameter bounds")
+    data_tool_fit = np.asarray([parameter["dataToolValue"] for parameter in parameter_metadata], dtype=float)
+    known_sigma = analysis["uncertainty"]["kind"] != "unknown-equal"
+
+    def free_model(x, *free):
+        p = start.copy()
+        p[free_index] = free
+        return model(x, *p)
+
+    x_fit = x_all[use]
+    y_fit = y_all[use]
+    sigma_fit = sigma_all[use] if known_sigma else None
+    if known_sigma and not np.all(np.isfinite(sigma_fit) & (sigma_fit > 0)):
+        raise ValueError(f"CSV: every included row needs a positive finite sigma")
+
+    fitted = start.copy()
+    covariance = np.zeros((len(start), len(start)), dtype=float)
+    if len(free_index):
+        fitted_free, covariance_free = curve_fit(
+            free_model,
+            x_fit,
+            y_fit,
+            p0=np.clip(start[free_index], lower, upper),
+            sigma=sigma_fit,
+            absolute_sigma=known_sigma,
+${polynomialJac}            bounds=(lower, upper),
+            maxfev=200000,
+        )
+        fitted[free_index] = fitted_free
+        covariance[np.ix_(free_index, free_index)] = covariance_free
+
+    residual = y_fit - model(x_fit, *fitted)
+    if not np.all(np.isfinite(fitted)) or not np.all(np.isfinite(residual)):
+        raise ValueError("Fit did not produce finite coefficients and predictions")
+    sse = float(residual @ residual)
+    if not np.isfinite(sse):
+        raise ValueError("Residual sum of squares overflowed")
+    df = len(x_fit) - len(free_index)
+    uncertainty_reason = None
+    if not known_sigma and (df <= 0 or sse == 0):
+        uncertainty_reason = "residual scatter cannot be estimated (zero SSE or nonpositive degrees of freedom)"
+    elif fit_metadata["inference"] == "descriptive":
+        uncertainty_reason = "statistical assumptions are not supported"
+    elif not np.all(np.isfinite(covariance)):
+        uncertainty_reason = "finite parameter covariance is unavailable"
+    if uncertainty_reason:
+        covariance[np.ix_(free_index, free_index)] = np.nan
+    return SimpleNamespace(
+        fitted=fitted,
+        covariance=covariance,
+        free_index=free_index,
+        parameter_names=parameter_names,
+        data_tool_fit=data_tool_fit,
+        uncertainty_reason=uncertainty_reason,
+        known_sigma=known_sigma,
+        residual=residual,
+        sigma_fit=sigma_fit,
+        sse=sse,
+        df=df,
+        x_fit=x_fit,
+        y_fit=y_fit,
+        x_all=x_all,
+        y_all=y_all,
+        excluded=excluded,
+    )
+
+
+def load_model(path):
+    with path.open(encoding="utf-8") as handle:
+        analysis = json.load(handle)
+    if analysis.get("format") != "data-tool-analysis-bundle" or analysis.get("version") != 1:
+        raise ValueError(f"{path}: unsupported analysis metadata")
+
+    # The model function above is generated from a validated equation. Alternate metadata
+    # may change starts, fixed flags, uncertainty, or view, but cannot change that code.
+    expected_identity = json.loads(${JSON.stringify(JSON.stringify(executableIdentity(description.settings)))})
+    fit_metadata = analysis["fit"]
+    custom = fit_metadata.get("customEquation")
+    identity = {
+        "model": fit_metadata["model"],
+        "parameterNames": [parameter["name"] for parameter in fit_metadata["parameters"]],
+        "customEquation": {key: custom[key] for key in ("expression", "variable", "names")} if custom else None,
+        "options": {key: fit_metadata["options"].get(key) for key in expected_identity["options"]},
+    }
+    if identity != expected_identity:
+        raise ValueError(f"{path}: model, parameter order, or equation options do not match this generated program")
+
+    return analysis
+
 
 def read_number(value, row_number, column):
     value = value.strip()
@@ -356,15 +505,22 @@ def read_number(value, row_number, column):
     try:
         result = float(value)
     except ValueError as cause:
-        raise ValueError(f"{args.data}: row {row_number} has invalid {column}") from cause
+        raise ValueError(f"CSV row {row_number} has invalid {column}") from cause
     if not np.isfinite(result):
-        raise ValueError(f"{args.data}: row {row_number} has non-finite {column}")
+        raise ValueError(f"CSV row {row_number} has non-finite {column}")
     return result
 
-def read_data(path):
+def load_data(path):
     row_ids, x, y, sigma, included = [], [], [], [], []
     expected = ["row_id", "x", "y", "sigma", "included", "missing_reason"]
     with path.open(newline="", encoding="utf-8-sig") as handle:
+        # Only the preamble is comments; quoted multiline CSV fields stay intact.
+        while True:
+            position = handle.tell()
+            line = handle.readline()
+            if not line.startswith("#"):
+                handle.seek(position)
+                break
         reader = csv.DictReader(handle)
         if reader.fieldnames != expected:
             raise ValueError(f"{path}: expected CSV columns {', '.join(expected)}")
@@ -389,160 +545,121 @@ def read_data(path):
         np.asarray(included, dtype=bool),
     )
 
-row_ids, x_all, y_all, sigma_all, included = read_data(args.data)
-use = included & np.isfinite(x_all) & np.isfinite(y_all)
-excluded = ~included & np.isfinite(x_all) & np.isfinite(y_all)
-if not np.any(use):
-    raise ValueError(f"{args.data}: no finite included observations")
+def report_fit(result, reference_inputs):
+    fitted = result.fitted
+    covariance = result.covariance
+    free_index = result.free_index
+    parameter_names = result.parameter_names
+    data_tool_fit = result.data_tool_fit
+    uncertainty_reason = result.uncertainty_reason
+    known_sigma = result.known_sigma
+    residual = result.residual
+    sigma_fit = result.sigma_fit
+    sse = result.sse
+    df = result.df
+    if uncertainty_reason:
+        print(f"Standard errors unavailable: {uncertainty_reason}")
+    if known_sigma:
+        chi2 = float(np.sum((residual/sigma_fit)**2))
+        print(f"chi2 = {chi2:.12g}; chi2/df = {chi2/df:.12g}" if df > 0 else f"chi2 = {chi2:.12g}; df = 0")
+    else:
+        scatter = np.sqrt(sse/df) if df > 0 else np.nan
+        print(f"SSE = {sse:.12g}; residual scatter = {scatter:.12g}; df = {df}")
+    print("SciPy fit (standard error):")
+    for index, name in enumerate(parameter_names):
+        suffix = "fixed" if index not in free_index else "SE=unavailable" if uncertainty_reason else f"SE={np.sqrt(max(0.0, covariance[index, index])):.12g}"
+        print(f"  {name} = {fitted[index]:.17g} ({suffix})")
 
-parameter_metadata = fit_metadata["parameters"]
-parameter_names = [parameter["name"] for parameter in parameter_metadata]
-start = np.asarray([parameter["start"] for parameter in parameter_metadata], dtype=float)
-if not np.all(np.isfinite(start)) or any(type(parameter["fixed"]) is not bool for parameter in parameter_metadata):
-    raise ValueError(f"{args.analysis}: starts must be finite and fixed flags must be boolean")
-free_index = np.asarray(
-    [index for index, parameter in enumerate(parameter_metadata) if not parameter["fixed"]],
-    dtype=int,
-)
+    if reference_inputs:
+        print("Data Tool fit:", data_tool_fit)
+        print("maximum absolute coefficient difference:", np.max(np.abs(fitted - data_tool_fit)))
+    else:
+        print("Data Tool coefficient comparison omitted for alternate inputs.")
 
-def lower_bound(parameter):
-    lower = parameter["lowerBound"]
-    if lower is None:
-        return -np.inf
-    if parameter.get("lowerExclusive") and float(lower) == 0:
-        return np.nextafter(0.0, 1.0)
-    return float(lower)
 
-lower = np.asarray([lower_bound(parameter_metadata[index]) for index in free_index], dtype=float)
-upper = np.asarray([
-    np.inf if parameter_metadata[index]["upperBound"] is None else float(parameter_metadata[index]["upperBound"])
-    for index in free_index
-], dtype=float)
-if np.any(np.isnan(lower)) or np.any(np.isnan(upper)) or np.any(lower >= upper):
-    raise ValueError(f"{args.analysis}: invalid parameter bounds")
-data_tool_fit = np.asarray([parameter["dataToolValue"] for parameter in parameter_metadata], dtype=float)
-known_sigma = analysis["uncertainty"]["kind"] != "unknown-equal"
+def plot_fit(analysis, result, output=None, show=False):
+    fitted = result.fitted
+    known_sigma = result.known_sigma
+    residual = result.residual
+    sigma_fit = result.sigma_fit
+    x_fit = result.x_fit
+    y_fit = result.y_fit
+    x_all = result.x_all
+    y_all = result.y_all
+    excluded = result.excluded
+    dataset = analysis["dataset"]
+    view = analysis["view"]
+    show_residuals = bool(view["showResiduals"])
+    if show_residuals:
+        fig, (ax_data, ax_residual) = plt.subplots(
+            2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]}, figsize=(8, 6)
+        )
+    else:
+        fig, ax_data = plt.subplots(figsize=(8, 5))
 
-def model(x, *p):
-    value = ${pythonExpression(description.settings)}
-    # Constant custom equations are scalars; callers need one prediction per X.
-    return np.broadcast_to(np.asarray(value, dtype=float), np.shape(x))
+    if view["showErrorBars"] and known_sigma:
+        ax_data.errorbar(x_fit, y_fit, yerr=sigma_fit, fmt="o", label="included data", capsize=2)
+    else:
+        ax_data.plot(x_fit, y_fit, "o", label="included data")
+    if np.any(excluded):
+        ax_data.plot(x_all[excluded], y_all[excluded], "x", color="0.55", label="excluded data")
 
-def free_model(x, *free):
-    p = start.copy()
-    p[free_index] = free
-    return model(x, *p)
+    x_min, x_max = map(float, view["xRange"])
+    log_x = view["mode"] in {"log-x", "log-log"}
+    log_y = view["mode"] in {"log-y", "log-log"}
+    curve_x = np.geomspace(x_min, x_max, 800) if log_x else np.linspace(x_min, x_max, 800)
+    ax_data.plot(curve_x, model(curve_x, *fitted), color="#cc9550", linewidth=2, label="SciPy fit")${guideCode.replaceAll("\n", "\n    ")}
 
-x_fit = x_all[use]
-y_fit = y_all[use]
-sigma_fit = sigma_all[use] if known_sigma else None
-if known_sigma and not np.all(np.isfinite(sigma_fit) & (sigma_fit > 0)):
-    raise ValueError(f"{args.data}: every included row needs a positive finite sigma")
+    def axis_label(axis):
+        return f'{axis["label"]} [{axis["unit"]}]' if axis["unit"] else axis["label"]
 
-fitted = start.copy()
-covariance = np.zeros((len(start), len(start)), dtype=float)
-if len(free_index):
-    fitted_free, covariance_free = curve_fit(
-        free_model,
-        x_fit,
-        y_fit,
-        p0=np.clip(start[free_index], lower, upper),
-        sigma=sigma_fit,
-        absolute_sigma=known_sigma,
-        bounds=(lower, upper),
-        maxfev=200000,
-    )
-    fitted[free_index] = fitted_free
-    covariance[np.ix_(free_index, free_index)] = covariance_free
+    ax_data.set_title(dataset["title"])
+    ax_data.set_ylabel(axis_label(dataset["y"]))
+    ax_data.set_xscale("log" if log_x else "linear")
+    ax_data.set_yscale("log" if log_y else "linear")
+    ax_data.set_xlim(x_min, x_max)
+    if view["yRange"] is not None:
+        ax_data.set_ylim(*map(float, view["yRange"]))
+    ax_data.grid(alpha=0.25)
+    ax_data.legend()
 
-residual = y_fit - model(x_fit, *fitted)
-if not np.all(np.isfinite(fitted)) or not np.all(np.isfinite(residual)):
-    raise ValueError("Fit did not produce finite coefficients and predictions")
-sse = float(residual @ residual)
-if not np.isfinite(sse):
-    raise ValueError("Residual sum of squares overflowed")
-df = len(x_fit) - len(free_index)
-uncertainty_reason = None
-if not known_sigma and (df <= 0 or sse == 0):
-    uncertainty_reason = "residual scatter cannot be estimated (zero SSE or nonpositive degrees of freedom)"
-elif fit_metadata["inference"] == "descriptive":
-    uncertainty_reason = "statistical assumptions are not supported"
-elif not np.all(np.isfinite(covariance)):
-    uncertainty_reason = "finite parameter covariance is unavailable"
-if uncertainty_reason:
-    covariance[np.ix_(free_index, free_index)] = np.nan
-    print(f"Standard errors unavailable: {uncertainty_reason}")
-if known_sigma:
-    chi2 = float(np.sum((residual/sigma_fit)**2))
-    print(f"chi2 = {chi2:.12g}; chi2/df = {chi2/df:.12g}" if df > 0 else f"chi2 = {chi2:.12g}; df = 0")
-else:
-    scatter = np.sqrt(sse/df) if df > 0 else np.nan
-    print(f"SSE = {sse:.12g}; residual scatter = {scatter:.12g}; df = {df}")
-print("SciPy fit (standard error):")
-for index, name in enumerate(parameter_names):
-    suffix = "fixed" if index not in free_index else "SE=unavailable" if uncertainty_reason else f"SE={np.sqrt(max(0.0, covariance[index, index])):.12g}"
-    print(f"  {name} = {fitted[index]:.17g} ({suffix})")
+    if show_residuals:
+        ax_residual.axhline(0, color="0.5", linestyle="--", linewidth=1)
+        ax_residual.plot(x_fit, residual, "o")
+        ax_residual.set_ylabel("Residual")
+        ax_residual.set_xlabel(axis_label(dataset["x"]))
+        ax_residual.set_xscale("log" if log_x else "linear")
+        ax_residual.grid(alpha=0.25)
+    else:
+        ax_data.set_xlabel(axis_label(dataset["x"]))
 
-reference_inputs = args.data.resolve() == DEFAULT_DATA.resolve() and args.analysis.resolve() == DEFAULT_ANALYSIS.resolve()
-if reference_inputs:
-    print("Data Tool fit:", data_tool_fit)
-    print("maximum absolute coefficient difference:", np.max(np.abs(fitted - data_tool_fit)))
-else:
-    print("Data Tool coefficient comparison omitted for alternate inputs.")
+    fig.tight_layout()
+    output = output or (BUNDLE_DIR / analysis["outputs"]["scipyFigure"])
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output, dpi=160)
+    print(f"saved figure: {output}")
+    if show:
+        plt.show()
 
-dataset = analysis["dataset"]
-view = analysis["view"]
-show_residuals = bool(view["showResiduals"])
-if show_residuals:
-    fig, (ax_data, ax_residual) = plt.subplots(
-        2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]}, figsize=(8, 6)
-    )
-else:
-    fig, ax_data = plt.subplots(figsize=(8, 5))
 
-if view["showErrorBars"] and known_sigma:
-    ax_data.errorbar(x_fit, y_fit, yerr=sigma_fit, fmt="o", label="included data", capsize=2)
-else:
-    ax_data.plot(x_fit, y_fit, "o", label="included data")
-if np.any(excluded):
-    ax_data.plot(x_all[excluded], y_all[excluded], "x", color="0.55", label="excluded data")
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data", type=Path, default=DEFAULT_DATA, help="CSV input (default: bundled data.csv)")
+    parser.add_argument("--analysis", type=Path, default=DEFAULT_ANALYSIS, help="analysis metadata (default: bundled analysis.json)")
+    parser.add_argument("--output", type=Path, help="PNG output path")
+    parser.add_argument("--show", action="store_true", help="open the Matplotlib window after saving")
+    args = parser.parse_args()
 
-x_min, x_max = map(float, view["xRange"])
-log_x = view["mode"] in {"log-x", "log-log"}
-log_y = view["mode"] in {"log-y", "log-log"}
-curve_x = np.geomspace(x_min, x_max, 800) if log_x else np.linspace(x_min, x_max, 800)
-ax_data.plot(curve_x, model(curve_x, *fitted), color="#cc9550", linewidth=2, label="SciPy fit")${guideCode}
+    analysis = load_model(args.analysis)
+    data = load_data(args.data)
+    result = fit_data(data, analysis)
+    reference_inputs = args.data.resolve() == DEFAULT_DATA.resolve() and args.analysis.resolve() == DEFAULT_ANALYSIS.resolve()
+    report_fit(result, reference_inputs)
+    plot_fit(analysis, result, args.output, args.show)
 
-def axis_label(axis):
-    return f'{axis["label"]} [{axis["unit"]}]' if axis["unit"] else axis["label"]
 
-ax_data.set_title(dataset["title"])
-ax_data.set_ylabel(axis_label(dataset["y"]))
-ax_data.set_xscale("log" if log_x else "linear")
-ax_data.set_yscale("log" if log_y else "linear")
-ax_data.set_xlim(x_min, x_max)
-if view["yRange"] is not None:
-    ax_data.set_ylim(*map(float, view["yRange"]))
-ax_data.grid(alpha=0.25)
-ax_data.legend()
-
-if show_residuals:
-    ax_residual.axhline(0, color="0.5", linestyle="--", linewidth=1)
-    ax_residual.plot(x_fit, residual, "o")
-    ax_residual.set_ylabel("Residual")
-    ax_residual.set_xlabel(axis_label(dataset["x"]))
-    ax_residual.set_xscale("log" if log_x else "linear")
-    ax_residual.grid(alpha=0.25)
-else:
-    ax_data.set_xlabel(axis_label(dataset["x"]))
-
-fig.tight_layout()
-output = args.output or (BUNDLE_DIR / analysis["outputs"]["scipyFigure"])
-output.parent.mkdir(parents=True, exist_ok=True)
-fig.savefig(output, dpi=160)
-print(f"saved figure: {output}")
-if args.show:
-    plt.show()
+if __name__ == "__main__":
+    main()
 `;
 }
 function cppString(value: string) {
@@ -573,6 +690,9 @@ function rootExpression(settings: FitSettings) {
     settings.shape ?? (settings.model === "exponential" ? -1 : 2),
   );
   const expressions: Record<Exclude<FitSettings["model"], "custom">, string> = {
+    ...polynomialExpressions((i) =>
+      i === 0 ? "p[0]" : `p[${i}]*std::pow(x, ${i})`,
+    ),
     line: "p[0] + p[1]*x",
     quadratic: "p[0] + p[1]*x + p[2]*x*x",
     cubic: "p[0] + p[1]*x + p[2]*x*x + p[3]*x*x*x",
@@ -586,6 +706,9 @@ function rootExpression(settings: FitSettings) {
     reciprocal: "p[0] + p[1]/x",
     "constant-acceleration": "p[0] + p[1]*x + 0.5*p[2]*x*x",
     "exponential-decay": "p[0] + p[1]*std::exp(-x/p[2])",
+    "exponential-growth": "p[0] + p[1]*std::exp(x/p[2])",
+    sigmoid:
+      "p[0] + p[1]*((x-p[2])/p[3] >= 0 ? 1/(1+std::exp(-(x-p[2])/p[3])) : std::exp((x-p[2])/p[3])/(1+std::exp((x-p[2])/p[3])))",
     "power-law-free": "p[0] + p[1]*std::pow(x, p[2])",
     gaussian: "p[0] + p[1]*std::exp(-0.5*std::pow((x-p[2])/p[3], 2))",
     "damped-sine":
@@ -638,6 +761,32 @@ export function generateRootCode(description: CodeExportDescription) {
     })
     .filter(Boolean)
     .join("\n");
+  const meanGuide = `
+  TF1 baseline("fitted_baseline", "[0]", x_min, x_max);
+  baseline.SetParameter(0, model.GetParameter(0));
+  baseline.SetLineColor(kGray+2); baseline.SetLineStyle(2); baseline.Draw("same");`;
+  const centerGuide = `
+  gPad->Update();
+  TLine center;
+  if (model.GetParameter(2) >= x_min && model.GetParameter(2) <= x_max${logX ? " && model.GetParameter(2) > 0" : ""}) {
+    center.SetX1(model.GetParameter(2)); center.SetX2(model.GetParameter(2));
+    center.SetY1(${logY ? "std::pow(10.0, gPad->GetUymin())" : "gPad->GetUymin()"});
+    center.SetY2(${logY ? "std::pow(10.0, gPad->GetUymax())" : "gPad->GetUymax()"});
+    center.SetLineColor(kGray+2); center.SetLineStyle(2); center.Draw("same");
+  }`;
+  const otherGuides: Partial<Record<FitSettings["model"], string>> = {
+    sine: meanGuide,
+    "sine-free-period": meanGuide,
+    gaussian: centerGuide,
+    lorentzian: centerGuide,
+    sigmoid:
+      meanGuide +
+      `
+  TF1 asymptote("fitted_asymptote", "[0]", x_min, x_max);
+  asymptote.SetParameter(0, model.GetParameter(0)+model.GetParameter(1));
+  asymptote.SetLineColor(kGray+1); asymptote.SetLineStyle(2); asymptote.Draw("same");` +
+      centerGuide,
+  };
   const guideCode =
     view.showGuides && settings.model === "damped-sine"
       ? `
@@ -650,7 +799,9 @@ export function generateRootCode(description: CodeExportDescription) {
     guide->SetParameters(model.GetParameter(0), model.GetParameter(1), model.GetParameter(2), model.GetParameter(4));
     guide->SetLineColor(kGray+1); guide->SetLineStyle(2); guide->Draw("same");
   }`
-      : "";
+      : view.showGuides
+        ? (otherGuides[settings.model] ?? "")
+        : "";
   const yLimits = view.yRange
     ? `\n  graph.SetMinimum(${number(view.yRange[0])}); graph.SetMaximum(${number(view.yRange[1])});`
     : "";
@@ -669,14 +820,15 @@ export function generateRootCode(description: CodeExportDescription) {
   TLine zero(x_min, 0, x_max, 0); zero.SetLineStyle(2); zero.SetLineColor(kGray+2); zero.Draw();`
     : "";
   return `// Data Tool 2027 ROOT demonstration.
-// Run with bundled data: root -l -q fit_root.C
-// Alternate data: root -l -q 'fit_root.C("another.csv","another-fit")'
+// Run with bundled data: root -l fit_root.C
+// Alternate data: root -l 'fit_root.C("another.csv","another-fit")'
 // Measurements are read from CSV rather than compiled into this macro.
 // ROOT and Data Tool use different nonlinear optimizers; local minima and roundoff can differ.
 #include <TF1.h>
 #include <Fit/Fitter.h>
 #include <TFile.h>
 #include <TFitResult.h>
+#include <TROOT.h>
 #include <TGraph.h>
 #include <TGraphErrors.h>
 #include <TLegend.h>
@@ -696,6 +848,103 @@ export function generateRootCode(description: CodeExportDescription) {
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+// The fitted function: the equation is the first function in this file.
+double model_function(double *xx, double *p) {
+  const double x = xx[0];
+  return ${rootExpression(settings)};
+}
+
+struct Data {
+  std::vector<double> data_x, data_y, data_ex, data_ey, excluded_x, excluded_y;
+};
+
+struct FitOutcome {
+  TFitResult fit_result;
+  std::string uncertainty_reason;
+};
+
+FitOutcome fit_data(Data &data, TF1 &model) {
+  auto &data_x = data.data_x;
+  auto &data_y = data.data_y;
+  auto &data_ey = data.data_ey;
+  // Fit in physical parameter coordinates. One-sided limits avoid Minuit's
+  // unstable transformation of an enormous two-sided positive interval.
+  auto run_fit = [&]() {
+    ROOT::Fit::Fitter fitter;
+    auto chi2 = [&](const double *p) {
+      double sum = 0.0;
+      for (size_t i=0; i<data_x.size(); ++i) {
+        double x = data_x[i];
+        const double residual = (data_y[i]-model.EvalPar(&x, p))/data_ey[i];
+        sum += residual*residual;
+        if (!std::isfinite(sum)) return std::numeric_limits<double>::max();
+      }
+      return sum;
+    };
+    fitter.SetFCN(model.GetNpar(), chi2, model.GetParameters(), data_x.size(), 1);
+    fitter.Config().SetMinimizer("Minuit2", "Migrad");
+    fitter.Config().MinimizerOptions().SetTolerance(1e-6);
+    fitter.Config().MinimizerOptions().SetMaxFunctionCalls(200000);
+    fitter.Config().SetNormErrors(false); // Scale unknown scatter explicitly below.
+    for (int i=0; i<model.GetNpar(); ++i)
+      fitter.Config().ParSettings(i).SetName(model.GetParName(i));
+${fitterParameterSetup}
+    const bool success = fitter.FitFCN();
+    TFitResult result(fitter.Result());
+    if (!success || !result.IsValid() || result.Status() != 0 || !std::isfinite(result.Chi2()))
+      throw std::runtime_error("ROOT fit failed (status " + std::to_string(result.Status()) + "); no successful fit artifacts were written");
+    if (${free} > 0 && result.CovMatrixStatus() != 3)
+      throw std::runtime_error("ROOT could not determine a full-rank parameter covariance");
+    for (int i=0; i<model.GetNpar(); ++i) {
+      if (!std::isfinite(result.Parameter(i)) || !std::isfinite(result.ParError(i)))
+        throw std::runtime_error("ROOT fit produced non-finite parameters or errors");
+      model.SetParameter(i, result.Parameter(i)); model.SetParError(i, result.ParError(i));
+    }
+    for (double x : data_x)
+      if (!std::isfinite(model.Eval(x))) throw std::runtime_error("ROOT fit produced non-finite predictions");
+    model.SetChisquare(result.Chi2()); model.SetNDF(result.Ndf());
+    return result;
+  };
+  TFitResult fit_result = run_fit();
+  const int df = static_cast<int>(data_x.size()) - ${free};
+  std::string uncertainty_reason;
+${
+  description.knownSigma
+    ? ""
+    : `  // Data Tool estimates one common scatter parameter with s=sqrt(SSE/df).
+  // Refit with that uniform error so ROOT's covariance uses the same scale.
+  double preliminary_sse = 0.0;
+  for (size_t i=0; i<data_x.size(); ++i) preliminary_sse += std::pow(data_y[i]-model.Eval(data_x[i]), 2);
+  if (!std::isfinite(preliminary_sse)) throw std::runtime_error("Residual sum of squares overflowed");
+  if (df > 0 && preliminary_sse > 0) {
+    const double scatter = std::sqrt(preliminary_sse/df);
+    for (size_t i=0; i<data_ey.size(); ++i) { data_ey[i]=scatter; }
+    fit_result = run_fit();
+  } else {
+    uncertainty_reason = "residual scatter cannot be estimated (zero SSE or nonpositive degrees of freedom)";
+  }`
+}
+  if (uncertainty_reason.empty() && ${cppString(description.inference)} == std::string("descriptive"))
+    uncertainty_reason = "statistical assumptions are not supported";
+  const bool errors_available = uncertainty_reason.empty();
+  const bool fixed_parameters[] = {${settings.parameters.map((parameter) => String(parameter.fixed)).join(", ")}};
+  if (!errors_available) {
+    std::cout << "Standard errors unavailable: " << uncertainty_reason << "\\n";
+    for (int i=0; i<model.GetNpar(); ++i)
+      if (!fixed_parameters[i]) model.SetParError(i, std::numeric_limits<double>::quiet_NaN());
+  }
+  return {fit_result, uncertainty_reason};
+}
+
+TF1 load_model(const Data &data) {
+  const auto &data_x = data.data_x;
+  const auto fit_bounds = std::minmax_element(data_x.begin(), data_x.end());
+  const double fit_x_min = *fit_bounds.first, fit_x_max = *fit_bounds.second;
+  TF1 model("fit_model", model_function, fit_x_min, fit_x_max, ${settings.parameters.length});
+${parameterSetup}
+  return model;
+}
 
 bool data_tool_csv_record(std::istream &input, std::vector<std::string> &fields) {
   fields.clear();
@@ -761,18 +1010,17 @@ bool data_tool_included(const std::string &cell, size_t row) {
   throw std::runtime_error("Invalid included flag in CSV row " + std::to_string(row));
 }
 
-void fit_root(const char *data_path = "",
-              const char *output_stem = ${cppString(`${description.fileStem}-root`)}) {
-  const bool reference_inputs = !data_path || !*data_path;
-  const std::string csv_path = reference_inputs
-    ? std::string(gSystem->DirName(__FILE__)) + "/data.csv"
-    : std::string(data_path);
+Data load_data(const std::string &csv_path) {
   std::ifstream input(csv_path);
   if (!input) throw std::runtime_error("Cannot open CSV input: " + csv_path);
   if (input.peek() == 0xef) {
     char bom[3] = {}; input.read(bom, 3);
     if (input.gcount() != 3 || static_cast<unsigned char>(bom[1]) != 0xbb || static_cast<unsigned char>(bom[2]) != 0xbf)
       throw std::runtime_error("Invalid UTF-8 byte order mark");
+  }
+
+  while (input.peek() == '#') {
+    std::string comment; std::getline(input, comment);
   }
 
   const std::vector<std::string> expected = {
@@ -798,7 +1046,14 @@ void fit_root(const char *data_path = "",
   }
   if (row_ids.empty()) throw std::runtime_error("CSV contains no observations");
 
-  std::vector<double> data_x, data_y, data_ex, data_ey, excluded_x, excluded_y;
+  Data data;
+  auto &data_x = data.data_x;
+  auto &data_y = data.data_y;
+  auto &data_ex = data.data_ex;
+  auto &data_ey = data.data_ey;
+  auto &excluded_x = data.excluded_x;
+  auto &excluded_y = data.excluded_y;
+
   for (size_t i=0; i<x_all.size(); ++i) {
     if (!std::isfinite(x_all[i]) || !std::isfinite(y_all[i])) continue;
     if (included[i]) {
@@ -815,87 +1070,14 @@ ${
   if (data_x.empty()) throw std::runtime_error("CSV has no finite included observations");
   if (data_x.size() < ${free}) throw std::runtime_error("Fewer observations than free parameters");
 
-  const double x_min = ${number(view.xRange[0])}, x_max = ${number(view.xRange[1])};
-  const auto fit_bounds = std::minmax_element(data_x.begin(), data_x.end());
-  const double fit_x_min = *fit_bounds.first, fit_x_max = *fit_bounds.second;
-  TGraphErrors graph(data_x.size(), data_x.data(), data_y.data(), data_ex.data(), data_ey.data());
-  graph.SetName("included_data");
-  graph.SetTitle(${cppString(
-    `${description.title};${axisLabel(description.xLabel, description.xUnit)};${axisLabel(description.yLabel, description.yUnit)}`,
-  )});
-  graph.SetMarkerStyle(20);
-  TF1 model("fit_model", [](double *xx, double *p) {
-    const double x = xx[0];
-    return ${rootExpression(settings)};
-  }, fit_x_min, fit_x_max, ${settings.parameters.length});
-${parameterSetup}
-  // Fit in physical parameter coordinates. One-sided limits avoid Minuit's
-  // unstable transformation of an enormous two-sided positive interval.
-  auto run_fit = [&]() {
-    ROOT::Fit::Fitter fitter;
-    auto chi2 = [&](const double *p) {
-      double sum = 0.0;
-      for (size_t i=0; i<data_x.size(); ++i) {
-        double x = data_x[i];
-        const double residual = (data_y[i]-model.EvalPar(&x, p))/data_ey[i];
-        sum += residual*residual;
-        if (!std::isfinite(sum)) return std::numeric_limits<double>::max();
-      }
-      return sum;
-    };
-    fitter.SetFCN(model.GetNpar(), chi2, model.GetParameters(), data_x.size(), 1);
-    fitter.Config().SetMinimizer("Minuit2", "Migrad");
-    fitter.Config().MinimizerOptions().SetTolerance(1e-6);
-    fitter.Config().MinimizerOptions().SetMaxFunctionCalls(200000);
-    fitter.Config().SetNormErrors(false); // Scale unknown scatter explicitly below.
-    for (int i=0; i<model.GetNpar(); ++i)
-      fitter.Config().ParSettings(i).SetName(model.GetParName(i));
-${fitterParameterSetup}
-    const bool success = fitter.FitFCN();
-    TFitResult result(fitter.Result());
-    if (!success || !result.IsValid() || result.Status() != 0 || !std::isfinite(result.Chi2()))
-      throw std::runtime_error("ROOT fit failed (status " + std::to_string(result.Status()) + "); no successful fit artifacts were written");
-    if (${free} > 0 && result.CovMatrixStatus() != 3)
-      throw std::runtime_error("ROOT could not determine a full-rank parameter covariance");
-    for (int i=0; i<model.GetNpar(); ++i) {
-      if (!std::isfinite(result.Parameter(i)) || !std::isfinite(result.ParError(i)))
-        throw std::runtime_error("ROOT fit produced non-finite parameters or errors");
-      model.SetParameter(i, result.Parameter(i)); model.SetParError(i, result.ParError(i));
-    }
-    for (double x : data_x)
-      if (!std::isfinite(model.Eval(x))) throw std::runtime_error("ROOT fit produced non-finite predictions");
-    model.SetChisquare(result.Chi2()); model.SetNDF(result.Ndf());
-    return result;
-  };
-  TFitResult fit_result = run_fit();
-  const int df = static_cast<int>(data_x.size()) - ${free};
-  std::string uncertainty_reason;
-${
-  description.knownSigma
-    ? ""
-    : `  // Data Tool estimates one common scatter parameter with s=sqrt(SSE/df).
-  // Refit with that uniform error so ROOT's covariance uses the same scale.
-  double preliminary_sse = 0.0;
-  for (size_t i=0; i<data_x.size(); ++i) preliminary_sse += std::pow(data_y[i]-model.Eval(data_x[i]), 2);
-  if (!std::isfinite(preliminary_sse)) throw std::runtime_error("Residual sum of squares overflowed");
-  if (df > 0 && preliminary_sse > 0) {
-    const double scatter = std::sqrt(preliminary_sse/df);
-    for (size_t i=0; i<data_ey.size(); ++i) { data_ey[i]=scatter; graph.SetPointError(i, 0.0, scatter); }
-    fit_result = run_fit();
-  } else {
-    uncertainty_reason = "residual scatter cannot be estimated (zero SSE or nonpositive degrees of freedom)";
-  }`
+  return data;
 }
-  if (uncertainty_reason.empty() && ${cppString(description.inference)} == std::string("descriptive"))
-    uncertainty_reason = "statistical assumptions are not supported";
+
+void report_fit(TF1 &model, FitOutcome &result, bool reference_inputs) {
+  auto &fit_result = result.fit_result;
+  const auto &uncertainty_reason = result.uncertainty_reason;
   const bool errors_available = uncertainty_reason.empty();
   const bool fixed_parameters[] = {${settings.parameters.map((parameter) => String(parameter.fixed)).join(", ")}};
-  if (!errors_available) {
-    std::cout << "Standard errors unavailable: " << uncertainty_reason << "\\n";
-    for (int i=0; i<model.GetNpar(); ++i)
-      if (!fixed_parameters[i]) model.SetParError(i, std::numeric_limits<double>::quiet_NaN());
-  }
-  model.SetRange(x_min, x_max); // Display zoom never changes the fitted sample.
   std::cout << std::setprecision(17);
   std::cout << "fit status = " << fit_result.Status() << "; covariance status = " << fit_result.CovMatrixStatus() << "\\n";
   std::cout << "ROOT fit (standard error):\\n";
@@ -917,6 +1099,26 @@ ${
     std::cout << "Data Tool coefficient comparison omitted for alternate inputs.\\n";
   }
 
+}
+
+void plot_fit(Data &data, TF1 &model, FitOutcome &result, const char *output_stem) {
+  auto &data_x = data.data_x;
+  auto &data_y = data.data_y;
+  auto &data_ex = data.data_ex;
+  auto &data_ey = data.data_ey;
+  auto &excluded_x = data.excluded_x;
+  auto &excluded_y = data.excluded_y;
+  auto &fit_result = result.fit_result;
+  const auto &uncertainty_reason = result.uncertainty_reason;
+  const bool errors_available = uncertainty_reason.empty();
+  const double x_min = ${number(view.xRange[0])}, x_max = ${number(view.xRange[1])};
+  TGraphErrors graph(data_x.size(), data_x.data(), data_y.data(), data_ex.data(), data_ey.data());
+  graph.SetName("included_data");
+  graph.SetTitle(${cppString(
+    `${description.title};${axisLabel(description.xLabel, description.xUnit)};${axisLabel(description.yLabel, description.yUnit)}`,
+  )});
+  graph.SetMarkerStyle(20);
+  model.SetRange(x_min, x_max); // Display zoom never changes the fitted sample.
   TCanvas canvas("data_tool_canvas", ${cppString(description.title)}, 900, ${view.showResiduals ? 700 : 520});
   ${view.showResiduals ? "canvas.Divide(1, 2); canvas.cd(1);" : "canvas.cd();"}
   gPad->SetGrid();${logX ? " gPad->SetLogx();" : ""}${logY ? " gPad->SetLogy();" : ""}
@@ -935,23 +1137,46 @@ ${residualPanel}
   if (!errors_available) fit_result.SetTitle(("Numerical minimizer result; standard errors unavailable: " + uncertainty_reason).c_str());
   fit_result.Write(errors_available ? "fit_result" : "numerical_fit_result");
   output.Close();
+  // Clone while stack-owned plot objects are alive so the interactive window survives.
+  if (!gROOT->IsBatch()) canvas.DrawClone();
 }
+// ROOT calls this entry point automatically, like main() in a standalone program.
+void fit_root(const char *data_path = "",
+              const char *output_stem = ${cppString(`${description.fileStem}-root`)}) {
+  const bool reference_inputs = !data_path || !*data_path;
+  const std::string csv_path = reference_inputs
+    ? std::string(gSystem->DirName(__FILE__)) + "/data.csv"
+    : std::string(data_path);
+  Data data = load_data(csv_path);
+  TF1 model = load_model(data);
+  FitOutcome result = fit_data(data, model);
+  report_fit(model, result, reference_inputs);
+  plot_fit(data, model, result, output_stem);
+}
+
 `;
 }
 
-export function generateCodeExportReadme(description: CodeExportDescription) {
+export function generateCodeExportReadme(
+  description: CodeExportDescription,
+  target: CodeExportTarget = "both",
+) {
   return `# Data Tool 2027 analysis bundle
 
 This archive keeps measurements in \`data.csv\`, separate from executable source.
-Both generated programs refit the included finite rows from the original starting
+The generated programs refit the included finite rows from the original starting
 values. See \`analysis.json\` for the model setup, assumptions, units, display
 choices, and the original Data Tool coefficients.
 
-## Python / SciPy
+${
+  target !== "root"
+    ? `## Python / SciPy
 
-Requires Python 3 with NumPy, SciPy, and Matplotlib:
+Requires Python 3. Install NumPy, SciPy, and Matplotlib from the included
+\`requirements.txt\` (optionally activate a virtual environment first):
 
 \`\`\`bash
+python3 -m pip install -r requirements.txt
 python3 fit_scipy.py
 \`\`\`
 
@@ -967,24 +1192,43 @@ uncertainty, and display choices. Its model, parameter order, custom expression,
 and supplied equation constants must match the generated program; incompatible
 metadata is rejected.
 
-## C++ / ROOT
+The equation is the first function, \`model\`. The \`main()\` routine calls
+\`load_model\`, \`load_data\`, \`fit_data\`, \`report_fit\`, and \`plot_fit\`.
+Importing the file does not run an analysis.
+
+`
+    : ""
+}${
+    target !== "scipy"
+      ? `## C++ / ROOT
 
 Run from this directory with ROOT:
 
 \`\`\`bash
-root -l -q fit_root.C
+root -l fit_root.C
 \`\`\`
+
+The graph window stays open after the macro finishes. Quit ROOT with \`.q\`.
+For a run without a window, use \`root -l -b -q fit_root.C\`.
 
 The macro saves \`${description.fileStem}-root.pdf\` and
 \`${description.fileStem}-root.root\`. Supply another table and output stem with:
 
 \`\`\`bash
-root -l -q 'fit_root.C("another-run.csv","another-fit")'
+root -l 'fit_root.C("another-run.csv","another-fit")'
 \`\`\`
 
-## CSV contract
+The equation is the first function, \`model_function\`. The \`fit_root()\`
+entry point acts as main: \`load_data\` → \`load_model\` → \`fit_data\` →
+\`report_fit\` → \`plot_fit\`. Model settings are explicit in \`load_model\`;
+\`analysis.json\` records them for reference and is not read by ROOT.
 
-The required header is:
+`
+      : ""
+  }## CSV contract
+
+Source notes are preserved as leading \`# \` comment lines. Both programs skip
+this preamble before reading the required header:
 
 \`\`\`text
 row_id,x,y,sigma,included,missing_reason
@@ -1013,16 +1257,24 @@ or rank-deficient ROOT optimizations stop before writing fit artifacts.
 
 export function generateCodeExportBundle(
   description: CodeExportDescription,
+  target: CodeExportTarget = "both",
 ): CodeExportBundle {
   return {
-    archiveName: codeExportBundleFileName(description),
-    directoryName: `${description.fileStem}-analysis`,
+    archiveName: codeExportBundleFileName(description, target),
+    directoryName: `${description.fileStem}${target === "both" ? "" : `-${target}`}-analysis`,
     files: {
       "data.csv": generateCodeExportCsv(description),
-      "analysis.json": generateCodeExportMetadata(description),
-      "fit_scipy.py": generatePythonCode(description),
-      "fit_root.C": generateRootCode(description),
-      "README.md": generateCodeExportReadme(description),
+      "analysis.json": generateCodeExportMetadata(description, target),
+      ...(target !== "root"
+        ? {
+            "fit_scipy.py": generatePythonCode(description),
+            "requirements.txt": "numpy\nscipy\nmatplotlib\n",
+          }
+        : {}),
+      ...(target !== "scipy"
+        ? { "fit_root.C": generateRootCode(description) }
+        : {}),
+      "README.md": generateCodeExportReadme(description, target),
     },
   };
 }

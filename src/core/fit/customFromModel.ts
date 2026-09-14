@@ -1,3 +1,4 @@
+import { modelParameterUnit } from "./modelNotation";
 import {
   initialSettings,
   parameterNames,
@@ -5,7 +6,7 @@ import {
   type FitRequest,
 } from "./schema";
 import { inspectEquation } from "./customEquation";
-import { isNonlinearModel, nonlinearParameterUnit } from "./nonlinearModels";
+import { polynomialExpressions } from "./polynomialModels";
 /** Explicit conversion preserves the physical coefficients and fixed assertions. */
 export function customFromModel(
   settings: FitSettings,
@@ -13,7 +14,12 @@ export function customFromModel(
   coefficients?: number[],
 ): FitSettings {
   if (settings.model === "custom") return settings;
+  if (settings.parameters.length > 8)
+    throw Error(
+      "Custom equations support at most eight parameters; keep this polynomial as a built-in model.",
+    );
   const equations = {
+    ...polynomialExpressions((i) => (i === 0 ? "c0" : `c${i}*x^${i}`)),
     line: "b+m*x",
     quadratic: "c0+c1*x+c2*x^2",
     cubic: "c0+c1*x+c2*x^2+c3*x^3",
@@ -26,6 +32,8 @@ export function customFromModel(
     reciprocal: "b+a/x",
     "constant-acceleration": "y0+v0*t+0.5*a*t^2",
     "exponential-decay": "b+A*exp(-x/tau)",
+    "exponential-growth": "b+A*exp(x/tau)",
+    sigmoid: "b+A/(1+exp(-(x-x0)/w))",
     "power-law-free": "b+A*x^n",
     gaussian: "b+A*exp(-0.5*((x-mu)/sigma)^2)",
     "damped-sine": "b+exp(-x/tau)*(s*sin(2*pi*x/T)+c*cos(2*pi*x/T))",
@@ -45,21 +53,7 @@ export function customFromModel(
           ...settings.parameters[i],
           value: coefficients?.[i] ?? settings.parameters[i].value,
         },
-        unit: isNonlinearModel(settings.model)
-          ? nonlinearParameterUnit(settings.model, i, xu, yu)
-          : settings.model === "sine-free-period" && i === 3
-            ? xu
-            : i === 0 ||
-                [
-                  "logarithmic",
-                  "sine",
-                  "sine-free-period",
-                  "exponential",
-                  "power-law",
-                  "reciprocal",
-                ].includes(settings.model)
-              ? yu
-              : `${yu}/${xu}${i > 1 ? `^${i}` : ""}`,
+        unit: modelParameterUnit(settings, i, xu, yu),
       },
     ]),
   );

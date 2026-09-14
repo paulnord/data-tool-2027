@@ -1,6 +1,6 @@
 import { normalQuadratureRules } from "./normalQuadrature";
 
-export const pythonPeakShapeHelpers = `
+export const pythonPeakModelHelpers = `
 def peak_mode(skew, tail):
     # Strictly decreasing log-density derivative; one root in this bracket.
     lo, hi = sorted((0.0, skew/tail))
@@ -26,7 +26,9 @@ def gaussian_peak(x, p):
         return np.logaddexp(u, -u)-np.log(2)-0.5*np.sinh(u)**2-np.log(np.hypot(1, z))
     with np.errstate(over="ignore", invalid="ignore"):
         return b + amplitude*np.exp(log_shape(offset+zm)-log_shape(zm))
+`;
 
+export const pythonPeakShapeHelpers = `${pythonPeakModelHelpers}
 def peak_moments(skew, tail):
     from scipy.special import roots_hermitenorm
     if not (np.isfinite(skew) and np.isfinite(tail) and tail > 0):
@@ -80,7 +82,7 @@ def report_peak_moments(fitted, covariance, free_index, uncertainty_reason):
         print(f"  {label} = {moments[i]:.12g} ({suffix})")
 `;
 
-export const rootPeakShapeHelpers = `
+export const rootPeakModelHelpers = `
 double peak_mode(double skew, double tail) {
   double lo = std::min(0.0, skew/tail), hi = std::max(0.0, skew/tail);
   for (int i=0; i<64; ++i) {
@@ -102,7 +104,9 @@ double gaussian_peak(double x, const double *p) {
   };
   return p[0]+p[1]*std::exp(log_shape(offset+zm)-log_shape(zm));
 }
+`;
 
+export const rootPeakShapeHelpers = `${rootPeakModelHelpers}
 std::vector<double> peak_moments(double skew, double tail) {
   if (!std::isfinite(skew) || !std::isfinite(tail) || !(tail>0)) return {};
   if (skew==0 && tail==1) return {0,0};

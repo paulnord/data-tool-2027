@@ -5,6 +5,7 @@ import {
   generateCodeExportBundle,
   generateCodeExportCsv,
   generateCodeExportMetadata,
+  generateObservationArchiveCsv,
   generatePythonCode,
   generateRootCode,
 } from "../../src/core/fit/codeExport";
@@ -14,327 +15,211 @@ import { initialSettings } from "../../src/core/fit/schema";
 import { fit } from "../../src/core/fit/solve";
 import { syntheticRequest } from "../support/synthetic";
 
-it("generates a portable bundle with external data and explicit fit metadata", () => {
-  const request = syntheticRequest();
-  request.source.context =
-    'Imported notes: "copper", mH\r\n# second line\n\nlast line';
-  const settings = initialSettings("quadratic");
-  settings.parameters[0] = { value: 1.2345678901234567, fixed: true };
-  settings.excludedIds = [request.dataset.rows[2].id];
-  const result = fit(request, settings);
-  const description = buildCodeExportDescription(request, settings, result, {
-    mode: "log-x",
-    xRange: [0.01, 2.1],
-    yRange: [0.5, 8],
+function describe(
+  request = syntheticRequest(),
+  settings = initialSettings("line"),
+) {
+  return buildCodeExportDescription(request, settings, fit(request, settings), {
+    mode: "linear",
+    xRange: [0, 2],
+    yRange: null,
     showResiduals: true,
     showErrorBars: true,
-    showGuides: false,
+    showGuides: true,
   });
-  const python = generatePythonCode(description);
-  expect(python).toContain("from scipy.optimize import curve_fit");
-  expect(python).toContain("reader = csv.DictReader(handle)");
-  expect(python).toContain('parser.add_argument("--data"');
-  expect(python).toContain("absolute_sigma=known_sigma");
-  expect(python).toContain("parameter_metadata");
-  expect(python).toContain("p0=np.clip(start[free_index]");
-  expect(python).not.toContain("x_all = np.array([");
-  expect(python).toContain("fig.savefig");
+}
 
-  const root = generateRootCode(description);
-  expect(root).toContain("#include <TFitResult.h>");
-  expect(root).toContain("std::ifstream input(csv_path)");
-  expect(root).toContain("void fit_root(const char *data_path");
-  expect(root).toContain("c == '\\n' || c == '\\r'");
-  expect(root).toContain("ROOT::Fit::Fitter fitter");
-  expect(root).toContain("fitter.FitFCN()");
-  expect(root).toContain("result.Status() != 0");
-  expect(root).toContain("fit_x_min = *fit_bounds.first");
-  expect(root).toContain("model.SetRange(x_min, x_max)");
-  expect(root).toContain('graph.Draw("AP")');
-  expect(root).toContain("model.FixParameter(0, 1.2345678901234567)");
-  expect(root).toContain("gPad->SetLogx()");
-  expect(root).toContain("residuals.Write()");
-  expect(root).toContain("fit_result.Write");
-  expect(root).not.toContain("const std::vector<double> x_all = {");
-
+it("exports selected numeric observations and separately preserves the complete record", () => {
+  const request = syntheticRequest(),
+    settings = initialSettings("quadratic");
+  request.source.context =
+    'Imported notes: "copper", mH\r\n# second line\n\nlast line';
+  request.dataset.rows[0].id = 'row,"quoted"\nnext';
+  request.dataset.rows[0].included = false;
+  settings.excludedIds = [request.dataset.rows[2].id];
+  settings.parameters[0] = { value: 1.2345678901234567, fixed: true };
+  const description = describe(request, settings);
   const csv = generateCodeExportCsv(description);
-  expect(
-    csv.startsWith(
-      '# Imported notes: "copper", mH\r\n# # second line\r\n# \r\n# last line\r\n',
-    ),
-  ).toBe(true);
+  expect(csv).toMatch(
+    /^# Imported notes: "copper", mH\r\n# # second line\r\n# \r\n# last line\r\n/,
+  );
+  const selected = csv
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => !line.startsWith("#"))
+    .map((line) => line.split(",").map(Number));
+  expect(selected).toEqual(
+    request.dataset.rows
+      .filter((_, i) => i !== 0 && i !== 2)
+      .map((row) => [
+        row.x,
+        row.y,
+        description.sigma[request.dataset.rows.indexOf(row)],
+      ]),
+  );
+  const original = generateObservationArchiveCsv(description);
   const records = parseDelimited(
-    csv.slice(csv.indexOf("row_id,x,y,sigma,included,missing_reason")),
+    original.slice(original.indexOf("row_id,")),
     ",",
   );
-  expect(records[0]).toEqual([
-    "row_id",
-    "x",
-    "y",
-    "sigma",
-    "included",
-    "missing_reason",
-  ]);
   expect(records).toHaveLength(request.dataset.rows.length + 1);
+  expect(records[1][0]).toBe('row,"quoted"\nnext');
+  expect(records[1][4]).toBe("false");
   expect(records[3][4]).toBe("false");
-
   const metadata = JSON.parse(generateCodeExportMetadata(description));
   expect(metadata).toMatchObject({
     format: "data-tool-analysis-bundle",
-    version: 1,
-    dataset: { dataFile: "data.csv" },
-    fit: { model: "quadratic" },
+    version: 2,
+    dataset: {
+      columns: ["x", "y", "sigma_y"],
+      observationArchive: "observations.csv",
+    },
   });
+  expect(metadata.dataset.fitRowIds).toEqual(
+    description.rowIds.filter((_, i) => i !== 0 && i !== 2),
+  );
   expect(metadata.fit.parameters[0]).toMatchObject({
     start: 1.2345678901234567,
     fixed: true,
   });
-  expect(metadata.fit.options).not.toHaveProperty("excludedIds");
-  expect(metadata.uncertainty.values).toBe("data.csv:sigma");
+  expect(metadata.dataset.rowCount).toBe(selected.length);
+  expect(metadata.dataset.sourceRowCount).toBe(request.dataset.rows.length);
+  expect(metadata.uncertainty.values).toBe("data.csv:sigma_y");
+  expect(generatePythonCode(description)).toContain("free = np.array([1, 2])");
+  expect(generateRootCode(description)).toContain(
+    "model.FixParameter(0, 1.2345678901234567)",
+  );
+});
 
-  const bundle = generateCodeExportBundle(description);
-  expect(bundle.files["requirements.txt"]).toBe("numpy\nscipy\nmatplotlib\n");
-  expect(root).toContain("if (!gROOT->IsBatch()) canvas.DrawClone();");
-  expect(bundle.files["README.md"]).toContain("root -l fit_root.C");
-  expect(bundle.archiveName).toMatch(/-analysis-bundle\.zip$/);
-  expect(Object.keys(bundle.files).sort()).toEqual([
-    "README.md",
-    "analysis.json",
-    "data.csv",
-    "fit_root.C",
-    "fit_scipy.py",
-    "requirements.txt",
-  ]);
-  expect(bundle.files["README.md"]).toContain("--data another-run.csv");
+it("creates one small standalone program per target without runtime metadata or helper files", () => {
+  const description = describe();
+  const python = generatePythonCode(description),
+    root = generateRootCode(description);
+  expect(python).toContain("def model(x, b, m):");
+  expect(python).toContain("value = b + m*x");
+  expect(python).toContain("np.loadtxt");
+  expect(python).toContain("absolute_sigma=True");
+  expect(python).toContain("plt.show()");
+  expect(python).not.toMatch(
+    /import (json|csv|argparse)|fit_support|data_tool_fit/,
+  );
+  expect(python.split("\n").length).toBeLessThan(85);
+  expect(root.split("\n").length).toBeLessThan(110);
+  expect(root).toContain('data.Fit(&model, "SNQ")');
+  expect(root).toContain('TGraphErrors data(filename, "%lg,%lg,%lg")');
+  expect(root).toContain('data.DrawClone("AP")');
+  expect(root).not.toMatch(/Fit::Fitter|std::ifstream|fit_support/);
+  expect(python.indexOf("def model(")).toBeLessThan(
+    python.indexOf("def load_data("),
+  );
+  expect(root.indexOf("double model_function(")).toBeLessThan(
+    root.indexOf("TGraphErrors load_data("),
+  );
+  expect(python).toContain('if __name__ == "__main__":');
   for (const target of ["scipy", "root"] as const) {
-    const separate = generateCodeExportBundle(description, target);
-    expect(separate.archiveName).toContain(`-${target}-analysis-bundle.zip`);
-    expect(separate.files["data.csv"]).toBe(csv);
-    expect(Object.keys(separate.files).sort()).toEqual([
+    const bundle = generateCodeExportBundle(description, target);
+    expect(Object.keys(bundle.files).sort()).toEqual([
       "README.md",
       "analysis.json",
       "data.csv",
-      ...(target === "scipy"
-        ? ["fit_scipy.py", "requirements.txt"]
-        : ["fit_root.C"]),
+      ...(target === "scipy" ? ["fit_scipy.py"] : ["fit_root.C"]),
+      "observations.csv",
+      ...(target === "scipy" ? ["requirements.txt"] : []),
     ]);
-    expect(
-      Object.keys(JSON.parse(separate.files["analysis.json"]).programs),
-    ).toEqual([target]);
-    expect(separate.files["README.md"]).not.toContain(
-      target === "scipy" ? "## C++ / ROOT" : "## Python / SciPy",
+    expect(bundle.files["README.md"]).toContain("another-run.csv");
+    expect(bundle.files["README.md"]).toContain("fullCodeExport.ts");
+    const archive = unzipSync(encodeCodeExportBundle(bundle));
+    expect(strFromU8(archive[`${bundle.directoryName}/data.csv`])).toBe(
+      bundle.files["data.csv"],
     );
+    expect(
+      Object.keys(JSON.parse(bundle.files["analysis.json"]).programs),
+    ).toEqual([target]);
   }
-  expect(python.indexOf("def model(")).toBeLessThan(
-    python.indexOf("def fit_data("),
-  );
-  expect(python).toContain('if __name__ == "__main__":');
-  expect(root.indexOf("double model_function(")).toBeLessThan(
-    root.indexOf("FitOutcome fit_data("),
-  );
-  const archive = unzipSync(encodeCodeExportBundle(bundle));
-  expect(Object.keys(archive).sort()).toEqual(
-    Object.keys(bundle.files)
-      .map((name) => `${bundle.directoryName}/${name}`)
-      .sort(),
-  );
-  expect(strFromU8(archive[`${bundle.directoryName}/data.csv`])).toBe(csv);
 });
 
-it("writes round-trippable scientific literals without invalid exponent suffixes", () => {
+it("keeps unknown scatter distinct from supplied errors and withholds unsupported inference", () => {
   const request = syntheticRequest();
-  request.dataset.rows[0].x = 1e21;
-  request.dataset.rows[0].y = 1e-21;
-  const settings = initialSettings("line");
-  settings.parameters = settings.parameters.map((parameter) => ({
-    ...parameter,
-    fixed: true,
-  }));
-  const result = fit(request, settings);
-  const description = buildCodeExportDescription(request, settings, result, {
-    mode: "linear",
-    xRange: [0, 1e21],
-    yRange: null,
-    showResiduals: false,
-    showErrorBars: false,
-    showGuides: false,
-  });
-  const csv = generateCodeExportCsv(description);
-  expect(csv).toContain("1e+21");
-  expect(csv).toContain("1e-21");
-  expect(csv).not.toContain("e+21.0");
-  expect(generateCodeExportMetadata(description)).toContain("1e+21");
-  expect(generateRootCode(description)).toContain("1.0e+21");
-});
-
-it("emits damped guides and the two-pass unknown-scatter ROOT covariance", () => {
-  const request = syntheticRequest();
-  request.dataset.rows = request.dataset.rows.map((row) => ({
-    ...row,
-    y:
-      1 +
-      Math.exp(-row.x! / 3) *
-        (2 * Math.sin((2 * Math.PI * row.x!) / 0.8) +
-          Math.cos((2 * Math.PI * row.x!) / 0.8)),
-  }));
   request.uncertainty = {
     kind: "unknown-equal",
     errorStructure: "uncorrelated",
   };
-  const settings = initialSettings("damped-sine");
-  settings.parameters = [1, 2, 1, 0.8, 3].map((value) => ({
-    value,
-    fixed: true,
-  }));
-  const result = fit(request, settings);
-  const description = buildCodeExportDescription(request, settings, result, {
-    mode: "linear",
-    xRange: [0, 2],
-    yRange: null,
-    showResiduals: false,
-    showErrorBars: false,
-    showGuides: true,
-  });
+  const description = describe(request);
+  expect(generateCodeExportCsv(description)).toContain("# x,y\r\n");
   const python = generatePythonCode(description);
-  expect(python).toContain("envelope = amplitude*np.exp");
-  expect(python).toContain("absolute_sigma=known_sigma");
-  expect(generateCodeExportMetadata(description)).toContain(
-    '"kind": "unknown-equal"',
-  );
+  expect(python).toContain("sigma=None, absolute_sigma=False");
+  expect(python).toContain("df > 0 and residual @ residual > 0");
   const root = generateRootCode(description);
-  expect(root).toContain("preliminary_sse");
-  expect(root).toContain("upper_envelope");
-  expect(root).toContain('graph.Draw("APX")');
-  expect(root).not.toContain("residuals.Write()");
+  expect(root).toContain('TGraphErrors data(filename, "%lg,%lg")');
+  expect(root).toContain("df>0 && sum>0");
+  description.inference = "descriptive";
+  expect(generatePythonCode(description)).toContain("errors_available = False");
+  expect(generateRootCode(description)).toContain("errors_available=false");
 });
 
-it("translates custom equations from the validated AST for both targets", () => {
-  const request = syntheticRequest();
-  const settings = initialSettings("custom");
+it("translates custom equations including fractional constants and constant predictions", () => {
+  const request = syntheticRequest(),
+    settings = initialSettings("custom");
   settings.custom = {
-    expression: "b+a*ln(x)+c^2",
-    variable: "x",
-    names: ["b", "a", "c"],
-    units: ["m", "m", "m"],
-  };
-  settings.parameters = [1, 2, 0.5].map((value) => ({
-    value,
-    fixed: true,
-  }));
-  request.dataset.rows = request.dataset.rows.map((row) => ({
-    ...row,
-    x: row.x! + 1,
-    y: 1 + 2 * Math.log(row.x! + 1) + 0.25,
-  }));
-  const result = fit(request, settings);
-  const description = buildCodeExportDescription(request, settings, result, {
-    mode: "linear",
-    xRange: [1, 3],
-    yRange: null,
-    showResiduals: true,
-    showErrorBars: true,
-    showGuides: false,
-  });
-  expect(generatePythonCode(description)).toContain("np.log(x)");
-  const root = generateRootCode(description);
-  expect(root).toContain("std::log(x)");
-  expect(root).toContain("std::pow(p[2], 2.0)");
-});
-
-it("keeps hostile labels inert and exported filenames bounded", () => {
-  const request = syntheticRequest();
-  request.dataset.label = `${"Very long title ".repeat(20)}\u2028print('not code')`;
-  request.dataset.xColumn.label = 'x"\\n';
-  const settings = initialSettings("line");
-  const result = fit(request, settings);
-  const description = buildCodeExportDescription(request, settings, result, {
-    mode: "linear",
-    xRange: [0, 2],
-    yRange: null,
-    showResiduals: true,
-    showErrorBars: false,
-    showGuides: false,
-  });
-  expect(description.fileStem.length).toBeLessThanOrEqual(80);
-  description.rowIds[0] = 'row,"quoted"\nnext';
-  const csv = generateCodeExportCsv(description);
-  const records = parseDelimited(
-    csv.slice(csv.indexOf("row_id,x,y,sigma,included,missing_reason")),
-    ",",
-  );
-  expect(records[1][0]).toBe('row,"quoted"\nnext');
-  const metadata = JSON.parse(generateCodeExportMetadata(description));
-  expect(metadata.dataset.title).toContain("print('not code')");
-  const python = generatePythonCode(description);
-  expect(python).not.toContain("print('not code')");
-  expect(generateRootCode(description)).toContain("\\u2028");
-  expect(generateRootCode(description)).toContain(
-    'residuals.SetTitle(";x\\"\\\\n [s];Residual")',
-  );
-});
-
-it("preserves floating-point custom constants and constant predictions in generated code", () => {
-  const request = syntheticRequest();
-  const settings = initialSettings("custom");
-  settings.custom = {
-    expression: "b+(1.0/2.0)*a*x",
+    expression: "b+(1/2)*a*x",
     variable: "x",
     names: ["b", "a"],
     units: ["m", "m/s"],
   };
   settings.parameters = [
-    { value: 0, fixed: false },
+    { value: 1, fixed: false },
     { value: 2, fixed: true },
   ];
-  request.dataset.rows.forEach((row) => {
-    row.y = 2 + row.x!;
-  });
-  const result = fit(request, settings);
-  const description = buildCodeExportDescription(request, settings, result, {
-    mode: "linear",
-    xRange: [0, 2],
-    yRange: null,
-    showResiduals: true,
-    showErrorBars: true,
-    showGuides: false,
-  });
+  const description = describe(request, settings);
   expect(generateRootCode(description)).toContain("(1.0 / 2.0)");
-  const python = generatePythonCode(description);
-  expect(python).toContain(
-    "np.broadcast_to(np.asarray(value, dtype=float), np.shape(x))",
+  expect(generatePythonCode(description)).toContain(
+    "np.broadcast_to(value, np.shape(x))",
   );
-  expect(python).toContain('"parameterNames":["b","a"]'.replaceAll('"', '\\"'));
-  expect(python).toContain("if identity != expected_identity:");
+  settings.custom = {
+    expression: "lambda+np*x",
+    variable: "x",
+    names: ["lambda", "np"],
+    units: ["m", "m/s"],
+  };
+  const escaped = generatePythonCode(describe(request, settings));
+  expect(escaped).toContain("def model(x, p_0, p_1):");
+  expect(escaped).toContain("value = (p_0 + (p_1 * x))");
 });
 
-it("uses one-sided physical ROOT limits and distinguishes unavailable residual scatter", () => {
-  const request = syntheticRequest();
-  const settings = initialSettings("gaussian");
-  settings.parameters = [0, 1, 1, 0.5].map((value) => ({
-    value,
-    fixed: false,
-  }));
-  request.dataset.rows.forEach((row) => {
-    row.y = Math.exp(-0.5 * ((row.x! - 1) / 0.5) ** 2);
-  });
-  const result = fit(request, settings);
-  const description = buildCodeExportDescription(request, settings, result, {
-    mode: "linear",
-    xRange: [0, 2],
-    yRange: null,
-    showResiduals: true,
-    showErrorBars: true,
-    showGuides: false,
-  });
-  const root = generateRootCode(description);
-  expect(root).toContain(
-    "ParSettings(3).SetLowerLimit(std::nextafter(0.0, 1.0))",
-  );
-  expect(root).not.toContain("1e300");
-  expect(root).toContain("result.CovMatrixStatus() != 3");
-  expect(root).toContain('"numerical_fit_result"');
+it("includes only necessary peak mathematics and preserves physical bounds", () => {
+  for (const model of ["gaussian", "gaussian-shape"] as const) {
+    const settings = initialSettings(model);
+    settings.parameters = (
+      model === "gaussian" ? [0, 1, 1, 0.5] : [0, 1, 1, 0.5, 0, 1]
+    ).map((value) => ({ value, fixed: true }));
+    const description = describe(syntheticRequest(), settings);
+    description.settings.parameters[3].fixed = false;
+    const root = generateRootCode(description),
+      python = generatePythonCode(description);
+    expect(root).toContain(
+      "model.SetParLimits(3, std::nextafter(0.0, 1.0), std::numeric_limits<double>::infinity())",
+    );
+    expect(root).toContain("result->CovMatrixStatus()!=3");
+    if (model === "gaussian-shape") {
+      expect(python).toContain("def peak_mode(");
+      expect(root).toContain("double peak_mode(");
+      expect(root).not.toContain("peak_moments(");
+      expect(python).not.toContain("peak_moments(");
+    }
+  }
+});
+
+it("preserves extreme observations and keeps labels out of executable syntax", () => {
+  const description = describe();
+  description.x[0] = 1e21;
+  description.y[0] = 1e-21;
+  description.xLabel = 'x"\\n\u2028';
+  const csv = generateCodeExportCsv(description);
+  expect(csv).toContain("1e+21,1e-21");
+  expect(csv).not.toContain("e+21.0");
+  expect(generateRootCode(description)).toContain('x\\"\\\\n\\u2028');
   expect(generatePythonCode(description)).toContain(
-    "Standard errors unavailable:",
+    JSON.stringify('x"\\n\u2028 [s]'),
   );
 });
 

@@ -1,6 +1,5 @@
 import extendedReference from "../tests/fit/extended-model-reference.json";
 import peakReference from "../tests/fit/peak-shape-reference.json";
-import { fitDerivedQuantities } from "../src/core/fit/derivedParameters";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -19,6 +18,7 @@ import {
 } from "../src/core/fit/codeExport";
 import { encodeCodeExportBundle } from "../src/fit/codeExportArchive";
 import {
+  parameterNames,
   initialSettings,
   sessionSchema,
   type FitRequest,
@@ -50,6 +50,7 @@ for (const name of [
   "zero-scatter",
   "zero-df",
   "quoted-label",
+  "descriptive",
 ]) {
   const request = syntheticRequest(),
     settings = initialSettings("custom");
@@ -170,282 +171,213 @@ for (const fixture of peakReference.cases) {
     session: { request, settings },
   });
 }
+
+for (const kind of ["supplied-per-row", "unknown-equal"] as const) {
+  const request = syntheticRequest(),
+    settings = initialSettings("line");
+  request.dataset.rows.forEach((row, i) => {
+    row.y = 1.4 + 2.1 * row.x! + 0.03 * Math.sin(i);
+  });
+  request.dataset.rows[0].included = false;
+  settings.excludedIds = [request.dataset.rows[2].id];
+  request.uncertainty =
+    kind === "unknown-equal"
+      ? { kind, errorStructure: "uncorrelated" }
+      : {
+          kind,
+          errorStructure: "uncorrelated",
+          sigmaByRow: Object.fromEntries(
+            request.dataset.rows.map((r, i) => [r.id, 0.02 + i / 200]),
+          ),
+          provenance: { kind: "user-asserted", description: "Export check" },
+        };
+  scenarios.push({ input: `linear-${kind}`, session: { request, settings } });
+}
+const reserved = syntheticRequest(),
+  reservedSettings = initialSettings("custom");
+reservedSettings.custom = {
+  expression: "lambda+np*x",
+  variable: "x",
+  names: ["lambda", "np"],
+  units: ["m", "m/s"],
+};
+reservedSettings.parameters = [
+  { value: 1, fixed: false },
+  { value: 2, fixed: false },
+];
+reserved.dataset.rows.forEach((r, i) => {
+  r.y = 1 + 2 * r.x! + 0.01 * Math.sin(i);
+});
+scenarios.push({
+  input: "reserved-parameter-names",
+  session: { request: reserved, settings: reservedSettings },
+});
+
 const rootProbe = spawnSync("root", ["--version"], { encoding: "utf8" });
 const hasRoot = !rootProbe.error;
 if (!hasRoot && (rootProbe.error as NodeJS.ErrnoException).code !== "ENOENT")
   throw rootProbe.error;
 if (!hasRoot)
   console.log("ROOT is not installed; actual macro checks skipped.");
-function expectFailure(command: string, args: string[], pattern: RegExp) {
-  const result = spawnSync(command, args, {
-    cwd: directory,
-    env: { ...process.env, MPLBACKEND: "Agg" },
-    encoding: "utf8",
-    timeout: 60000,
-  });
-  if (result.error) throw result.error;
-  if (result.status === 0 || !pattern.test(result.stdout + result.stderr))
-    throw Error(
-      `Expected rejection matching ${pattern}: ${result.stdout}\n${result.stderr}`,
-    );
-}
+const environment = { ...process.env, MPLBACKEND: "Agg" };
 let complete = false;
 try {
   for (const { input, session, unavailable } of scenarios) {
     const result = fit(session.request, session.settings);
-    const usedX = result.residuals.map((row) => row.x);
-    const xRange: [number, number] = [Math.min(...usedX), Math.max(...usedX)];
-    if (xRange[0] === xRange[1]) {
-      xRange[0] -= 1;
-      xRange[1] += 1;
-    }
+    const usedX = result.residuals.map((r) => r.x);
     const description = buildCodeExportDescription(
       session.request,
       session.settings,
       result,
       {
         mode: "linear",
-        xRange,
+        xRange: [Math.min(...usedX), Math.max(...usedX)],
         yRange: null,
         showResiduals: true,
         showErrorBars: true,
         showGuides: true,
       },
     );
+    if (input === "descriptive") description.inference = "descriptive";
     const bundle = generateCodeExportBundle(description);
     const archived = unzipSync(encodeCodeExportBundle(bundle));
     const prefix = `${bundle.directoryName}/`;
     for (const [path, contents] of Object.entries(archived)) {
       if (!path.startsWith(prefix))
-        throw Error(`archive entry escaped its directory: ${path}`);
+        throw Error(`Archive path escaped: ${path}`);
       writeFileSync(join(directory, path.slice(prefix.length)), contents);
     }
-    const pythonName = "fit_scipy.py";
-    const output = execFileSync("python3", [pythonName], {
-      cwd: directory,
-      env: { ...process.env, MPLBACKEND: "Agg" },
-      encoding: "utf8",
-    });
-    process.stdout.write(output);
-    function checkPeakMoments(text: string) {
-      if (session.settings.model !== "gaussian-shape") return;
-      for (const quantity of fitDerivedQuantities(
-        session.request,
-        session.settings,
-        result,
-      )) {
-        const line = text
-          .split("\n")
-          .find((line) => line.trim().startsWith(quantity.label + " = "));
-        const value = Number(
-          line
-            ?.trim()
-            .slice((quantity.label + " = ").length)
-            .split(" (")[0],
-        );
+    const numericRows = bundle.files["data.csv"]
+      .trim()
+      .split(/\r?\n/)
+      .filter((l) => !l.startsWith("#"))
+      .map((l) => l.split(",").map(Number));
+    if (
+      numericRows.length !== result.n ||
+      numericRows.some(
+        (r, i) =>
+          r[0] !== result.residuals[i].x || r[1] !== result.residuals[i].y,
+      )
+    )
+      throw Error(`${input}: selected observations changed`);
+    const expected = description.knownSigma
+      ? result.weightedObjective.value!
+      : result.sse;
+    const names = parameterNames(
+      session.settings.model,
+      session.settings.custom,
+    );
+    function checkFit(output: string, language: string) {
+      const statistic = output.match(
+        /(?:chi2|SSE|Weighted residual sum) =\s*([\d.eE+-]+)\s*; df =\s*(\d+)/,
+      );
+      if (
+        !statistic ||
+        Number(statistic[2]) !== result.df ||
+        Math.abs(Number(statistic[1]) - expected) >
+          2e-6 * (1 + Math.abs(expected))
+      )
+        throw Error(`${input}: ${language} objective/df changed\n${output}`);
+      const tolerance =
+        input.includes("dyfeo3") ||
+        ["decay", "lorentzian", "power"].includes(input)
+          ? 1e-3
+          : 1e-6;
+      names.forEach((name, i) => {
+        const line = output.split("\n").find((l) => l.startsWith(`${name} = `));
+        const coefficient = Number(line?.split(" = ")[1].split(" (")[0]);
         if (
-          !Number.isFinite(value) ||
-          Math.abs(value - quantity.value!) >
-            1e-5 * (1 + Math.abs(quantity.value!))
+          !Number.isFinite(coefficient) ||
+          Math.abs(coefficient - result.coefficients[i]) > tolerance
         )
           throw Error(
-            `${input}: exported ${quantity.label} disagrees with Data Tool`,
+            `${input}: ${language} ${name} = ${coefficient}, expected ${result.coefficients[i]}`,
           );
-      }
+        if (session.settings.parameters[i].fixed && !line?.includes("(fixed)"))
+          throw Error(`${input}: fixed flag lost`);
+        if (
+          !session.settings.parameters[i].fixed &&
+          (unavailable || input === "descriptive") &&
+          !line?.includes("SE=unavailable")
+        )
+          throw Error(`${input}: invented ${language} uncertainty`);
+        if (
+          input.startsWith("linear-") &&
+          result.standardErrors[i].value !== null
+        ) {
+          const se = Number(line?.match(/SE=([\d.eE+-]+)/)?.[1]);
+          if (
+            !Number.isFinite(se) ||
+            Math.abs(se - result.standardErrors[i].value!) >
+              1e-4 * result.standardErrors[i].value!
+          )
+            throw Error(`${input}: ${language} covariance scale changed`);
+        }
+      });
     }
-    checkPeakMoments(output);
-    const difference = output.match(
-      /maximum absolute coefficient difference:\s*([\d.eE+-]+)/,
-    );
-    if (!difference) throw Error(`${pythonName} did not report a comparison`);
-    const tolerance =
-      input.includes("dyfeo3") ||
-      ["decay", "lorentzian", "power"].includes(input)
-        ? 1e-3
-        : 1e-6;
-    if (!(Number(difference[1]) <= tolerance))
-      throw Error(`${pythonName} exceeded coefficient tolerance ${tolerance}`);
-    if (unavailable && !output.includes("SE=unavailable"))
-      throw Error(`${input}: Python invented standard errors`);
+    const output = execFileSync("python3", ["fit_scipy.py"], {
+      cwd: directory,
+      env: environment,
+      encoding: "utf8",
+      timeout: 60000,
+    });
+    checkFit(output, "SciPy");
     const image = join(directory, `${description.fileStem}-scipy.png`);
     if (!existsSync(image) || statSync(image).size === 0)
-      throw Error(`${pythonName} did not create its plotted PNG`);
-    execFileSync("python3", ["-m", "py_compile", pythonName], {
+      throw Error(`${input}: missing SciPy PNG`);
+    execFileSync("python3", ["-m", "py_compile", "fit_scipy.py"], {
       cwd: directory,
     });
-
     if (hasRoot) {
       const rootOutput = execFileSync(
         "root",
         ["-l", "-b", "-q", "fit_root.C"],
         { cwd: directory, encoding: "utf8", timeout: 60000 },
       );
-      process.stdout.write(rootOutput);
-      checkPeakMoments(rootOutput);
-      const delta = Number(
-        rootOutput.match(
-          /max coefficient difference from Data Tool =\s*([\d.eE+-]+)/,
-        )?.[1],
-      );
-      if (!(delta <= tolerance))
-        throw Error(
-          `${input}: ROOT coefficient difference ${delta} exceeds ${tolerance}`,
-        );
-      const covariance = session.settings.parameters.some((p) => !p.fixed)
-        ? "3"
-        : "[0-3]";
-      if (
-        !new RegExp(`fit status = 0; covariance status = ${covariance}`).test(
-          rootOutput,
-        )
-      )
-        throw Error(`${input}: invalid ROOT fit status`);
-      if (unavailable && !rootOutput.includes("SE=unavailable"))
-        throw Error(`${input}: ROOT invented standard errors`);
-      for (const extension of ["pdf", "root"]) {
-        const path = join(
-          directory,
-          `${description.fileStem}-root.${extension}`,
-        );
-        if (!existsSync(path) || statSync(path).size === 0)
-          throw Error(`${input}: ROOT did not create ${extension}`);
-      }
+      checkFit(rootOutput, "ROOT");
+      const pdf = join(directory, `${description.fileStem}-root.pdf`);
+      if (!existsSync(pdf) || statSync(pdf).size === 0)
+        throw Error(`${input}: missing ROOT PDF`);
     }
-
     if (input === inputs[0]) {
       const imported = execFileSync(
         "python3",
         ["-c", "import fit_scipy; print('imported without running')"],
-        {
-          cwd: directory,
-          env: { ...process.env, MPLBACKEND: "Agg" },
-          encoding: "utf8",
-        },
+        { cwd: directory, env: environment, encoding: "utf8" },
       );
       if (imported.trim() !== "imported without running")
-        throw Error("Importing SciPy source ran an analysis");
-      const alternate = join(directory, "alternate.csv");
-      const alternateImage = join(directory, "alternate.png");
-      writeFileSync(alternate, bundle.files["data.csv"]);
-      const alternateOutput = execFileSync(
+        throw Error("Importing source ran analysis");
+      writeFileSync(join(directory, "alternate.csv"), bundle.files["data.csv"]);
+      execFileSync(
         "python3",
-        [pythonName, "--data", alternate, "--output", alternateImage],
-        {
-          cwd: directory,
-          env: { ...process.env, MPLBACKEND: "Agg" },
-          encoding: "utf8",
-        },
-      );
-      if (!alternateOutput.includes("comparison omitted for alternate inputs"))
-        throw Error(
-          "alternate CSV did not suppress the stored-result comparison",
-        );
-      if (!existsSync(alternateImage) || statSync(alternateImage).size === 0)
-        throw Error("alternate CSV did not create its requested PNG");
-      if (hasRoot) {
-        const alternateRoot = execFileSync(
-          "root",
-          ["-l", "-b", "-q", 'fit_root.C("alternate.csv","alternate")'],
-          { cwd: directory, encoding: "utf8" },
-        );
-        if (!alternateRoot.includes("comparison omitted for alternate inputs"))
-          throw Error("alternate ROOT CSV claimed a reference comparison");
-      }
-      const original = JSON.parse(bundle.files["analysis.json"]);
-      const model = structuredClone(original);
-      model.fit.model = "quadratic";
-      const reordered = structuredClone(original);
-      reordered.fit.parameters.reverse();
-      for (const [i, metadata] of [model, reordered].entries()) {
-        const name = `incompatible-${i}.json`;
-        writeFileSync(join(directory, name), JSON.stringify(metadata));
-        expectFailure(
-          "python3",
-          [pythonName, "--analysis", name],
-          /do not match this generated program/,
-        );
-      }
-      writeFileSync(
-        join(directory, "malformed.csv"),
-        "row_id,x,y,sigma,included,missing_reason\nrow,1,2,.1,true,,extra\n",
-      );
-      expectFailure(
-        "python3",
-        [pythonName, "--data", "malformed.csv"],
-        /wrong number of fields/i,
+        [
+          "-c",
+          "from fit_scipy import *; data=load_data('alternate.csv'); fit_data(*data)",
+        ],
+        { cwd: directory, env: environment },
       );
       if (hasRoot)
-        expectFailure(
-          "root",
-          ["-l", "-b", "-q", 'fit_root.C("malformed.csv","malformed")'],
-          /Wrong number of fields/,
+        checkFit(
+          execFileSync(
+            "root",
+            ["-l", "-b", "-q", 'fit_root.C("alternate.csv")'],
+            { cwd: directory, encoding: "utf8" },
+          ),
+          "alternate ROOT",
         );
-      writeFileSync(
-        join(directory, "short.csv"),
-        "row_id,x,y,sigma,included,missing_reason\nrow,1,2,.1,true,\n",
+      writeFileSync(join(directory, "invalid.csv"), "1,2,-0.1\n");
+      const invalid = spawnSync(
+        "python3",
+        ["-c", "from fit_scipy import load_data; load_data('invalid.csv')"],
+        { cwd: directory, env: environment, encoding: "utf8" },
       );
-      if (hasRoot) {
-        expectFailure(
-          "root",
-          ["-l", "-b", "-q", 'fit_root.C("short.csv","failed")'],
-          /Fewer observations than free parameters/,
-        );
-        if (
-          existsSync(join(directory, "failed.pdf")) ||
-          existsSync(join(directory, "failed.root"))
-        )
-          throw Error("Failed ROOT fit wrote success artifacts");
-      }
+      if (invalid.status === 0 || !/positive/.test(invalid.stderr))
+        throw Error("Invalid uncertainty accepted");
     }
-  }
-
-  const rootName = "fit_root.C";
-  const rootSource = readFileSync(join(directory, rootName), "utf8");
-  const helperStart = rootSource.indexOf("bool data_tool_csv_record");
-  const helperEnd = rootSource.indexOf("Data load_data");
-  if (helperStart < 0 || helperEnd <= helperStart)
-    throw Error("ROOT CSV reader was not generated");
-  const parserSource = `#include <algorithm>
-#include <cctype>
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <fstream>
-#include <stdexcept>
-#include <string>
-#include <vector>
-${rootSource.slice(helperStart, helperEnd)}
-int main(int argc, char **argv) {
-  if (argc != 2) return 2;
-  std::ifstream input(argv[1], std::ios::binary);
-  std::vector<std::string> fields;
-  if (!data_tool_csv_record(input, fields) || fields.size() != 6) return 3;
-  if (!data_tool_csv_record(input, fields) || fields.size() != 6) return 4;
-  if (fields[0].find("quoted") == std::string::npos || fields[0].find('\\n') == std::string::npos) return 5;
-  if (data_tool_csv_record(input, fields)) return 6;
-  return 0;
-}
-`;
-  const parserName = join(directory, "root-csv-reader.cpp");
-  const parserBinary = join(directory, "root-csv-reader");
-  const parserCsv = join(directory, "root-csv-reader.csv");
-  writeFileSync(parserName, parserSource);
-  writeFileSync(
-    parserCsv,
-    'row_id,x,y,sigma,included,missing_reason\r\n"row,""quoted""\r\nnext",1,2,,true,\r\n',
-  );
-  try {
-    execFileSync("c++", ["-std=c++17", parserName, "-o", parserBinary]);
-    execFileSync(parserBinary, [parserCsv]);
-  } catch (cause) {
-    const missing =
-      cause instanceof Error && "code" in cause && cause.code === "ENOENT";
-    if (!missing) throw cause;
     console.log(
-      "A C++ compiler is not installed; ROOT CSV reader check skipped.",
+      `PASS ${input}: selected observations, coefficients, objective and df${hasRoot ? " (SciPy and ROOT)" : " (SciPy)"}`,
     );
   }
-
   complete = true;
   console.log(
     `${scenarios.length} executable export cases passed${hasRoot ? " with actual ROOT" : " (ROOT unavailable)"}.`,

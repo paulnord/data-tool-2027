@@ -32,7 +32,7 @@ refit. Single, multi-interval, and model-comparison plots also offer:
 | Sine with supplied or fitted period | Horizontal mean position y = b                                                             |
 | Logistic sigmoid                    | Vertical midpoint x = x₀, where y = b + A/2, and horizontal asymptotes y = b and y = b + A |
 
-For a falling sigmoid, b + A is below b; the labels specify the parameter values rather than assuming an upper/lower ordering. Guide labels sit above the plotting frame, keyed by interval or comparison candidate. Explicit axis limits clip guides normally; vertical center markers do not expand the x range or change automatic y limits. The existing guide toggle controls all of these references. Comparison candidates retain their own guide colors and fitted reference values. SciPy/ROOT scripts carry the corresponding guides when enabled, including candidate bundles. Custom equations and other built-ins have no automatic reference guides.
+For a falling sigmoid, b + A is below b; the labels specify the parameter values rather than assuming an upper/lower ordering. Guide labels sit above the plotting frame, keyed by interval or comparison candidate. Explicit axis limits clip guides normally; vertical center markers do not expand the x range or change automatic y limits. The existing guide toggle controls all of these references. Comparison candidates retain their own guide colors and fitted reference values. The simple SciPy/ROOT scripts draw the selected observations and fitted curve; use the figure exports for this guide layout. Custom equations and other built-ins have no automatic reference guides.
 
 Sine-family diagnostics report amplitude
 \(A=\sqrt{s^2+c^2}\), phase \(\phi=\operatorname{atan2}(c,s)\) for
@@ -153,110 +153,119 @@ Nonlinear convergence, local-minimum and conditioning warnings remain visible.
 
 ## SciPy/ROOT analysis bundle
 
-After a single fit, choose **Export → Python / SciPy analysis bundle (.zip)** or
-**Export → C++ / ROOT analysis bundle (.zip)**. Each ZIP contains only the selected
-program, its instructions, and the shared CSV and metadata.
-The downloaded archive expands into one named directory containing:
+After a fit, choose **Export → Python / SciPy analysis bundle (.zip)** or
+**Export → C++ / ROOT analysis bundle (.zip)**. There is one simple export style.
+Each candidate in a comparison receives its own program and data directory.
 
-- `data.csv` — row identity, X, Y, sigma, inclusion, and missing-value reason;
-- `analysis.json` — a versioned manifest with provenance, units, assumptions,
-  uncertainty model, fit setup, Data Tool result, graph choices, and outputs;
-- `fit_scipy.py` — the generated analysis (SciPy export);
-- `requirements.txt` — NumPy, SciPy, and Matplotlib dependencies (SciPy export);
-- `fit_root.C` — the generated analysis (ROOT export); and
-- `README.md` — dependencies, the CSV contract, and exact run commands.
+The equation comes first in the generated source. Small functions load data,
+set up the model, call the library fit, report parameters, and plot the fit.
+A main routine drives them. Starting values, fixed parameters, bounds and
+uncertainty weighting are explicit in the code. Edit these directly to adapt
+an analysis. Only models that need additional mathematics, such as the
+sinh–arcsinh peak, include additional evaluation functions.
 
-The observations are never compiled into either program. Both read `data.csv`
-at execution and accept another compatible CSV path, making the export suitable
-for a repeated or batch workflow. Blank numeric cells represent missing values;
-the `included` column remains a separate scientific choice rather than being
-inferred from whether a row appears in the file.
+Each bundle contains:
+
+- `data.csv`: only the selected finite observations, in original order, with
+  numeric columns `x,y,sigma_y` for supplied uncertainties or `x,y` for equal weights;
+- `observations.csv`: the complete original table, including row identities,
+  inclusion flags, uncertainties and missing-value reasons;
+- `analysis.json`: provenance, units, assumptions, original fit setup,
+  selected row IDs, original coefficients, display settings and output filenames;
+- `fit_scipy.py` and `requirements.txt` for SciPy, or `fit_root.C` for ROOT; and
+- `README.md`: run instructions, CSV layout and statistical conventions.
+
+Both CSVs preserve source comments in a leading `#` preamble. Numeric fit inputs
+are round-trippable without rounding. Every numeric row in `data.csv` is fitted;
+selection is already applied by the exporter. Missing and excluded observations
+remain in `observations.csv`. The scripts do not read `analysis.json`; it records
+the original analysis for reference.
 
 ### Python/SciPy
 
-Run in the extracted directory with NumPy, SciPy and Matplotlib:
+Run in the extracted directory:
 
-```bash
+```sh
 python3 -m pip install -r requirements.txt
 python3 fit_scipy.py
 ```
 
-The script reads both `data.csv` and `analysis.json`, refits with
-`scipy.optimize.curve_fit`, prints parameter values and standard errors, draws
-the data/fit/residuals, and saves a PNG. Plot display is opt-in with `--show`, so
-the default is suitable for unattended execution. Reuse the generated model
-with another table or output path without editing source:
+The script uses `numpy.loadtxt` and `scipy.optimize.curve_fit`, prints parameter
+values and standard errors, opens a basic data/fit plot, and saves a PNG.
+Importing it only defines functions. Change the filename in `main()` or call
+`load_data("another-run.csv")` to reuse it with the same numeric layout.
+Use `MPLBACKEND=Agg python3 fit_scipy.py` for a headless run.
 
-```bash
-python3 fit_scipy.py --data another-run.csv --output another-fit.png
-```
-
-Supplied sigma uses `absolute_sigma=True`. Unknown equal scatter uses SciPy's
-residual-scaled covariance. The program starts from the recorded starting values
-rather than using Data Tool's solution as the optimizer start. It compares
-coefficients with Data Tool only when using the bundled CSV and manifest.
-`--analysis` can select compatible metadata, but its model, parameter order,
-custom expression, and equation-defining options must match the generated
-program. To change the equation, generate a new bundle. Scalar custom models
-are broadcast over the data and plotting coordinates.
+Supplied uncertainties use `absolute_sigma=True`; unknown equal scatter uses
+residual variance SSE/(n − free parameters). Fixed parameters are held at their
+recorded values and omitted from optimization. Scalar custom equations broadcast
+over data and plot coordinates. Polynomial exports include analytic derivatives;
+update those derivatives if changing the polynomial equation.
 
 ### C++/ROOT
 
-Run the macro from the extracted directory:
+Run from the extracted directory:
 
-```bash
+```sh
 root -l fit_root.C
 ```
 
-For another table and output stem:
+The macro uses `TGraphErrors`, `TF1`, the standard graph `Fit` call, `TFitResult`,
+and `TCanvas`. It opens the graph and saves a PDF. Quit ROOT with `.q` or use
+`root -l -b -q fit_root.C` for batch output. Another compatible table can be passed
+with `root -l 'fit_root.C("another-run.csv")'`.
 
-```bash
-root -l 'fit_root.C("another-run.csv","another-fit")'
-```
+ROOT fits supplied uncertainties directly. With no supplied uncertainties,
+ROOT's graph fitter uses equal weights and scales its covariance by SSE/df.
+Physical positivity restrictions use one-sided bounds. Failed optimization or
+rank-deficient covariance stops the macro before saving a successful figure.
+The library numeric CSV reader assumes the exported layout and can skip malformed
+lines; check the reported df after editing the data.
 
-The macro parses quoted CSV records and uses `TGraphErrors`, a local-lambda
-`TF1`, `ROOT::Fit::Fitter` with Minuit2, `TFitResult`, and a `TCanvas`.
-It fits in physical parameter coordinates and uses one-sided limits for strictly
-positive parameters, avoiding an artificial enormous upper bound. It applies
-parameter starts, names, fixed values and physical/search bounds; prints coefficients,
-covariance-derived errors and fit statistics; draws included/excluded data, the
-fitted curve, optional guides and residuals; and saves both a PDF and a `.root`
-file containing the graph, fit, result and canvas objects.
+### Scope and statistical interpretation
 
-Supplied uncertainties are fitted directly. For unknown equal scatter the macro
-first obtains the unweighted solution, calculates
-\(s=\sqrt{\mathrm{SSE}/df}\), assigns that uniform Y error and refits so ROOT's
-covariance scale matches Data Tool's convention. Zero SSE or nonpositive
-residual degrees of freedom leaves standard errors explicitly unavailable;
-a provisional unit-error covariance is not reported as statistical uncertainty.
-Unsupported statistical assumptions also withhold standard errors. ROOT's raw
-minimizer result is then saved as `numerical_fit_result` with an explanatory title.
-The macro checks convergence status, covariance quality, and finite results before
-writing successful fit artifacts. ROOT and Data Tool can still
-differ for nonlinear optimization and numerical rank decisions. Data Tool does
-not bundle or execute Python, SciPy, or ROOT.
+The simple plot shows selected observations, supplied error bars and the fitted
+curve on linear axes. Use the application's report and SVG/PNG/PDF figure
+exports for residual panels, fit guides, axis preferences and derived quantities.
+Error-bar visibility in the app does not remove supplied uncertainties from
+the code export's fit or plot.
 
-The restricted custom-equation syntax is translated from its validated syntax
-tree for both languages. Raw equation text is never pasted into executable
-source as JavaScript or by textual name substitution.
+Both programs report fixed parameters explicitly and withhold standard errors
+when assumptions are unsupported or residual variance cannot be estimated.
+Statistical interpretation remains conditional on the recorded assumptions.
+SciPy's local Jacobian covariance and ROOT's objective-curvature covariance can
+differ for nonlinear fits. Both are approximations; starts, optimizer stopping
+rules, numerical conditioning and local minima can also affect agreement.
+The application does not execute Python or ROOT.
 
-## Verification
+The custom equation is translated from a validated syntax tree. Parameter names
+that conflict with Python syntax receive safe aliases in the model function;
+reports retain their original names. Measurements are never compiled into source.
 
-Core tests cover likelihood conventions, finite extreme-sigma normalizers,
-unit-invariant phase, custom equation translation and export structure. Browser
-checks cover staged comparison persistence, aligned responsive frames, small
-residuals, and hidden-residual layout. `npm run test:code-exports` executes the
-generated programs when SciPy/Matplotlib and ROOT are installed. It checks fitted
-coefficients, ROOT status and uncertainty availability across representative
-linear, nonlinear, fixed-parameter and custom models, and checks rejected input.
+### Export format change
+
+Analysis bundle metadata is version **2** for these simple exports. Version 1
+used a six-column `data.csv` and runtime metadata in Python; that complete table
+now lives in `observations.csv`, while `data.csv` is a numeric fit input.
+Existing downloaded bundles remain self-contained and runnable. This change
+has no effect on the tracker request/ack or `.trksess` formats.
+
+The detailed version-1 generator remains in
+[`scripts/reference/fullCodeExport.ts`](../scripts/reference/fullCodeExport.ts)
+for inspection and development validation. It is not an additional application
+setting or export choice. See its [reference notes](../scripts/reference/README.md).
+
+## Verification and references
+
+`npm test`, `npm run build` and `npm run test:e2e` cover the application and
+archive structure. `npm run test:code-exports` executes the generated programs
+with SciPy/Matplotlib and ROOT when installed. It checks actual coefficients,
+selected observations, χ² or SSE, degrees of freedom, fixed flags and unavailable
+uncertainties across linear, nonlinear and custom equations, including polynomial
+degrees 5–10 and skew/tail peaks. Dedicated linear cases check absolute supplied
+uncertainties and residual-scaled covariance, including excluded observations.
 Successful artifact creation alone is not evidence of a successful fit.
 
-Source notes are retained as leading `# ` comment lines in `data.csv`; both generated readers skip this preamble. ROOT keeps a cloned graph window open after the macro returns. Use `.q` to quit, or `root -l -b -q fit_root.C` for batch output without a window.
-
-The fitted equation is the first function in each generated source. Python's
-`main()` loads metadata with `load_model`, loads observations with `load_data`,
-calls `fit_data`, and then `report_fit` and `plot_fit`. Importing the Python file
-only defines functions. ROOT's `fit_root()` provides the same orchestration;
-`load_model` contains its generated equation settings and parameter constraints.
-ROOT retains `analysis.json` for reference but does not read it at runtime.
-Python dependencies are included only in the SciPy export.
+- [SciPy curve_fit](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html): weighting and covariance conventions.
+- [ROOT TGraphErrors](https://root.cern.ch/doc/master/classTGraphErrors.html): numeric CSV input and graph fitting.
+- [ROOT HFitImpl](https://root.cern.ch/doc/master/HFitImpl_8cxx_source.html): one-sided parameter limits and covariance normalization for graphs without errors.

@@ -107,18 +107,16 @@ for (const target of ["scipy", "root"] as const) {
       "README.md",
       "analysis.json",
       "data.csv",
-      ...(target === "scipy"
-        ? ["fit_scipy.py", "requirements.txt"]
-        : ["fit_root.C"]),
+      ...(target === "scipy" ? ["fit_scipy.py"] : ["fit_root.C"]),
+      "observations.csv",
+      ...(target === "scipy" ? ["requirements.txt"] : []),
     ]);
 
-    expect(files["data.csv"]).toMatch(
-      /^(?:# .*\r?\n)*row_id,x,y,sigma,included,missing_reason\r?\n/,
-    );
+    expect(files["data.csv"]).toMatch(/^(?:# .*\r?\n)*[-\d]/);
     const metadata = JSON.parse(files["analysis.json"]);
     expect(metadata).toMatchObject({
       format: "data-tool-analysis-bundle",
-      version: 1,
+      version: 2,
       fit: { model: "damped-sine" },
       view: { showGuides: true },
     });
@@ -126,19 +124,20 @@ for (const target of ["scipy", "root"] as const) {
     if (target === "scipy") {
       const python = files["fit_scipy.py"];
       expect(python).toContain("from scipy.optimize import curve_fit");
-      expect(python).toContain("reader = csv.DictReader(handle)");
+      expect(python).toContain("np.loadtxt");
       expect(python).not.toContain("x_all = np.array([");
-      expect(python).toContain("envelope = amplitude*np.exp");
+      expect(python).toContain("def model(x, b, s, c, T, tau):");
       expect(python).toContain("fig.savefig");
     } else {
       const root = files["fit_root.C"];
-      expect(root).toContain("std::ifstream input(csv_path)");
+      expect(root).toContain('TGraphErrors data(filename, "%lg,%lg")');
       expect(root).not.toContain("const std::vector<double> x_all = {");
-      expect(root).toContain("ROOT::Fit::Fitter fitter");
-      expect(root).toContain("TFitResult fit_result = run_fit()");
-      expect(root).toContain("upper_envelope");
-      expect(root).toContain("TGraphErrors residuals");
-      expect(root).toContain("TFile output(");
+      expect(root).toContain('data.Fit(&model, "SNQ")');
+      expect(root).toContain("auto result=fit_data(data, model)");
+      expect(root).toContain("canvas->SaveAs");
+      expect(files["observations.csv"]).toContain(
+        "row_id,x,y,sigma,included,missing_reason",
+      );
     }
     expect(files["README.md"]).toContain("another-run.csv");
   });

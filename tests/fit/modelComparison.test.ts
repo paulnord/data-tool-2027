@@ -71,6 +71,10 @@ it("counts an unknown common variance and withholds formal criteria for descript
   const comparison = compareModels([line, quadratic]);
   expect(comparison.rankingCriterion).toBe("AICc");
   expect(comparison.metrics[0].likelihoodParameters).toBe(3);
+  expect(comparison.metrics[0].reducedChiSquared).toEqual({
+    value: null,
+    reason: "unknown-noise-scale",
+  });
   expect(comparison.metrics[0].logLikelihood.value).toBeCloseTo(
     (-line.result.n / 2) *
       (Math.log(2 * Math.PI) + 1 + Math.log(line.result.sse / line.result.n)),
@@ -183,6 +187,10 @@ it("uses AIC for known sigmas without reversing a small-sample model ranking", (
   const [line, curved] = comparison.metrics;
   expect(line.objective).toBeCloseTo(4.162, 12);
   expect(curved.objective).toBeCloseTo(0.162, 12);
+  expect(line.df).toBe(4);
+  expect(curved.df).toBe(3);
+  expect(line.reducedChiSquared.value).toBeCloseTo(4.162 / 4, 12);
+  expect(curved.reducedChiSquared.value).toBeCloseTo(0.162 / 3, 12);
   expect(line.delta.value).toBeCloseTo(2, 12);
   expect(curved.delta.value).toBe(0);
   expect(curved.akaikeWeight.value).toBeCloseTo(1 / (1 + Math.exp(-1)), 14);
@@ -277,4 +285,21 @@ it("does not publish nonfinite criteria or rank them as valid evidence", () => {
   expect(comparison.metrics[0].akaikeWeight.reason).toBe(
     "fewer-than-two-comparable-criteria",
   );
+});
+
+it("withholds reduced chi-squared when no residual degrees of freedom remain", () => {
+  const request = syntheticRequest();
+  request.dataset.rows = request.dataset.rows.slice(0, 2);
+  const free = candidate("free", "line", request);
+  const fixed = candidate("fixed", "line", request);
+  fixed.settings.parameters[0].fixed = true;
+  fixed.result = fit(request, fixed.settings);
+  const comparison = compareModels([free, fixed]);
+  expect(comparison.metrics[0].df).toBe(0);
+  expect(comparison.metrics[0].reducedChiSquared).toEqual({
+    value: null,
+    reason: "zero-degrees-of-freedom",
+  });
+  expect(comparison.metrics[1].df).toBe(1);
+  expect(comparison.metrics[1].reducedChiSquared.value).not.toBeNull();
 });

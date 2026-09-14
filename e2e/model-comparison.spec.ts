@@ -50,7 +50,7 @@ test("compares refitted candidates and safely stages two session files", async (
   ).toBeVisible();
   await expect(table.locator("tbody")).toContainText("Not applicable");
   await expect(
-    table.locator("tbody tr").nth(1).locator("td").nth(8),
+    table.locator("tbody tr").nth(1).locator("td").nth(10),
   ).toHaveText(/^(0|[0-9.]+e-\d+)$/);
   await expect(
     page.getByRole("img", { name: "Compared fitted curves" }),
@@ -62,12 +62,15 @@ test("compares refitted candidates and safely stages two session files", async (
   await expect(
     page.getByRole("img", { name: "Compared residuals" }),
   ).toBeVisible();
-  const copy = page.getByRole("button", { name: "Copy comparison table" });
+  const copy = page.getByRole("button", { name: "Copy report", exact: true });
   await expect(copy).toBeEnabled();
   await copy.click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toContain("delta AIC\t");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(
+    "χ²/df (reduced chi-squared)",
+  );
   await page.setViewportSize({ width: 800, height: 700 });
   await expect(
     page.getByRole("heading", { name: "Model comparison" }),

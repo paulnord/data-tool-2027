@@ -3,21 +3,32 @@ import {
   inspectEquation,
   type CustomEquation,
 } from "../core/fit/customEquation";
+export type EquationDraft = Pick<CustomEquation, "expression" | "variable">;
 export function CustomEquationEditor({
   definition,
   onApply,
   onPending,
+  draft,
+  onDraftChange,
 }: {
   definition: CustomEquation;
   onApply: (definition: CustomEquation) => void;
   onPending: (pending: boolean) => void;
+  draft?: EquationDraft;
+  onDraftChange?: (draft: EquationDraft) => void;
 }) {
-  const [expression, setExpression] = useState(definition.expression);
-  const [variable, setVariable] = useState(definition.variable);
+  const [localExpression, setExpression] = useState(definition.expression);
+  const [localVariable, setVariable] = useState(definition.variable);
+  const expression = draft?.expression ?? localExpression;
+  const variable = draft?.variable ?? localVariable;
   useEffect(() => {
     setExpression(definition.expression);
     setVariable(definition.variable);
-    onPending(false);
+    onPending(
+      !!draft &&
+        (draft.expression !== definition.expression ||
+          draft.variable !== definition.variable),
+    );
   }, [definition.expression, definition.variable, onPending]);
   const changed =
     expression !== definition.expression || variable !== definition.variable;
@@ -41,6 +52,7 @@ export function CustomEquationEditor({
           autoComplete="off"
           onChange={(e) => {
             setVariable(e.target.value);
+            onDraftChange?.({ expression, variable: e.target.value });
             onPending(
               e.target.value !== definition.variable ||
                 expression !== definition.expression,
@@ -60,6 +72,7 @@ export function CustomEquationEditor({
           autoComplete="off"
           onChange={(e) => {
             setExpression(e.target.value);
+            onDraftChange?.({ expression: e.target.value, variable });
             onPending(
               e.target.value !== definition.expression ||
                 variable !== definition.variable,
@@ -96,12 +109,19 @@ export function CustomEquationEditor({
             onClick={() => {
               setExpression(definition.expression);
               setVariable(definition.variable);
+              onDraftChange?.({
+                expression: definition.expression,
+                variable: definition.variable,
+              });
               onPending(false);
             }}
           >
             Discard equation edits
           </button>
-          <p>Apply the equation before fitting or saving.</p>
+          <p>
+            Apply or discard these edits to use this equation in fits and
+            reports.
+          </p>
         </>
       )}
       <details>

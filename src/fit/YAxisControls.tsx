@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { plotScale } from "./plotScale";
+import { usePopoverLayout } from "./usePopoverLayout";
 import "./yAxisControls.css";
 
 export type AxisRange = [number, number];
@@ -37,6 +38,13 @@ export function AxisControls({
   onChange,
 }: AxisControlsProps) {
   const menu = useRef<HTMLDetailsElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const panelStyle = usePopoverLayout({
+    open,
+    anchorRef: menu,
+    panelRef: panel,
+  });
   const [draft, setDraft] = useState(["", ""]);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -75,7 +83,11 @@ export function AxisControls({
       onChange(next);
   }
   return (
-    <details ref={menu} className="y-axis-controls">
+    <details
+      ref={menu}
+      className="y-axis-controls"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
       <summary
         aria-label={`${label} ${axis} axis`}
         onClick={() => {
@@ -88,7 +100,7 @@ export function AxisControls({
       >
         {axis} axis · {custom ? "Custom" : "Auto"}
       </summary>
-      <div className="y-axis-panel">
+      <div ref={panel} className="y-axis-panel" style={panelStyle}>
         {onLogChange && (
           <label className="axis-log-control">
             <input

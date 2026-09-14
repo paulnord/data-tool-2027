@@ -10,6 +10,7 @@ import {
   type FitSettings,
 } from "./schema";
 import { fit, type FitResult } from "./solve";
+import { statisticReasonText } from "./diagnosticText";
 
 export type CollisionConfig = {
   time: number;
@@ -181,7 +182,8 @@ export function collisionReport(channels: CollisionChannel[]): string {
     for (const name of ["before", "after"] as const) {
       const { request } = channel,
         s = channel[name],
-        r = s.result;
+        r = s.result,
+        uncertaintyReason = r?.standardErrors[1].reason;
       rows.push([
         request.dataset.yColumn.label,
         name,
@@ -204,7 +206,10 @@ export function collisionReport(channels: CollisionChannel[]): string {
           ? `Common sigma = ${request.uncertainty.sigmaY}`
           : "Equal unknown scatter, estimated separately per interval",
         s.error ??
-          [...(r?.warnings ?? []), r?.standardErrors[1].reason ?? ""]
+          [
+            ...(r?.warnings ?? []),
+            uncertaintyReason ? statisticReasonText(uncertaintyReason) : "",
+          ]
             .filter(Boolean)
             .join(" "),
       ]);

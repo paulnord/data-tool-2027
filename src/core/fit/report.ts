@@ -11,6 +11,7 @@ import {
   type FitSession,
 } from "./schema";
 import type { FitResult } from "./solve";
+import { statisticReasonText } from "./diagnosticText";
 import { oscillationDerivedQuantities } from "./derivedParameters";
 export type Cell = string | number | boolean | null;
 export type ReportRow = readonly [statistic: string, value: Cell];
@@ -68,7 +69,10 @@ export function fitReportRows(
     ["Centered R²", result.rSquared],
   ] as const) {
     if (statistic.reason)
-      rows.push([`${label} unavailable reason`, statistic.reason]);
+      rows.push([
+        `${label} unavailable reason`,
+        statisticReasonText(statistic.reason),
+      ]);
   }
   return rows;
 }
@@ -85,6 +89,11 @@ export function fitReportTable(
   sections: ReportSections = {},
 ): Cell[][] {
   const names = parameterNames(settings.model, settings.custom);
+  // Human-readable row numbers refer to the complete input order, not the
+  // filtered fit sample. Stable IDs still identify observations everywhere else.
+  const rowNumbers = new Map(
+    request.dataset.rows.map((row, index) => [row.id, index + 1]),
+  );
   const derived = oscillationDerivedQuantities(request, settings, result);
   const equations = {
     ...(Object.fromEntries(
@@ -189,7 +198,8 @@ export function fitReportTable(
     ...names.map((name, i) => [
       name,
       result.coefficients[i],
-      result.standardErrors[i].value ?? result.standardErrors[i].reason,
+      result.standardErrors[i].value ??
+        statisticReasonText(result.standardErrors[i].reason),
       ...(result.intervals[i] ?? [null, null]),
     ]),
     ...(derived.length
@@ -200,7 +210,8 @@ export function fitReportTable(
             quantity.label,
             quantity.value,
             quantity.unit,
-            quantity.standardError.value ?? quantity.standardError.reason,
+            quantity.standardError.value ??
+              statisticReasonText(quantity.standardError.reason),
           ]),
         ]
       : []),
@@ -210,7 +221,7 @@ export function fitReportTable(
     [],
     ["Row", "x", "y", "predicted", "residual"],
     ...result.residuals.map((row) => [
-      row.id,
+      rowNumbers.get(row.id) ?? null,
       row.x,
       row.y,
       row.predicted,

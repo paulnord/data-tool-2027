@@ -46,7 +46,9 @@
   padding: 3px 4px;
 }
 .fit-print-document .fit-print-results td:not(:first-child) {
-  white-space: nowrap;
+  /* Value columns also contain readable explanations when inference is
+     unavailable. Let those wrap within the measured page width. */
+  white-space: normal;
 }
 .fit-print-document.fit-print-document th,
 .fit-print-document.fit-print-document td {

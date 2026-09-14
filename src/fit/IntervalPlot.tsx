@@ -6,9 +6,10 @@ import type {
   IntervalFit,
   IntervalRange,
 } from "../core/fit/intervals";
-import { predict } from "../core/fit/solve";
 import { plotScale, plotPath, linearDomain } from "./plotScale";
+import { extensionDash, sampleFittedCurve } from "./fitCurve";
 import type { ExportPlotSize } from "./exportSizing";
+import { YAxisTitle } from "./YAxisTitle";
 import {
   appearanceColors,
   appearanceStyle,
@@ -100,32 +101,25 @@ export function IntervalPlot({
       );
   const sx = plotScale(domain, false),
     x = (v: number) => left + sx.fraction(v) * (width - left - right);
-  const curves = results.map((r, i) => {
-    const range = intervals[i]?.range;
-    if (residual || !r?.result || !range) return [];
-    const settings = r.settings;
-    return Array.from({ length: 400 }, (_, j) => {
-      const t = range[0] + ((range[1] - range[0]) * j) / 399;
-      return {
-        x: t,
-        y: predict(
-          t,
-          settings.model,
-          r.result!.coefficients,
-          settings.sinePeriod,
-          settings.shape,
-          settings.custom,
-        ),
-      };
-    });
-  });
+  const curves = results.map((r) =>
+    residual || !r?.result
+      ? null
+      : sampleFittedCurve(r.settings, r.result, domain),
+  );
   const sigma =
     !residual && request.uncertainty.kind === "supplied-common"
       ? request.uncertainty.sigmaY
       : 0;
   const values = [
     ...points.flatMap((p) => [p.y - sigma, p.y + sigma]),
-    ...curves.flatMap((c) => c.map((p) => p.y).filter(Number.isFinite)),
+    ...curves.flatMap((curve) =>
+      curve
+        ? [
+            ...curve.fitted.map((p) => p.y).filter(Number.isFinite),
+            ...(curve.baseline === null ? [] : [curve.baseline]),
+          ]
+        : [],
+    ),
     ...(residual ? [0] : []),
   ];
   const automaticY = linearDomain(values);
@@ -226,6 +220,14 @@ export function IntervalPlot({
           setSelection(null);
         }}
       >
+        {!residual && (
+          <desc>
+            Fitted curves retain each interval's line pattern. Fainter dashed
+            extensions show the model just beyond the first and last fitted
+            observations. Dotted guides mark the mean position b of damped
+            oscillations.
+          </desc>
+        )}
         <defs>
           <clipPath id={id}>
             <rect
@@ -309,6 +311,58 @@ export function IntervalPlot({
               strokeDasharray="4 3"
             />
           )}
+          {curves.map((curve, i) => {
+            if (
+              !curve ||
+              curve.baseline === null ||
+              curve.baseline < yDomain[0] ||
+              curve.baseline > yDomain[1]
+            )
+              return null;
+            const sampled = [...curve.before, ...curve.fitted, ...curve.after];
+            if (!sampled.length) return null;
+            const from = sampled[0].x;
+            const to = sampled[sampled.length - 1].x;
+            const baseline = curve.baseline;
+            const name = intervals[i]?.name || `Interval ${i + 1}`;
+            const label = `b${intervals.length > 1 ? ` (${i + 1})` : ""} = ${baseline.toPrecision(4)}`;
+            const labelWidth = label.length * fontSize * 0.65;
+            return (
+              <g key={i}>
+                <line
+                  data-mean-position={baseline}
+                  data-interval-index={i}
+                  x1={x(from)}
+                  x2={x(to)}
+                  y1={y(baseline)}
+                  y2={y(baseline)}
+                  stroke={colors[i]}
+                  strokeWidth={renderSize ? 0.6 : 1}
+                  strokeDasharray={renderSize ? "1 2.5" : "2 4"}
+                  opacity={0.8}
+                >
+                  <title>{`${name}: mean position b = ${baseline}`}</title>
+                </line>
+                <text
+                  data-mean-position-label="true"
+                  data-interval-index={i}
+                  x={Math.min(
+                    width - right - 4,
+                    Math.max(left + labelWidth + 4, x(to) - 4),
+                  )}
+                  y={Math.max(
+                    top + fontSize + 3,
+                    Math.min(height - bottom - 4, y(baseline) - 5),
+                  )}
+                  textAnchor="end"
+                  style={{ fill: colors[i], fontSize }}
+                >
+                  <title>{`${name}: mean position b = ${baseline}`}</title>
+                  {label}
+                </text>
+              </g>
+            );
+          })}
           {points.map((p, i) => (
             <g
               key={i}
@@ -328,16 +382,42 @@ export function IntervalPlot({
               <PlotMarker x={x(p.x)} y={y(p.y)} r={renderSize ? 1.5 : 2.7} />
             </g>
           ))}
-          {curves.map((c, i) => (
-            <path
-              key={i}
-              d={plotPath(c, x, y)}
-              fill="none"
-              stroke={colors[i]}
-              strokeWidth={renderSize ? 1 : 2}
-              strokeDasharray={[undefined, "7 3", "3 3", "10 3 2 3", "2 3"][i]}
-            />
-          ))}
+          {curves.map((curve, i) =>
+            curve ? (
+              <g key={i}>
+                {curve.fitted.length > 0 && (
+                  <path
+                    data-fit-part="fitted"
+                    data-interval-index={i}
+                    d={plotPath(curve.fitted, x, y)}
+                    fill="none"
+                    stroke={colors[i]}
+                    strokeWidth={renderSize ? 1 : 2}
+                    strokeDasharray={
+                      [undefined, "7 3", "3 3", "10 3 2 3", "2 3"][i]
+                    }
+                  />
+                )}
+                {[curve.before, curve.after].map((part, side) =>
+                  part.length > 1 ? (
+                    <path
+                      key={side}
+                      data-fit-part="extrapolation"
+                      data-interval-index={i}
+                      d={plotPath(part, x, y)}
+                      fill="none"
+                      stroke={colors[i]}
+                      strokeWidth={renderSize ? 0.75 : 1.5}
+                      strokeDasharray={extensionDash(i)}
+                      opacity={0.65}
+                    >
+                      <title>{`${intervals[i]?.name || `Interval ${i + 1}`}: model extension beyond fitted observations`}</title>
+                    </path>
+                  ) : null,
+                )}
+              </g>
+            ) : null,
+          )}
           {selection && (
             <rect
               x={x(selection[0])}
@@ -403,6 +483,7 @@ export function IntervalPlot({
               ) ?? [],
           )}
         <text
+          data-axis-label="x"
           x={(left + width - right) / 2}
           y={height - (renderSize ? fontSize * 0.4 : 5)}
           textAnchor="middle"
@@ -410,13 +491,14 @@ export function IntervalPlot({
           {request.dataset.xColumn.label} [{request.dataset.xColumn.unit ?? "?"}
           ]
         </text>
-        <text
-          transform={`translate(${renderSize ? fontSize * 1.2 : 14} ${renderSize && residual ? height / 2 : (top + height - bottom) / 2}) rotate(-90)`}
-          textAnchor="middle"
-        >
-          {residual ? "Residual" : request.dataset.yColumn.label} [
-          {request.dataset.yColumn.unit ?? "?"}]
-        </text>
+        <YAxisTitle
+          label={residual ? "Residual" : request.dataset.yColumn.label}
+          unit={request.dataset.yColumn.unit ?? "?"}
+          x={renderSize ? fontSize * 1.2 : 14}
+          y={renderSize && residual ? height / 2 : (top + height - bottom) / 2}
+          splitUnit={!!renderSize && residual}
+          fontSize={fontSize}
+        />
         {!points.length && (
           <text x={width / 2} y={height / 2} textAnchor="middle">
             {residual

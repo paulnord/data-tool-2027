@@ -138,11 +138,11 @@
 }
 .comparison-plot text {
   fill: var(--muted);
-  font-size: 12px;
+  font-size: inherit;
 }
 .comparison-residual-plot text {
   fill: var(--muted);
-  font-size: 12px;
+  font-size: inherit;
 }
 .comparison-frame {
   fill: white;
@@ -158,7 +158,7 @@
 }
 .comparison-curve {
   fill: none;
-  stroke-width: 2.5;
+  stroke-width: var(--comparison-curve-width, 2.5);
 }
 .comparison-curve-1 {
   stroke: #cc7f32;
@@ -182,7 +182,7 @@
 .comparison-residual-2 {
   fill: none;
   stroke: #176b8e;
-  stroke-width: 1.5;
+  stroke-width: var(--comparison-marker-stroke, 1.5);
   opacity: 0.82;
 }
 .comparison-legend {
@@ -237,4 +237,30 @@
     max-height: none;
     order: -1;
   }
+}
+
+.comparison-error-bar {
+  fill: none;
+  stroke: #667572;
+  stroke-width: 1;
+}
+.comparison-error-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.fit-export-render .comparison-plot-wrap {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.fit-print-document .comparison-plot-wrap {
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+
+.fit-print-document .comparison-print-statistics {
+  display: block;
 }

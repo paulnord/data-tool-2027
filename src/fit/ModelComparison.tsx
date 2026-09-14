@@ -1,5 +1,8 @@
 import {
   useEffect,
+  useImperativeHandle,
+  type Ref,
+  type CSSProperties,
   useId,
   useMemo,
   useRef,
@@ -10,8 +13,10 @@ import {
   compareModels,
   comparisonCompatibility,
   type ComparisonCandidate,
+  type ComparisonMetrics,
   type ModelComparison as ComparisonResult,
 } from "../core/fit/modelComparison";
+import { statisticReasonText } from "../core/fit/diagnosticText";
 import {
   initialSettings,
   parameterNames,
@@ -25,7 +30,13 @@ import {
   nonlinearModels,
   suggestedParameters,
 } from "../core/fit/nonlinearModels";
-import { predict, type FitResult } from "../core/fit/solve";
+import { predict, type FitResult, type Statistic } from "../core/fit/solve";
+import { createPortal } from "react-dom";
+import { suppliedYErrorBars } from "../core/fit/errorBars";
+import type { ExportPlotSize } from "./exportSizing";
+import { YAxisTitle } from "./YAxisTitle";
+import PrintPages from "./PrintPages";
+import { useModalDialog } from "./useModalDialog";
 import { reportTableTsv } from "../core/fit/report";
 import { automaticDomain, plotPath, plotScale } from "./plotScale";
 import { FitErrorMessage } from "./FitErrorMessage";
@@ -105,18 +116,62 @@ function settingsFor(model: FitSettings["model"], source: Analysis) {
 function ComparisonPlot({
   candidates,
   showResiduals,
+  showErrorBars,
+  sizes,
 }: {
   candidates: ComparisonCandidate[];
   showResiduals: boolean;
+  showErrorBars: boolean;
+  sizes?: ExportPlotSize[];
 }) {
-  const width = 760,
-    height = showResiduals ? 326 : 474,
-    left = 90,
-    right = 22,
-    top = 18,
-    bottom = showResiduals ? 8 : 50;
+  const font = sizes?.[0].fontSizePx ?? 12;
+  const legendHeight = font * 3;
+  const sizedTop = legendHeight + font;
+  const sizedGap = Math.max(6, font * 0.6);
+  const sizedResidualBottom = Math.max(40, font * 3.3);
+  const sizedFrames =
+    sizes && showResiduals
+      ? sizes.reduce((sum, size) => sum + size.height, 0) -
+        sizedTop -
+        sizedGap * 2 -
+        sizedResidualBottom
+      : null;
+  const sizedDataHeight =
+    sizedFrames === null ? null : sizedTop + sizedGap + sizedFrames * 0.75;
+  const sizedResidualHeight =
+    sizedFrames === null
+      ? null
+      : sizedGap + sizedResidualBottom + sizedFrames * 0.25;
+  const width = sizes?.[0].width ?? 760,
+    height =
+      sizedDataHeight ??
+      sizes?.[0].height ??
+      (showResiduals ? 326 : 474) + legendHeight,
+    left = sizes?.[0].leftMarginPx ?? (sizes ? Math.max(58, font * 5.2) : 90),
+    right = sizes ? Math.max(12, font) : 22,
+    top = legendHeight + (sizes ? font : 18),
+    bottom = sizes
+      ? showResiduals
+        ? Math.max(6, font * 0.6)
+        : Math.max(40, font * 3.6)
+      : showResiduals
+        ? 8
+        : 50;
+  const markerRadius = sizes ? 1.5 : 3;
+  const squareHalf = sizes ? 1.35 : 2.7;
+  const legendLeft = sizes ? Math.min(left, 12) : left;
+  const svgStyle = {
+    fontSize: font,
+    "--comparison-curve-width": sizes ? 1 : 2.5,
+    "--comparison-marker-stroke": sizes ? 0.75 : 1.5,
+  } as CSSProperties;
   const clipId = useId();
   const observations = candidates[0].result.residuals;
+  const includedIds = new Set(observations.map((row) => row.id));
+  const errorBars = showErrorBars
+    ? suppliedYErrorBars(candidates[0].request)
+    : { bars: [], unavailable: 0 };
+  const bars = errorBars.bars.filter((bar) => includedIds.has(bar.id));
   const xDomain = automaticDomain(
     observations.map((row) => row.x),
     false,
@@ -142,6 +197,7 @@ function ComparisonPlot({
   const yDomain = automaticDomain(
     [
       ...observations.map((row) => row.y),
+      ...bars.flatMap((bar) => [bar.lower, bar.upper]),
       ...curves.flatMap((curve) => curve.map((point) => point.y)),
     ],
     false,
@@ -158,9 +214,9 @@ function ComparisonPlot({
     top +
     (1 - (value - yDomain[0]) / (yDomain[1] - yDomain[0])) *
       (height - top - bottom);
-  const residualHeight = 148,
-    residualTop = 8,
-    residualBottom = 40;
+  const residualHeight = sizedResidualHeight ?? sizes?.[1]?.height ?? 148,
+    residualTop = sizes ? Math.max(6, font * 0.6) : 8,
+    residualBottom = Math.max(40, font * 3.3);
   const residualMaximum = candidates.reduce(
     (maximum, candidate) =>
       candidate.result.residuals.reduce(
@@ -193,7 +249,39 @@ function ComparisonPlot({
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label="Compared fitted curves"
+        style={svgStyle}
+        data-y-min={yDomain[0]}
+        data-y-max={yDomain[1]}
       >
+        <desc>
+          {candidates
+            .map(
+              (candidate, i) =>
+                `${i + 1}: ${candidate.label}; ${candidate.settings.model}; data: ${candidate.request.dataset.label}`,
+            )
+            .join(". ")}
+        </desc>
+        {errorBars.unavailable > 0 && (
+          <desc data-plot-notice="true">
+            Some supplied error bars exceed the numeric range and are
+            unavailable.
+          </desc>
+        )}
+        {candidates.map((candidate, i) => (
+          <g key={candidate.id}>
+            <line
+              className={`comparison-curve comparison-curve-${i + 1}`}
+              x1={legendLeft}
+              x2={legendLeft + 20}
+              y1={font * (i * 1.3 + 0.9)}
+              y2={font * (i * 1.3 + 0.9)}
+            />
+            <text
+              x={legendLeft + 27}
+              y={font * (i * 1.3 + 1.2)}
+            >{`${i + 1}: ${candidate.settings.model}`}</text>
+          </g>
+        ))}
         <defs>
           <clipPath id={`${clipId}-data`}>
             <rect
@@ -205,7 +293,7 @@ function ComparisonPlot({
           </clipPath>
         </defs>
         <rect
-          className="comparison-frame"
+          className="comparison-frame fit-plot-frame"
           x={left}
           y={top}
           width={width - left - right}
@@ -222,6 +310,7 @@ function ComparisonPlot({
             />
             <text
               className="comparison-tick"
+              data-axis-tick="y"
               x={left - 8}
               y={y(tick) + 4}
               textAnchor="end"
@@ -264,16 +353,25 @@ function ComparisonPlot({
               : ""}
           </text>
         )}
-        <text
-          transform={`translate(16 ${height / 2}) rotate(-90)`}
-          textAnchor="middle"
-        >
-          {candidates[0].request.dataset.yColumn.label}
-          {candidates[0].request.dataset.yColumn.unit
-            ? ` [${candidates[0].request.dataset.yColumn.unit}]`
-            : ""}
-        </text>
+        <YAxisTitle
+          label={candidates[0].request.dataset.yColumn.label}
+          unit={candidates[0].request.dataset.yColumn.unit ?? null}
+          x={font * 1.1}
+          y={top + (height - top - bottom) / 2}
+          splitUnit={!!sizes}
+          fontSize={font}
+        />
         <g clipPath={`url(#${clipId}-data)`}>
+          {bars.map((bar) => (
+            <path
+              key={bar.id}
+              className="comparison-error-bar"
+              data-row-id={bar.id}
+              d={`M${x(bar.x)},${y(bar.lower)}V${y(bar.upper)} M${x(bar.x) - 3},${y(bar.lower)}h6 M${x(bar.x) - 3},${y(bar.upper)}h6`}
+            >
+              <title>{`Supplied y uncertainty: ±${format(bar.sigma)} ${candidates[0].request.dataset.yColumn.unit ?? ""}`}</title>
+            </path>
+          ))}
           {curves.map((curve, i) => (
             <path
               key={candidates[i].id}
@@ -287,7 +385,7 @@ function ComparisonPlot({
               className="comparison-point"
               cx={x(row.x)}
               cy={y(row.y)}
-              r="3"
+              r={markerRadius}
             />
           ))}
         </g>
@@ -300,6 +398,7 @@ function ComparisonPlot({
           viewBox={`0 0 ${width} ${residualHeight}`}
           role="img"
           aria-label="Compared residuals"
+          style={svgStyle}
           data-y-min={-residualExtent}
           data-y-max={residualExtent}
         >
@@ -314,7 +413,7 @@ function ComparisonPlot({
             </clipPath>
           </defs>
           <rect
-            className="comparison-frame"
+            className="comparison-frame fit-plot-frame"
             x={left}
             y={residualTop}
             width={width - left - right}
@@ -331,6 +430,7 @@ function ComparisonPlot({
               />
               <text
                 className="comparison-tick"
+                data-axis-tick="y"
                 x={left - 8}
                 y={residualY(tick) + 4}
                 textAnchor="end"
@@ -365,15 +465,19 @@ function ComparisonPlot({
             y1={residualY(0)}
             y2={residualY(0)}
           />
-          <text
-            transform={`translate(16 ${(residualTop + residualHeight - residualBottom) / 2}) rotate(-90)`}
-            textAnchor="middle"
-          >
-            Residual
-            {candidates[0].request.dataset.yColumn.unit
-              ? ` [${candidates[0].request.dataset.yColumn.unit}]`
-              : ""}
-          </text>
+          <YAxisTitle
+            label="Residual"
+            unit={candidates[0].request.dataset.yColumn.unit ?? null}
+            x={font * 1.1}
+            y={
+              sizes
+                ? residualHeight / 2
+                : residualTop +
+                  (residualHeight - residualTop - residualBottom) / 2
+            }
+            splitUnit={!!sizes}
+            fontSize={font}
+          />
           <text
             data-axis-label="x"
             x={width / 2}
@@ -394,16 +498,16 @@ function ComparisonPlot({
                     className="comparison-residual-1"
                     cx={x(row.x)}
                     cy={residualY(row.residual)}
-                    r="3"
+                    r={markerRadius}
                   />
                 ) : (
                   <rect
                     key={`${candidate.id}-${row.id}`}
                     className="comparison-residual-2"
-                    x={x(row.x) - 2.7}
-                    y={residualY(row.residual) - 2.7}
-                    width="5.4"
-                    height="5.4"
+                    x={x(row.x) - squareHalf}
+                    y={residualY(row.residual) - squareHalf}
+                    width={squareHalf * 2}
+                    height={squareHalf * 2}
                   />
                 ),
               ),
@@ -411,27 +515,236 @@ function ComparisonPlot({
           </g>
         </svg>
       )}
-      <div className="comparison-legend" aria-label="Compared curve legend">
-        {candidates.map((candidate, i) => (
-          <span key={candidate.id} className={`comparison-key-${i + 1}`}>
-            {candidate.label}: {candidate.settings.model}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
+
+function comparisonStatisticText(statistic: Statistic) {
+  if (statistic.value !== null) return format(statistic.value);
+  if (statistic.reason === "not-applicable-known-variance")
+    return "Not applicable";
+  return statisticReasonText(statistic.reason);
+}
+
+function ComparisonPrintReport({
+  candidates,
+  comparison,
+  showResiduals,
+  showErrorBars,
+  onClose,
+}: {
+  candidates: ComparisonCandidate[];
+  comparison: ComparisonResult;
+  showResiduals: boolean;
+  showErrorBars: boolean;
+  onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [fullPageGraph, setFullPageGraph] = useState(false);
+  const [error, setError] = useState("");
+  useModalDialog(dialog, ".fit-print-trigger");
+  const rows: Array<[string, (metric: ComparisonMetrics) => string]> = [
+    ["Model", (m) => m.model],
+    ["Observations n", (m) => format(m.n)],
+    ["Degrees of freedom df", (m) => format(m.df)],
+    ["Free curve parameters k", (m) => format(m.modelParameters)],
+    ["Likelihood parameters K", (m) => format(m.likelihoodParameters)],
+    [
+      comparison.rankingCriterion === "AIC" ? "χ²" : "SSE",
+      (m) => format(m.objective),
+    ],
+    [
+      "χ²/df (reduced chi-squared)",
+      (m) => comparisonStatisticText(m.reducedChiSquared),
+    ],
+    ["Log likelihood", (m) => comparisonStatisticText(m.logLikelihood)],
+    ["AIC", (m) => comparisonStatisticText(m.aic)],
+    ["AICc", (m) => comparisonStatisticText(m.aicc)],
+    [
+      `Δ${comparison.rankingCriterion}`,
+      (m) => comparisonStatisticText(m.delta),
+    ],
+    ["Akaike weight", (m) => comparisonStatisticText(m.akaikeWeight)],
+    ["BIC", (m) => comparisonStatisticText(m.bic)],
+    ["Inference", (m) => m.inference],
+  ];
+  async function print() {
+    try {
+      await window.print();
+    } catch (cause) {
+      setError(`Printing failed: ${String(cause)}`);
+    }
+  }
+  return (
+    <dialog
+      ref={dialog}
+      className={`fit-print-dialog${fullPageGraph ? " full-page-graph" : ""}`}
+      aria-label="Print model comparison"
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target !== event.currentTarget) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (
+          event.clientX < rect.left ||
+          event.clientX > rect.right ||
+          event.clientY < rect.top ||
+          event.clientY > rect.bottom
+        )
+          onClose();
+      }}
+      onKeyDown={(event) => {
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          event.key.toLowerCase() === "p"
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          void print();
+        }
+      }}
+    >
+      <div className="fit-print-controls">
+        <button onClick={() => void print()}>Print…</button>
+        <button onClick={onClose}>Close preview</button>
+        <label>
+          <input
+            type="checkbox"
+            checked={fullPageGraph}
+            onChange={(event) => setFullPageGraph(event.target.checked)}
+          />
+          Full-page graph
+        </label>
+        <span>
+          US Letter · Portrait
+          {fullPageGraph ? " · Graph rotated on the first page" : ""}
+        </span>
+        {error && <p role="alert">{error}</p>}
+      </div>
+      <PrintPages fullPageGraph={fullPageGraph}>
+        <article>
+          <div className="fit-print-graph-sheet">
+            <div className="fit-print-graph-content">
+              <h1>Model comparison</h1>
+              <p>{candidates[0].request.dataset.label}</p>
+              <div className="fit-print-graphs">
+                <ComparisonPlot
+                  candidates={candidates}
+                  showResiduals={showResiduals}
+                  showErrorBars={showErrorBars}
+                  sizes={
+                    showResiduals
+                      ? [
+                          {
+                            width: fullPageGraph ? 960 : 720,
+                            height: (fullPageGraph ? 650 : 380) * 0.75,
+                            fontSizePx: 12,
+                            leftMarginPx: 90,
+                          },
+                          {
+                            width: fullPageGraph ? 960 : 720,
+                            height: (fullPageGraph ? 650 : 380) * 0.25,
+                            fontSizePx: 12,
+                            leftMarginPx: 90,
+                          },
+                        ]
+                      : [
+                          {
+                            width: fullPageGraph ? 960 : 720,
+                            height: fullPageGraph ? 650 : 380,
+                            fontSizePx: 12,
+                            leftMarginPx: 90,
+                          },
+                        ]
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <div className="fit-print-details">
+            <div className="fit-print-results comparison-print-statistics">
+              <h2>Comparison statistics</h2>
+              <table aria-label="Printed model comparison statistics">
+                <thead>
+                  <tr>
+                    <th>Statistic</th>
+                    {comparison.metrics.map((metric) => (
+                      <th key={metric.id}>{metric.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(([label, value]) => (
+                    <tr key={label}>
+                      <th>{label}</th>
+                      {comparison.metrics.map((metric) => (
+                        <td key={metric.id}>{value(metric)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p>
+              Ranking uses {comparison.rankingCriterion} within this candidate
+              set. Akaike weights are relative support, not posterior model
+              probabilities. BIC is a separate criterion.
+            </p>
+            <p>
+              χ²/df uses supplied absolute Y uncertainties and df = n − k. When
+              scatter is estimated from the residuals, χ²/df is unavailable as
+              an independent fit-quality check. Error bars show supplied ±1σ on
+              observations only.
+            </p>
+            <p>
+              {comparison.rankingCriterion === "AIC"
+                ? "The estimated-variance AICc correction is not applicable with supplied known sigmas."
+                : "AICc counts estimated variance, requires n > K + 1, and is approximate for nonlinear models."}
+            </p>
+            {candidates.map((candidate) => (
+              <p key={candidate.id}>
+                {candidate.label}: {candidate.settings.model}; source:{" "}
+                {candidate.request.dataset.label}; inference:{" "}
+                {candidate.result.inference}.
+                {candidate.result.warnings.length > 0
+                  ? ` Warnings: ${candidate.result.warnings.join("; ")}`
+                  : ""}
+              </p>
+            ))}
+          </div>
+        </article>
+      </PrintPages>
+    </dialog>
+  );
+}
+
+export type ModelComparisonActions = {
+  copy: () => Promise<void>;
+  print: () => void;
+};
 
 export default function ModelComparison({
   source,
   sourceResult,
   analysisControl,
   showResiduals,
+  showErrorBars,
+  onErrorBarsChange,
+  onReady,
+  exportSizes,
+  ref,
 }: {
   source: Analysis;
   sourceResult: FitResult | null;
   analysisControl: ReactNode;
   showResiduals: boolean;
+  showErrorBars: boolean;
+  onErrorBarsChange: (show: boolean) => void;
+  onReady: (ready: boolean) => void;
+  exportSizes?: ExportPlotSize[];
+  ref?: Ref<ModelComparisonActions>;
 }) {
   const [drafts, setDrafts] = useState<[Draft, Draft]>(() => [
     fromCurrent(source, sourceResult),
@@ -442,6 +755,15 @@ export default function ModelComparison({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
+  const ready = !!comparison?.compatible && !!fitted && !busy;
+  useEffect(() => onReady(ready), [ready, onReady]);
+  useImperativeHandle(ref, () => ({
+    copy,
+    print: () => {
+      if (ready) setPrintOpen(true);
+    },
+  }));
   const workers = useRef(new Set<Worker>());
   const revision = useRef(0);
   useEffect(
@@ -575,9 +897,11 @@ export default function ModelComparison({
       "Candidate",
       "Model",
       "n",
+      "df",
       "Model parameters",
       "Likelihood parameters",
-      "Objective",
+      comparison.rankingCriterion === "AIC" ? "χ²" : "SSE",
+      "χ²/df (reduced chi-squared)",
       "log likelihood",
       "AIC",
       "AICc",
@@ -592,9 +916,12 @@ export default function ModelComparison({
         metric.label,
         metric.model,
         metric.n,
+        metric.df,
         metric.modelParameters,
         metric.likelihoodParameters,
         metric.objective,
+        metric.reducedChiSquared.value ??
+          statisticReasonText(metric.reducedChiSquared.reason),
         metric.logLikelihood.value ?? metric.logLikelihood.reason,
         metric.aic.value ?? metric.aic.reason,
         metric.aicc.value ?? metric.aicc.reason,
@@ -688,9 +1015,7 @@ export default function ModelComparison({
         >
           {busy ? "Comparing…" : "Refit and compare"}
         </button>
-        <button disabled={!comparison?.compatible} onClick={() => void copy()}>
-          Copy comparison table
-        </button>
+
         <p>
           Both candidates are refitted. Formal criteria require the same
           observations, exclusions, uncertainties, and likelihood assumptions.
@@ -718,16 +1043,68 @@ export default function ModelComparison({
         )}
         {comparison?.compatible && fitted ? (
           <>
-            <ComparisonPlot candidates={fitted} showResiduals={showResiduals} />
+            <label
+              className="comparison-error-control"
+              title="Supplied marginal y uncertainty, ±1 standard deviation. Only shown on the data plot."
+            >
+              <input
+                type="checkbox"
+                checked={
+                  showErrorBars &&
+                  fitted[0].request.uncertainty.kind !== "unknown-equal"
+                }
+                disabled={
+                  fitted[0].request.uncertainty.kind === "unknown-equal"
+                }
+                onChange={(event) => onErrorBarsChange(event.target.checked)}
+              />
+              {fitted[0].request.uncertainty.kind === "unknown-equal"
+                ? "Error bars unavailable · σ unknown"
+                : "Show y error bars (±1σ)"}
+            </label>
+            <ComparisonPlot
+              candidates={fitted}
+              showResiduals={showResiduals}
+              showErrorBars={showErrorBars}
+            />
+            {exportSizes && (
+              <div className="fit-export-render" aria-hidden="true" inert>
+                <ComparisonPlot
+                  candidates={fitted}
+                  showResiduals={showResiduals}
+                  showErrorBars={showErrorBars}
+                  sizes={exportSizes}
+                />
+              </div>
+            )}
+            {printOpen &&
+              createPortal(
+                <ComparisonPrintReport
+                  candidates={fitted}
+                  comparison={comparison}
+                  showResiduals={showResiduals}
+                  showErrorBars={showErrorBars}
+                  onClose={() => setPrintOpen(false)}
+                />,
+                document.querySelector(".fit-app")!,
+              )}
             <div className="comparison-table-wrap">
               <table aria-label="Model comparison statistics">
                 <thead>
                   <tr>
                     <th>Candidate</th>
                     <th>n</th>
+                    <th title="Residual degrees of freedom: n minus free curve parameters">
+                      df
+                    </th>
                     <th>k model</th>
                     <th>K likelihood</th>
-                    <th>Objective</th>
+                    <th>
+                      {comparison.rankingCriterion === "AIC" ? "χ²" : "SSE"}
+                    </th>
+                    <th title="Chi-squared per degree of freedom (reduced chi-squared)">
+                      χ²/df
+                    </th>
                     <th>log L</th>
                     <th>AIC</th>
                     <th>AICc</th>
@@ -744,9 +1121,21 @@ export default function ModelComparison({
                         <small>{metric.model}</small>
                       </th>
                       <td>{metric.n}</td>
+                      <td>{metric.df}</td>
                       <td>{metric.modelParameters}</td>
                       <td>{metric.likelihoodParameters}</td>
                       <td>{format(metric.objective)}</td>
+                      <td
+                        title={
+                          metric.reducedChiSquared.reason
+                            ? statisticReasonText(
+                                metric.reducedChiSquared.reason,
+                              )
+                            : "Chi-squared per degree of freedom"
+                        }
+                      >
+                        {format(metric.reducedChiSquared.value)}
+                      </td>
                       {[
                         metric.logLikelihood,
                         metric.aic,
@@ -796,6 +1185,13 @@ export default function ModelComparison({
                 the fitted common variance when scatter is unknown. Objective is
                 χ² with supplied standard deviations and SSE when common scatter
                 is unknown.
+              </p>
+              <p>
+                χ²/df is chi-squared per residual degree of freedom, with df = n
+                − k model. It requires supplied absolute measurement
+                uncertainties and positive df. When scatter is estimated from
+                these residuals, dividing by that estimate would force χ²/df to
+                one, so it is unavailable as an independent fit-quality check.
               </p>
               {comparison.metrics.some(
                 (metric) => metric.inference === "conditional",

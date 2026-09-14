@@ -1,5 +1,16 @@
 /** Keep solver diagnostics intact while explaining fitting failures to users. */
 export function FitErrorMessage({ message }: { message: string }) {
+  const detail = message.indexOf("\nDetails: ");
+  if (detail >= 0)
+    return (
+      <>
+        <div>{message.slice(0, detail)}</div>
+        <details className="fit-error-details">
+          <summary>Details</summary>
+          <div>{message.slice(detail + 10)}</div>
+        </details>
+      </>
+    );
   const rank =
     /Rank deficient: (?:at most )?\d+ independent columns for (\d+) free parameters/.exec(
       message,

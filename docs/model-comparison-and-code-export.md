@@ -55,6 +55,26 @@ and one bottom X label. Their inner heights are in a 3:1 ratio, with a compact
 shared gap. Residual scaling follows the actual values without an absolute
 floor in the Y units. Hiding residuals gives their space to the data graph.
 
+The table and copied report include **χ²/df (reduced chi-squared)** and the
+residual degrees of freedom, `df = n − k`, using the single-fit diagnostic.
+It is available with supplied absolute measurement uncertainties and positive
+degrees of freedom. When scatter is estimated from the residuals, the statistic
+is unavailable: using that estimated scale would force the ratio to one.
+
+Supplied Y uncertainties appear as ±1σ bars on the included data observations.
+**Show y error bars (±1σ)** shares its visibility preference with the single-fit
+view. Residual-estimated scatter is not substituted for measurement error bars;
+residual panels retain the app's data-only error-bar convention.
+
+The top **Copy report**, **Print**, and **Export** actions follow the active
+comparison. Print opens the measured paper preview, with a compact statistics
+table and an optional rotated full-page graph. SVG, PNG, and PDF exports contain
+both labeled candidate curves, shared-axis residuals when visible, and supplied
+error bars. **Figure size…** applies the same physical dimensions, font size and
+PNG resolution controls as the other graph exports. These output actions require
+a current completed comparison; session saving and SciPy/ROOT code bundles
+remain single-fit operations.
+
 Formal comparison is blocked unless both candidates have exactly the same
 ordered included X/Y observations, exclusions, numerical Y uncertainties,
 axis assignments and units, error structure, fit assumptions, and conditional-

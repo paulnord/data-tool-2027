@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useId, useRef, useState } from "react";
+import { useInterfaceScale } from "./InterfaceScale";
+import {
+  useEffect,
+  useLayoutEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import "./assumptions.css";
@@ -64,6 +72,7 @@ function Reference({ name }: { name: keyof typeof references }) {
   );
 }
 function Guide({ onClose }: { onClose: () => void }) {
+  const scale = useInterfaceScale();
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
@@ -76,6 +85,7 @@ function Guide({ onClose }: { onClose: () => void }) {
     <dialog
       ref={dialog}
       className="assumptions-guide"
+      style={{ "--help-scale": scale } as CSSProperties}
       aria-labelledby="fitting-guide-title"
       onCancel={(e) => {
         e.preventDefault();
@@ -349,6 +359,7 @@ export default function Assumptions({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const scale = useInterfaceScale();
   const [guide, setGuide] = useState(false),
     [tip, setTip] = useState(false);
   const [position, setPosition] = useState({ left: 0, top: 0, maxHeight: 300 });
@@ -425,7 +436,7 @@ export default function Assumptions({
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [tip, guide]);
+  }, [tip, guide, scale]);
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -511,7 +522,7 @@ export default function Assumptions({
             tabIndex={0}
             role="tooltip"
             className="assumptions-tooltip"
-            style={position}
+            style={{ ...position, "--help-scale": scale } as CSSProperties}
             onMouseEnter={keepOpen}
             onFocus={keepOpen}
             onBlur={hide}

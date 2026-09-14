@@ -19,9 +19,11 @@ export interface ComparisonMetrics {
   label: string;
   model: FitSettings["model"];
   n: number;
+  df: number;
   modelParameters: number;
   likelihoodParameters: number;
   objective: number;
+  reducedChiSquared: Statistic;
   logLikelihood: Statistic;
   aic: Statistic;
   aicc: Statistic;
@@ -193,9 +195,14 @@ export function compareModels(
       label: candidate.label,
       model: settings.model,
       n: result.n,
+      df: result.df,
       modelParameters,
       likelihoodParameters,
       objective: unknownScale ? result.sse : result.weightedObjective.value!,
+      reducedChiSquared:
+        result.reducedObjective.value === null
+          ? { ...result.reducedObjective }
+          : available(result.reducedObjective.value),
       logLikelihood,
       aic,
       aicc,

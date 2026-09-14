@@ -8,7 +8,7 @@ import {
   tableForAnalysis,
   type TableAnalysis,
 } from "../core/fit/dataTable";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { parseDelimited, suggestImport } from "../core/fit/dataInput";
 import {
   alignRowNameHeading,
@@ -21,6 +21,15 @@ import {
   type CellRange,
 } from "../core/fit/importGrid";
 import { type DataTable } from "../core/fit/schema";
+import { usePopoverLayout } from "./usePopoverLayout";
+import { useModalDialog } from "./useModalDialog";
+import { FitErrorMessage } from "./FitErrorMessage";
+
+export type ExampleGroup = {
+  id: string;
+  label: string;
+  items: readonly (readonly [string, string, string])[];
+};
 
 export function ImportPanel({
   source,
@@ -42,12 +51,45 @@ export function ImportPanel({
   onClose: () => void;
   analysis?: TableAnalysis;
   onOpen?: () => void;
-  examples?: readonly (readonly [string, string, string])[];
+  examples?: readonly ExampleGroup[];
   onOpenExample?: (fileName: string, text: string) => void;
   externalError?: string;
   onApply: (value: TableAnalysis, replacement?: boolean) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const examplesMenu = useRef<HTMLDetailsElement>(null);
+  const examplesPanel = useRef<HTMLDivElement>(null);
+  const examplesList = useRef<HTMLDivElement>(null);
+  const tableScroll = useRef<HTMLDivElement>(null);
+  const columnMenuAnchor = useRef<HTMLTableCellElement>(null);
+  const columnMenuPanel = useRef<HTMLDivElement>(null);
+  const [examplesOpen, setExamplesOpen] = useState(false);
+  const [exampleGroupId, setExampleGroupId] = useState(examples?.[0]?.id);
+  const activeExamples =
+    examples?.find((group) => group.id === exampleGroupId) ?? examples?.[0];
+  const [moreExamplesBelow, setMoreExamplesBelow] = useState(false);
+  const examplesPosition = usePopoverLayout({
+    open: examplesOpen,
+    anchorRef: examplesMenu,
+    panelRef: examplesPanel,
+    boundaryRef: dialog,
+    align: "start",
+  });
+  const updateExampleOverflow = () => {
+    const list = examplesList.current;
+    setMoreExamplesBelow(
+      !!list && list.scrollTop + list.clientHeight < list.scrollHeight - 1,
+    );
+  };
+  useLayoutEffect(() => {
+    const list = examplesList.current;
+    if (!list || !examplesOpen) return;
+    list.scrollTop = 0;
+    updateExampleOverflow();
+    const observer = new ResizeObserver(updateExampleOverflow);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [examplesOpen, activeExamples?.id]);
   const [cells, setCellRange] = useState<CellRange | null>(null);
   const [columns, setColumns] = useState<number[]>([]);
   const columnDrag = useRef<{ anchor: number; base: number[] } | null>(null);
@@ -57,6 +99,44 @@ export function ImportPanel({
     setCellRange(value);
   }
   const [columnMenu, setColumnMenu] = useState<number | null>(null);
+  const columnMenuPosition = usePopoverLayout({
+    open: columnMenu !== null,
+    anchorRef: columnMenuAnchor,
+    panelRef: columnMenuPanel,
+    boundaryRef: tableScroll,
+    align: "start",
+  });
+  useLayoutEffect(() => {
+    if (columnMenu === null) return;
+    columnMenuPanel.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
+  }, [columnMenu]);
+  function closeColumnMenu() {
+    setColumnMenu(null);
+    columnMenuAnchor.current?.focus();
+  }
+  function moveMenuFocus(event: React.KeyboardEvent<HTMLElement>) {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const items = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        'button[role="menuitem"]:not(:disabled)',
+      ),
+    );
+    if (!items.length) return;
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? items.length - 1
+          : event.key === "ArrowDown"
+            ? (index + 1) % items.length
+            : (index - 1 + items.length) % items.length;
+    items[next].focus();
+  }
   const dragging = useRef<CellRange["anchor"] | null>(null);
   useEffect(() => {
     const end = () => {
@@ -74,9 +154,7 @@ export function ImportPanel({
   const multiple =
     !!bounds && (bounds.bottom > bounds.top || bounds.right > bounds.left);
 
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
+  useModalDialog(dialog, ".fit-data-trigger", ".fit-data-load");
   const initial = useRef(
     analysis ? tableForAnalysis(analysis) : undefined,
   ).current;
@@ -120,6 +198,33 @@ export function ImportPanel({
     }
   });
   const [page, setPage] = useState(0);
+  const pendingFocus = useRef<{
+    row: number;
+    column: number;
+    preserveSelection: boolean;
+  } | null>(null);
+  const preserveSelectionOnFocus = useRef(false);
+  function focusCell(row: number, column: number, preserveSelection = false) {
+    const targetPage = Math.floor(row / 100);
+    if (targetPage !== page) {
+      pendingFocus.current = { row, column, preserveSelection };
+      setPage(targetPage);
+      return;
+    }
+    preserveSelectionOnFocus.current = preserveSelection;
+    dialog.current
+      ?.querySelector<HTMLInputElement>(
+        `[aria-label="Row ${row + 1} column ${column + 1}"]`,
+      )
+      ?.focus();
+    preserveSelectionOnFocus.current = false;
+  }
+  useLayoutEffect(() => {
+    const target = pendingFocus.current;
+    if (!target) return;
+    pendingFocus.current = null;
+    focusCell(target.row, target.column, target.preserveSelection);
+  }, [page]);
   type Snapshot = {
     grid: string[][];
     headerRows: number;
@@ -204,7 +309,7 @@ export function ImportPanel({
     ...selection,
     units: labels.map((label, i) => columnHeading(label, columnUnits[i]).unit),
   };
-  if (grid.length)
+  if (grid.length && grid.length !== headerRows)
     try {
       candidate = analysisFromTable(table, tableName, base, sourceFileName);
     } catch (e) {
@@ -263,7 +368,11 @@ export function ImportPanel({
           column: column + Math.max(...block.map((r) => r.length)) - 1,
         },
       });
-      if (!grid.length || replace) {
+      if (
+        !grid.length ||
+        replace ||
+        (row === 0 && column === 0 && grid.length === headerRows)
+      ) {
         setColumnUnits([]);
         setSourceFileName(null);
         setSelection({ x: guessed.x, y: guessed.y, sigma: null });
@@ -371,7 +480,7 @@ export function ImportPanel({
       await navigator.clipboard.writeText(selectionText());
       setColumnMenu(null);
     } catch {
-      setMessage("Use ⌘C to copy the selected cells.");
+      setMessage("Use ⌘C or Ctrl+C to copy the selected cells.");
     }
   }
   function clearCells() {
@@ -439,6 +548,28 @@ export function ImportPanel({
   const shown = grid.length
     ? [...grid, Array.from({ length: width }, () => "")]
     : Array.from({ length: 5 }, () => ["", ""]);
+  function applyData() {
+    if (unchanged) {
+      if (reviewing && analysis) onApply(analysis, false);
+      else onClose();
+      return;
+    }
+    if (candidate) {
+      if (!base) {
+        const id = crypto.randomUUID();
+        candidate = {
+          ...candidate,
+          request: {
+            ...candidate.request,
+            requestId: id,
+            snapshotId: id,
+            dataset: { ...candidate.request.dataset, id },
+          },
+        };
+      }
+      onApply(candidate, !base);
+    }
+  }
   return (
     <dialog
       ref={dialog}
@@ -447,6 +578,11 @@ export function ImportPanel({
       onPointerDownCapture={(e) => {
         if (!(e.target as HTMLElement).closest(".fit-column-heading"))
           setColumnMenu(null);
+        if (
+          e.target instanceof Node &&
+          !examplesMenu.current?.contains(e.target)
+        )
+          examplesMenu.current?.removeAttribute("open");
       }}
       onBlurCapture={() => {
         editGroup.current = null;
@@ -455,7 +591,14 @@ export function ImportPanel({
         if (e.key === "Escape" && columnMenu !== null) {
           e.preventDefault();
           e.stopPropagation();
-          setColumnMenu(null);
+          closeColumnMenu();
+          return;
+        }
+        if (e.key === "Escape" && examplesMenu.current?.open) {
+          e.preventDefault();
+          e.stopPropagation();
+          examplesMenu.current.removeAttribute("open");
+          examplesMenu.current.querySelector("summary")?.focus();
           return;
         }
         if (
@@ -487,18 +630,33 @@ export function ImportPanel({
         onClose();
       }}
     >
-      <h2>Data</h2>
+      <header className="fit-data-header">
+        <h2>Data</h2>
+        <div className="fit-data-actions">
+          <button onClick={onClose}>Cancel</button>
+          <button
+            className="fit-use-data"
+            disabled={
+              !(reviewing && unchanged) &&
+              (!request || !!error || !grid.length || !!issues.length)
+            }
+            onClick={applyData}
+          >
+            Use these data
+          </button>
+        </div>
+      </header>
       {externalError && (
         <p role="alert" className="fit-error">
-          {externalError}
+          <FitErrorMessage message={externalError} />
         </p>
       )}
-      <div className="fit-grid-toolbar">
+      <div className="fit-grid-toolbar fit-data-toolbar">
         <button
           className="fit-history-icon"
           aria-label="Undo table change"
           disabled={!past.length}
-          title={`Undo${past.length ? `: ${past.at(-1)?.label}` : ""} (⌘Z)`}
+          title={`Undo${past.length ? `: ${past.at(-1)?.label}` : ""} (⌘Z / Ctrl+Z)`}
           onClick={() => history()}
         >
           <span aria-hidden="true">↶</span>
@@ -507,7 +665,7 @@ export function ImportPanel({
           className="fit-history-icon"
           aria-label="Redo table change"
           disabled={!future.length}
-          title={`Redo${future.length ? `: ${future.at(-1)?.label}` : ""} (⇧⌘Z)`}
+          title={`Redo${future.length ? `: ${future.at(-1)?.label}` : ""} (⇧⌘Z / Ctrl+Shift+Z)`}
           onClick={() => history(true)}
         >
           <span aria-hidden="true">↷</span>
@@ -515,6 +673,7 @@ export function ImportPanel({
 
         {onOpen && (
           <button
+            className="fit-data-load"
             onClick={() => {
               if (past.length) setPendingLoad(() => onOpen);
               else onOpen();
@@ -524,22 +683,120 @@ export function ImportPanel({
           </button>
         )}
         {examples && onOpenExample && (
-          <details className="fit-examples-menu">
-            <summary>Examples</summary>
-            <div className="fit-examples-list" role="menu">
-              {examples.map(([label, fileName, text]) => (
-                <button
-                  key={fileName}
-                  role="menuitem"
-                  onClick={() => {
-                    const load = () => onOpenExample(fileName, text);
-                    if (past.length) setPendingLoad(() => load);
-                    else load();
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+          <details
+            ref={examplesMenu}
+            className="fit-examples-menu"
+            onToggle={(event) => setExamplesOpen(event.currentTarget.open)}
+          >
+            <summary
+              onKeyDown={(event) => {
+                if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                examplesMenu.current?.setAttribute("open", "");
+                setExamplesOpen(true);
+                requestAnimationFrame(() => {
+                  const items =
+                    examplesList.current?.querySelectorAll<HTMLButtonElement>(
+                      'button[role="menuitem"]',
+                    );
+                  if (items?.length)
+                    items[
+                      event.key === "ArrowUp" ? items.length - 1 : 0
+                    ].focus();
+                });
+              }}
+            >
+              Examples
+            </summary>
+            <div
+              ref={examplesPanel}
+              className="fit-examples-popover"
+              style={{
+                ...examplesPosition,
+                overflowY: "hidden",
+                visibility: examplesOpen ? "visible" : "hidden",
+              }}
+            >
+              <div
+                className="fit-example-categories"
+                role="tablist"
+                aria-label="Example categories"
+              >
+                {examples.map((group, index) => (
+                  <button
+                    key={group.id}
+                    id={`example-category-${group.id}`}
+                    role="tab"
+                    aria-selected={group.id === activeExamples?.id}
+                    aria-controls="example-category-items"
+                    tabIndex={group.id === activeExamples?.id ? 0 : -1}
+                    onClick={() => setExampleGroupId(group.id)}
+                    onKeyDown={(event) => {
+                      if (
+                        !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                          event.key,
+                        )
+                      )
+                        return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const next =
+                        event.key === "Home"
+                          ? 0
+                          : event.key === "End"
+                            ? examples.length - 1
+                            : (index +
+                                (event.key === "ArrowRight" ? 1 : -1) +
+                                examples.length) %
+                              examples.length;
+                      setExampleGroupId(examples[next].id);
+                      event.currentTarget.parentElement
+                        ?.querySelectorAll<HTMLButtonElement>(
+                          'button[role="tab"]',
+                        )
+                        [next]?.focus();
+                    }}
+                  >
+                    {group.label}{" "}
+                    <span className="fit-example-count">
+                      ({group.items.length})
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div
+                ref={examplesList}
+                id="example-category-items"
+                className="fit-examples-list"
+                role="menu"
+                aria-labelledby={`example-category-${activeExamples?.id}`}
+                onScroll={updateExampleOverflow}
+                onKeyDown={moveMenuFocus}
+              >
+                {activeExamples?.items.map(([label, fileName, text]) => (
+                  <button
+                    key={fileName}
+                    role="menuitem"
+                    onClick={() => {
+                      examplesMenu.current?.removeAttribute("open");
+                      const load = () => onOpenExample(fileName, text);
+                      if (past.length) setPendingLoad(() => load);
+                      else load();
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p
+                className="fit-example-scroll-hint"
+                aria-hidden={!moreExamplesBelow}
+              >
+                {moreExamplesBelow
+                  ? "Scroll for more examples ↓"
+                  : "All examples in this category shown"}
+              </p>
             </div>
           </details>
         )}
@@ -567,40 +824,6 @@ export function ImportPanel({
         <button disabled={width >= 1000} onClick={() => insertColumn(width)}>
           Add column
         </button>
-        <div className="fit-data-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button
-            className="fit-use-data"
-            disabled={
-              !(reviewing && unchanged) &&
-              (!request || !!error || !grid.length || !!issues.length)
-            }
-            onClick={() => {
-              if (unchanged) {
-                if (reviewing && analysis) onApply(analysis, false);
-                else onClose();
-                return;
-              }
-              if (candidate) {
-                if (!base) {
-                  const id = crypto.randomUUID();
-                  candidate = {
-                    ...candidate,
-                    request: {
-                      ...candidate.request,
-                      requestId: id,
-                      snapshotId: id,
-                      dataset: { ...candidate.request.dataset, id },
-                    },
-                  };
-                }
-                onApply(candidate, !base);
-              }
-            }}
-          >
-            Use these data
-          </button>
-        </div>
       </div>
       {pendingLoad && (
         <p role="alert">
@@ -617,13 +840,24 @@ export function ImportPanel({
           <button onClick={() => setPendingLoad(null)}>Keep table</button>
         </p>
       )}
-      <p>
-        Drag across cells or Shift-click to select a block. Copy (⌘C / Ctrl+C),
-        click the destination, then paste (⌘V / Ctrl+V). Click or drag across
-        column headings; Option-click adds or removes individual columns.
-        Right-click for Copy, Clear or Delete. Double-click a cell to edit its
-        text.
+      <p className="fit-data-intro">
+        Load a file, paste a table, or enter values in the cells below.
       </p>
+      <details className="fit-editing-help">
+        <summary>Editing help</summary>
+        <p>
+          Drag across cells or Shift-click to select a block. Copy (⌘C /
+          Ctrl+C), click the destination, then paste (⌘V / Ctrl+V). Click or
+          drag across column headings; Option-click / Alt-click adds or removes
+          individual columns. Right-click a column heading for Copy, Clear or
+          Delete. Double-click a cell to edit its text.
+        </p>
+        <p>
+          Header rows are headings, not observations. The last heading supplies
+          column names; “Time (s)” declares a unit. Units can also be entered
+          below each column heading and never convert values.
+        </p>
+      </details>
       <div className="fit-import-choices">
         {(["x", "y", "sigma"] as const).map((key) => (
           <label key={key}>
@@ -660,7 +894,7 @@ export function ImportPanel({
             aria-label="Header rows"
             type="number"
             min={0}
-            max={Math.max(0, grid.length - 1)}
+            max={grid.length}
             value={headerRows}
             onChange={(e) => {
               remember("Change header rows", "headers");
@@ -670,7 +904,9 @@ export function ImportPanel({
         </label>
         <span>
           {headerRows
-            ? `Rows 1–${headerRows} are headings, not data. Last heading supplies column names; “Time (s)” declares a unit.`
+            ? headerRows === 1
+              ? "Row 1 is a heading."
+              : `Rows 1–${headerRows} are headings.`
             : "Every row is data."}
         </span>
         <span className="fit-history-hint">
@@ -701,6 +937,7 @@ export function ImportPanel({
         </span>
       </div>
       <div
+        ref={tableScroll}
         className="fit-data-scroll fit-paste-grid"
         onCopy={(e) => {
           if (
@@ -796,8 +1033,8 @@ export function ImportPanel({
                   onContextMenu={(e) => {
                     e.preventDefault();
                     if (!columns.includes(i)) selectColumn(i);
+                    columnMenuAnchor.current = e.currentTarget;
                     setColumnMenu(i);
-                    e.currentTarget.focus();
                   }}
                   onKeyDown={(e) => {
                     if ((e.target as HTMLElement).closest(".fit-column-menu"))
@@ -808,6 +1045,7 @@ export function ImportPanel({
                     ) {
                       e.preventDefault();
                       if (!columns.includes(i)) selectColumn(i);
+                      columnMenuAnchor.current = e.currentTarget;
                       setColumnMenu(i);
                     } else if (e.key === " " || e.key === "Enter") {
                       e.preventDefault();
@@ -831,14 +1069,16 @@ export function ImportPanel({
                   </span>
                   {columnMenu === i && (
                     <div
+                      ref={columnMenuPanel}
                       role="menu"
                       aria-label={`Column ${i + 1} actions`}
                       className="fit-column-menu"
+                      style={columnMenuPosition}
                       onKeyDown={(e) => {
                         if (e.key === "Escape") {
                           e.stopPropagation();
-                          setColumnMenu(null);
-                        }
+                          closeColumnMenu();
+                        } else moveMenuFocus(e);
                       }}
                     >
                       <button role="menuitem" onClick={copySelection}>
@@ -881,10 +1121,7 @@ export function ImportPanel({
                           ? "Delete selected columns"
                           : "Delete column"}
                       </button>
-                      <button
-                        role="menuitem"
-                        onClick={() => setColumnMenu(null)}
-                      >
+                      <button role="menuitem" onClick={closeColumnMenu}>
                         Close menu
                       </button>
                     </div>
@@ -947,7 +1184,7 @@ export function ImportPanel({
                     </button>
                     <button
                       disabled={i >= grid.length}
-                      aria-label={`Delete ${rowIds[i] ?? `row-${i + 1}`}`}
+                      aria-label={`Delete row ${i + 1}`}
                       onClick={() => {
                         remember("Delete row");
                         setCells(null);
@@ -977,12 +1214,19 @@ export function ImportPanel({
                       >
                         <input
                           autoFocus={!text && i === 0 && j === 0}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          autoComplete="off"
+                          spellCheck={false}
                           aria-label={`Row ${i + 1} column ${j + 1}`}
                           aria-invalid={!!problem && !!grid.length}
                           title={problem ?? ""}
                           value={row[j] ?? ""}
                           onFocus={() => {
-                            if (!dragging.current)
+                            if (
+                              !dragging.current &&
+                              !preserveSelectionOnFocus.current
+                            )
                               setCells({
                                 anchor: { row: i, column: j },
                                 end: { row: i, column: j },
@@ -1087,7 +1331,7 @@ export function ImportPanel({
                                 ),
                               };
                               setCells({ ...start, end });
-                              setPage(Math.floor(end.row / 100));
+                              focusCell(end.row, end.column, true);
                               return;
                             }
 
@@ -1095,12 +1339,14 @@ export function ImportPanel({
                               ["ArrowUp", "ArrowDown", "Enter"].includes(e.key)
                             ) {
                               e.preventDefault();
-                              const next = i + (e.key === "ArrowUp" ? -1 : 1);
-                              dialog.current
-                                ?.querySelector<HTMLInputElement>(
-                                  `[aria-label="Row ${next + 1} column ${j + 1}"]`,
-                                )
-                                ?.focus();
+                              const next = Math.max(
+                                0,
+                                Math.min(
+                                  shown.length - 1,
+                                  i + (e.key === "ArrowUp" ? -1 : 1),
+                                ),
+                              );
+                              focusCell(next, j);
                             }
                           }}
                         />
@@ -1188,7 +1434,8 @@ export function ImportPanel({
           role="alert"
           className={
             message.startsWith("Y changed") ||
-            message.startsWith("CSV exported")
+            message.startsWith("CSV exported") ||
+            message.startsWith("Source replaced")
               ? "fit-help"
               : "fit-error"
           }
@@ -1220,6 +1467,10 @@ export function ImportPanel({
           <summary>Replace from source text</summary>
           <textarea
             aria-label="Delimited text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="off"
+            spellCheck={false}
             value={raw}
             onChange={(e) => {
               remember("Edit source text", "source-text");

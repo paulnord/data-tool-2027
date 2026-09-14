@@ -126,7 +126,8 @@ test("exports a CSV-backed SciPy and ROOT analysis bundle", async ({
   const root = files["fit_root.C"];
   expect(root).toContain("std::ifstream input(csv_path)");
   expect(root).not.toContain("const std::vector<double> x_all = {");
-  expect(root).toContain("TFitResultPtr fit_result");
+  expect(root).toContain("ROOT::Fit::Fitter fitter");
+  expect(root).toContain("TFitResult fit_result = run_fit()");
   expect(root).toContain("upper_envelope");
   expect(root).toContain("TGraphErrors residuals");
   expect(root).toContain("TFile output(");

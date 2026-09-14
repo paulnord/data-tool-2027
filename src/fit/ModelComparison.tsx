@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   compareModels,
   comparisonCompatibility,
@@ -103,16 +110,17 @@ function ComparisonPlot({
   showResiduals: boolean;
 }) {
   const width = 760,
-    height = 330,
-    left = 70,
+    height = showResiduals ? 326 : 474,
+    left = 90,
     right = 22,
     top = 18,
-    bottom = 50;
+    bottom = showResiduals ? 8 : 50;
+  const clipId = useId();
   const observations = candidates[0].result.residuals;
   const xDomain = automaticDomain(
     observations.map((row) => row.x),
     false,
-    0.04,
+    0.06,
   );
   const sample = Array.from(
     { length: 420 },
@@ -137,7 +145,7 @@ function ComparisonPlot({
       ...curves.flatMap((curve) => curve.map((point) => point.y)),
     ],
     false,
-    0.08,
+    0.12,
   );
   const xScale = plotScale(xDomain, false);
   const yScale = plotScale(yDomain, false);
@@ -150,28 +158,52 @@ function ComparisonPlot({
     top +
     (1 - (value - yDomain[0]) / (yDomain[1] - yDomain[0])) *
       (height - top - bottom);
-  const residualHeight = 150;
-  const residualExtent =
-    Math.max(
-      ...candidates.flatMap((candidate) =>
-        candidate.result.residuals.map((row) => Math.abs(row.residual)),
+  const residualHeight = 148,
+    residualTop = 8,
+    residualBottom = 40;
+  const residualMaximum = candidates.reduce(
+    (maximum, candidate) =>
+      candidate.result.residuals.reduce(
+        (value, row) =>
+          Number.isFinite(row.residual)
+            ? Math.max(value, Math.abs(row.residual))
+            : value,
+        maximum,
       ),
-      0.001,
-    ) * 1.18;
+    0,
+  );
+  // Only exact-zero residuals need a fallback. Display units must not flatten
+  // a small but resolved difference between the fitted models.
+  const residualExtent =
+    residualMaximum > 0
+      ? Math.min(Number.MAX_VALUE, residualMaximum * 1.12)
+      : 1;
   const residualScale = plotScale([-residualExtent, residualExtent], false);
   const residualTicks = residualScale.ticks(3);
   const residualY = (value: number) =>
-    8 +
-    (1 - (value + residualExtent) / (2 * residualExtent)) *
-      (residualHeight - 43);
+    residualTop +
+    ((1 - value / residualExtent) / 2) *
+      (residualHeight - residualTop - residualBottom);
   return (
     <div className="comparison-plot-wrap">
       <svg
         className="comparison-plot"
+        width={width}
+        height={height}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label="Compared fitted curves"
       >
+        <defs>
+          <clipPath id={`${clipId}-data`}>
+            <rect
+              x={left}
+              y={top}
+              width={width - left - right}
+              height={height - top - bottom}
+            />
+          </clipPath>
+        </defs>
         <rect
           className="comparison-frame"
           x={left}
@@ -219,12 +251,19 @@ function ComparisonPlot({
             )}
           </g>
         ))}
-        <text x={width / 2} y={height - 10} textAnchor="middle">
-          {candidates[0].request.dataset.xColumn.label}
-          {candidates[0].request.dataset.xColumn.unit
-            ? ` [${candidates[0].request.dataset.xColumn.unit}]`
-            : ""}
-        </text>
+        {!showResiduals && (
+          <text
+            data-axis-label="x"
+            x={width / 2}
+            y={height - 10}
+            textAnchor="middle"
+          >
+            {candidates[0].request.dataset.xColumn.label}
+            {candidates[0].request.dataset.xColumn.unit
+              ? ` [${candidates[0].request.dataset.xColumn.unit}]`
+              : ""}
+          </text>
+        )}
         <text
           transform={`translate(16 ${height / 2}) rotate(-90)`}
           textAnchor="middle"
@@ -234,36 +273,52 @@ function ComparisonPlot({
             ? ` [${candidates[0].request.dataset.yColumn.unit}]`
             : ""}
         </text>
-        {curves.map((curve, i) => (
-          <path
-            key={candidates[i].id}
-            className={`comparison-curve comparison-curve-${i + 1}`}
-            d={plotPath(curve, x, y)}
-          />
-        ))}
-        {observations.map((row) => (
-          <circle
-            key={row.id}
-            className="comparison-point"
-            cx={x(row.x)}
-            cy={y(row.y)}
-            r="3"
-          />
-        ))}
+        <g clipPath={`url(#${clipId}-data)`}>
+          {curves.map((curve, i) => (
+            <path
+              key={candidates[i].id}
+              className={`comparison-curve comparison-curve-${i + 1}`}
+              d={plotPath(curve, x, y)}
+            />
+          ))}
+          {observations.map((row) => (
+            <circle
+              key={row.id}
+              className="comparison-point"
+              cx={x(row.x)}
+              cy={y(row.y)}
+              r="3"
+            />
+          ))}
+        </g>
       </svg>
       {showResiduals && (
         <svg
           className="comparison-residual-plot"
+          width={width}
+          height={residualHeight}
           viewBox={`0 0 ${width} ${residualHeight}`}
           role="img"
           aria-label="Compared residuals"
+          data-y-min={-residualExtent}
+          data-y-max={residualExtent}
         >
+          <defs>
+            <clipPath id={`${clipId}-residual`}>
+              <rect
+                x={left}
+                y={residualTop}
+                width={width - left - right}
+                height={residualHeight - residualTop - residualBottom}
+              />
+            </clipPath>
+          </defs>
           <rect
             className="comparison-frame"
             x={left}
-            y="8"
+            y={residualTop}
             width={width - left - right}
-            height={residualHeight - 43}
+            height={residualHeight - residualTop - residualBottom}
           />
           {residualTicks.map((tick) => (
             <g key={`residual-y-${tick}`}>
@@ -290,13 +345,13 @@ function ComparisonPlot({
                 className="comparison-grid"
                 x1={x(tick)}
                 x2={x(tick)}
-                y1="8"
-                y2={residualHeight - 35}
+                y1={residualTop}
+                y2={residualHeight - residualBottom}
               />
               <text
                 className="comparison-tick"
                 x={x(tick)}
-                y={residualHeight - 27}
+                y={residualHeight - residualBottom + 17}
                 textAnchor="middle"
               >
                 {xScale.label(tick, 6)}
@@ -311,39 +366,49 @@ function ComparisonPlot({
             y2={residualY(0)}
           />
           <text
-            transform={`translate(16 ${residualHeight / 2}) rotate(-90)`}
+            transform={`translate(16 ${(residualTop + residualHeight - residualBottom) / 2}) rotate(-90)`}
             textAnchor="middle"
           >
             Residual
+            {candidates[0].request.dataset.yColumn.unit
+              ? ` [${candidates[0].request.dataset.yColumn.unit}]`
+              : ""}
           </text>
-          <text x={width / 2} y={residualHeight - 8} textAnchor="middle">
+          <text
+            data-axis-label="x"
+            x={width / 2}
+            y={residualHeight - 8}
+            textAnchor="middle"
+          >
             {candidates[0].request.dataset.xColumn.label}
             {candidates[0].request.dataset.xColumn.unit
               ? ` [${candidates[0].request.dataset.xColumn.unit}]`
               : ""}
           </text>
-          {candidates.flatMap((candidate, candidateIndex) =>
-            candidate.result.residuals.map((row) =>
-              candidateIndex === 0 ? (
-                <circle
-                  key={`${candidate.id}-${row.id}`}
-                  className="comparison-residual-1"
-                  cx={x(row.x)}
-                  cy={residualY(row.residual)}
-                  r="3"
-                />
-              ) : (
-                <rect
-                  key={`${candidate.id}-${row.id}`}
-                  className="comparison-residual-2"
-                  x={x(row.x) - 2.7}
-                  y={residualY(row.residual) - 2.7}
-                  width="5.4"
-                  height="5.4"
-                />
+          <g clipPath={`url(#${clipId}-residual)`}>
+            {candidates.flatMap((candidate, candidateIndex) =>
+              candidate.result.residuals.map((row) =>
+                candidateIndex === 0 ? (
+                  <circle
+                    key={`${candidate.id}-${row.id}`}
+                    className="comparison-residual-1"
+                    cx={x(row.x)}
+                    cy={residualY(row.residual)}
+                    r="3"
+                  />
+                ) : (
+                  <rect
+                    key={`${candidate.id}-${row.id}`}
+                    className="comparison-residual-2"
+                    x={x(row.x) - 2.7}
+                    y={residualY(row.residual) - 2.7}
+                    width="5.4"
+                    height="5.4"
+                  />
+                ),
               ),
-            ),
-          )}
+            )}
+          </g>
         </svg>
       )}
       <div className="comparison-legend" aria-label="Compared curve legend">
@@ -399,11 +464,14 @@ export default function ModelComparison({
               metric.logLikelihood,
               metric.aic,
               metric.aicc,
-              metric.deltaAicc,
+              metric.delta,
               metric.akaikeWeight,
               metric.bic,
             ].flatMap((statistic) =>
-              statistic.reason ? [statistic.reason.replaceAll("-", " ")] : [],
+              statistic.reason &&
+              statistic.reason !== "not-applicable-known-variance"
+                ? [statistic.reason.replaceAll("-", " ")]
+                : [],
             ),
           ),
         ),
@@ -513,7 +581,7 @@ export default function ModelComparison({
       "log likelihood",
       "AIC",
       "AICc",
-      "delta AICc",
+      `delta ${comparison.rankingCriterion}`,
       "Akaike weight",
       "BIC",
       "Inference",
@@ -530,7 +598,7 @@ export default function ModelComparison({
         metric.logLikelihood.value ?? metric.logLikelihood.reason,
         metric.aic.value ?? metric.aic.reason,
         metric.aicc.value ?? metric.aicc.reason,
-        metric.deltaAicc.value ?? metric.deltaAicc.reason,
+        metric.delta.value ?? metric.delta.reason,
         metric.akaikeWeight.value ?? metric.akaikeWeight.reason,
         metric.bic.value ?? metric.bic.reason,
         metric.inference,
@@ -551,6 +619,9 @@ export default function ModelComparison({
         {drafts.map((draft, i) => (
           <fieldset key={i} disabled={busy}>
             <legend>Candidate {i + 1}</legend>
+            <p className="comparison-source">
+              Data: {draft.request.dataset.label}
+            </p>
             <label>
               Label
               <input
@@ -603,13 +674,11 @@ export default function ModelComparison({
                 }}
               />
             </label>
-            {i === 0 && (
-              <button
-                onClick={() => change(0, fromCurrent(source, sourceResult))}
-              >
-                Use current analysis
-              </button>
-            )}
+            <button
+              onClick={() => change(i, fromCurrent(source, sourceResult))}
+            >
+              Use current analysis
+            </button>
           </fieldset>
         ))}
         <button
@@ -662,7 +731,7 @@ export default function ModelComparison({
                     <th>log L</th>
                     <th>AIC</th>
                     <th>AICc</th>
-                    <th>ΔAICc</th>
+                    <th>Δ{comparison.rankingCriterion}</th>
                     <th>Akaike weight</th>
                     <th>BIC</th>
                   </tr>
@@ -682,12 +751,14 @@ export default function ModelComparison({
                         metric.logLikelihood,
                         metric.aic,
                         metric.aicc,
-                        metric.deltaAicc,
+                        metric.delta,
                         metric.akaikeWeight,
                         metric.bic,
                       ].map((statistic, i) => (
                         <td key={i} title={statistic.reason ?? undefined}>
-                          {format(statistic.value)}
+                          {statistic.reason === "not-applicable-known-variance"
+                            ? "Not applicable"
+                            : format(statistic.value)}
                         </td>
                       ))}
                     </tr>
@@ -709,10 +780,16 @@ export default function ModelComparison({
             )}
             <div className="comparison-notes">
               <p>
-                Lower AICc/BIC indicates more relative support within only this
-                candidate set. When at least two AICc values are available,
-                Akaike weights sum to one across those candidates; they are not
-                probabilities that a model is true.
+                Relative support uses {comparison.rankingCriterion}: lower is
+                better within this candidate set. Akaike weights use that same
+                criterion and sum to one when at least two values are available;
+                they are not probabilities that a model is true. BIC is shown as
+                a separate criterion.
+              </p>
+              <p>
+                {comparison.rankingCriterion === "AIC"
+                  ? "With supplied measurement uncertainties, the unknown-variance AICc correction does not apply."
+                  : "AICc includes a small-sample correction for estimated equal scatter. Its nonlinear use is approximate and depends on the model and error assumptions."}
               </p>
               <p>
                 k model counts free curve parameters. K likelihood also counts

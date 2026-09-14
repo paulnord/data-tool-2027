@@ -190,6 +190,27 @@ function axisLabel(label: string, unit: string | null) {
   return unit ? `${label} [${unit}]` : label;
 }
 
+/** These fields determine the executable expression, rather than editable starts/view. */
+function executableIdentity(settings: FitSettings) {
+  return {
+    model: settings.model,
+    parameterNames: parameterNames(settings.model, settings.custom),
+    customEquation: settings.custom
+      ? {
+          expression: settings.custom.expression,
+          variable: settings.custom.variable,
+          names: settings.custom.names,
+        }
+      : null,
+    options:
+      settings.model === "sine"
+        ? { sinePeriod: settings.sinePeriod }
+        : ["exponential", "power-law"].includes(settings.model)
+          ? { shape: settings.shape }
+          : {},
+  };
+}
+
 export function generateCodeExportMetadata(description: CodeExportDescription) {
   const names = parameterNames(
     description.settings.model,
@@ -314,6 +335,20 @@ with args.analysis.open(encoding="utf-8") as handle:
 if analysis.get("format") != "data-tool-analysis-bundle" or analysis.get("version") != 1:
     raise ValueError(f"{args.analysis}: unsupported analysis metadata")
 
+# The function below is generated from a validated equation. Alternate metadata
+# may change starts, fixed flags, uncertainty, or view, but cannot change that code.
+expected_identity = json.loads(${JSON.stringify(JSON.stringify(executableIdentity(description.settings)))})
+fit_metadata = analysis["fit"]
+custom = fit_metadata.get("customEquation")
+identity = {
+    "model": fit_metadata["model"],
+    "parameterNames": [parameter["name"] for parameter in fit_metadata["parameters"]],
+    "customEquation": {key: custom[key] for key in ("expression", "variable", "names")} if custom else None,
+    "options": {key: fit_metadata["options"].get(key) for key in expected_identity["options"]},
+}
+if identity != expected_identity:
+    raise ValueError(f"{args.analysis}: model, parameter order, or equation options do not match this generated program")
+
 def read_number(value, row_number, column):
     value = value.strip()
     if not value:
@@ -334,6 +369,8 @@ def read_data(path):
         if reader.fieldnames != expected:
             raise ValueError(f"{path}: expected CSV columns {', '.join(expected)}")
         for row_number, row in enumerate(reader, start=2):
+            if None in row or any(value is None for value in row.values()):
+                raise ValueError(f"{path}: row {row_number} has the wrong number of fields")
             flag = row["included"].strip().lower()
             if flag not in {"true", "false", "1", "0"}:
                 raise ValueError(f"{path}: row {row_number} has invalid included flag")
@@ -358,10 +395,11 @@ excluded = ~included & np.isfinite(x_all) & np.isfinite(y_all)
 if not np.any(use):
     raise ValueError(f"{args.data}: no finite included observations")
 
-fit_metadata = analysis["fit"]
 parameter_metadata = fit_metadata["parameters"]
 parameter_names = [parameter["name"] for parameter in parameter_metadata]
 start = np.asarray([parameter["start"] for parameter in parameter_metadata], dtype=float)
+if not np.all(np.isfinite(start)) or any(type(parameter["fixed"]) is not bool for parameter in parameter_metadata):
+    raise ValueError(f"{args.analysis}: starts must be finite and fixed flags must be boolean")
 free_index = np.asarray(
     [index for index, parameter in enumerate(parameter_metadata) if not parameter["fixed"]],
     dtype=int,
@@ -372,7 +410,7 @@ def lower_bound(parameter):
     if lower is None:
         return -np.inf
     if parameter.get("lowerExclusive") and float(lower) == 0:
-        return np.finfo(float).tiny
+        return np.nextafter(0.0, 1.0)
     return float(lower)
 
 lower = np.asarray([lower_bound(parameter_metadata[index]) for index in free_index], dtype=float)
@@ -380,11 +418,15 @@ upper = np.asarray([
     np.inf if parameter_metadata[index]["upperBound"] is None else float(parameter_metadata[index]["upperBound"])
     for index in free_index
 ], dtype=float)
+if np.any(np.isnan(lower)) or np.any(np.isnan(upper)) or np.any(lower >= upper):
+    raise ValueError(f"{args.analysis}: invalid parameter bounds")
 data_tool_fit = np.asarray([parameter["dataToolValue"] for parameter in parameter_metadata], dtype=float)
 known_sigma = analysis["uncertainty"]["kind"] != "unknown-equal"
 
 def model(x, *p):
-    return ${pythonExpression(description.settings)}
+    value = ${pythonExpression(description.settings)}
+    # Constant custom equations are scalars; callers need one prediction per X.
+    return np.broadcast_to(np.asarray(value, dtype=float), np.shape(x))
 
 def free_model(x, *free):
     p = start.copy()
@@ -414,8 +456,22 @@ if len(free_index):
     covariance[np.ix_(free_index, free_index)] = covariance_free
 
 residual = y_fit - model(x_fit, *fitted)
+if not np.all(np.isfinite(fitted)) or not np.all(np.isfinite(residual)):
+    raise ValueError("Fit did not produce finite coefficients and predictions")
 sse = float(residual @ residual)
+if not np.isfinite(sse):
+    raise ValueError("Residual sum of squares overflowed")
 df = len(x_fit) - len(free_index)
+uncertainty_reason = None
+if not known_sigma and (df <= 0 or sse == 0):
+    uncertainty_reason = "residual scatter cannot be estimated (zero SSE or nonpositive degrees of freedom)"
+elif fit_metadata["inference"] == "descriptive":
+    uncertainty_reason = "statistical assumptions are not supported"
+elif not np.all(np.isfinite(covariance)):
+    uncertainty_reason = "finite parameter covariance is unavailable"
+if uncertainty_reason:
+    covariance[np.ix_(free_index, free_index)] = np.nan
+    print(f"Standard errors unavailable: {uncertainty_reason}")
 if known_sigma:
     chi2 = float(np.sum((residual/sigma_fit)**2))
     print(f"chi2 = {chi2:.12g}; chi2/df = {chi2/df:.12g}" if df > 0 else f"chi2 = {chi2:.12g}; df = 0")
@@ -424,7 +480,7 @@ else:
     print(f"SSE = {sse:.12g}; residual scatter = {scatter:.12g}; df = {df}")
 print("SciPy fit (standard error):")
 for index, name in enumerate(parameter_names):
-    suffix = "fixed" if index not in free_index else f"SE={np.sqrt(max(0.0, covariance[index, index])):.12g}"
+    suffix = "fixed" if index not in free_index else "SE=unavailable" if uncertainty_reason else f"SE={np.sqrt(max(0.0, covariance[index, index])):.12g}"
     print(f"  {name} = {fitted[index]:.17g} ({suffix})")
 
 reference_inputs = args.data.resolve() == DEFAULT_DATA.resolve() and args.analysis.resolve() == DEFAULT_ANALYSIS.resolve()
@@ -562,15 +618,25 @@ export function generateRootCode(description: CodeExportDescription) {
         lines.push(
           `  model.SetParLimits(3, ${number(settings.periodMin!)}, ${number(settings.periodMax!)});`,
         );
-      else if (
+      return lines.join("\n");
+    })
+    .join("\n");
+  const fitterParameterSetup = settings.parameters
+    .map((parameter, i) => {
+      if (parameter.fixed)
+        return `    fitter.Config().ParSettings(${i}).Fix();`;
+      if (settings.model === "sine-free-period" && i === 3)
+        return `    fitter.Config().ParSettings(${i}).SetLimits(${number(settings.periodMin!)}, ${number(settings.periodMax!)});`;
+      if (
         isNonlinearModel(settings.model) &&
         (
           nonlinearModels[settings.model].positive as readonly number[]
         ).includes(i)
       )
-        lines.push(`  model.SetParLimits(${i}, 1e-300, 1e300);`);
-      return lines.join("\n");
+        return `    fitter.Config().ParSettings(${i}).SetLowerLimit(std::nextafter(0.0, 1.0));`;
+      return "";
     })
+    .filter(Boolean)
     .join("\n");
   const guideCode =
     view.showGuides && settings.model === "damped-sine"
@@ -597,7 +663,7 @@ export function generateRootCode(description: CodeExportDescription) {
     residual_error[i] = data_ey[i];
   }
   TGraphErrors residuals(data_x.size(), data_x.data(), residual.data(), data_ex.data(), residual_error.data());
-  residuals.SetName("residuals"); residuals.SetTitle(";${axisLabel(description.xLabel, description.xUnit)};Residual");
+  residuals.SetName("residuals"); residuals.SetTitle(${cppString(`;${axisLabel(description.xLabel, description.xUnit)};Residual`)});
   residuals.SetMarkerStyle(20); residuals.Draw("${graphDrawOption}");
   residuals.GetXaxis()->SetLimits(x_min, x_max);
   TLine zero(x_min, 0, x_max, 0); zero.SetLineStyle(2); zero.SetLineColor(kGray+2); zero.Draw();`
@@ -608,6 +674,7 @@ export function generateRootCode(description: CodeExportDescription) {
 // Measurements are read from CSV rather than compiled into this macro.
 // ROOT and Data Tool use different nonlinear optimizers; local minima and roundoff can differ.
 #include <TF1.h>
+#include <Fit/Fitter.h>
 #include <TFile.h>
 #include <TFitResult.h>
 #include <TGraph.h>
@@ -621,8 +688,11 @@ export function generateRootCode(description: CodeExportDescription) {
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -673,9 +743,11 @@ std::string data_tool_trim(const std::string &value) {
 double data_tool_number(const std::string &cell, size_t row, const char *column) {
   const std::string value = data_tool_trim(cell);
   if (value.empty()) return NAN;
-  size_t used = 0;
-  const double result = std::stod(value, &used);
-  if (used != value.size() || !std::isfinite(result))
+  char *end = nullptr;
+  // strtod preserves representable subnormals; stod throws on ERANGE even when
+  // the rounded result is finite and nonzero.
+  const double result = std::strtod(value.c_str(), &end);
+  if (end == value.c_str() || end != value.c_str()+value.size() || !std::isfinite(result))
     throw std::runtime_error("Invalid " + std::string(column) + " in CSV row " + std::to_string(row));
   return result;
 }
@@ -697,6 +769,11 @@ void fit_root(const char *data_path = "",
     : std::string(data_path);
   std::ifstream input(csv_path);
   if (!input) throw std::runtime_error("Cannot open CSV input: " + csv_path);
+  if (input.peek() == 0xef) {
+    char bom[3] = {}; input.read(bom, 3);
+    if (input.gcount() != 3 || static_cast<unsigned char>(bom[1]) != 0xbb || static_cast<unsigned char>(bom[2]) != 0xbf)
+      throw std::runtime_error("Invalid UTF-8 byte order mark");
+  }
 
   const std::vector<std::string> expected = {
     "row_id", "x", "y", "sigma", "included", "missing_reason"
@@ -736,6 +813,7 @@ ${
     } else { excluded_x.push_back(x_all[i]); excluded_y.push_back(y_all[i]); }
   }
   if (data_x.empty()) throw std::runtime_error("CSV has no finite included observations");
+  if (data_x.size() < ${free}) throw std::runtime_error("Fewer observations than free parameters");
 
   const double x_min = ${number(view.xRange[0])}, x_max = ${number(view.xRange[1])};
   const auto fit_bounds = std::minmax_element(data_x.begin(), data_x.end());
@@ -751,7 +829,47 @@ ${
     return ${rootExpression(settings)};
   }, fit_x_min, fit_x_max, ${settings.parameters.length});
 ${parameterSetup}
-  TFitResultPtr fit_result = graph.Fit(&model, "SQREX0");
+  // Fit in physical parameter coordinates. One-sided limits avoid Minuit's
+  // unstable transformation of an enormous two-sided positive interval.
+  auto run_fit = [&]() {
+    ROOT::Fit::Fitter fitter;
+    auto chi2 = [&](const double *p) {
+      double sum = 0.0;
+      for (size_t i=0; i<data_x.size(); ++i) {
+        double x = data_x[i];
+        const double residual = (data_y[i]-model.EvalPar(&x, p))/data_ey[i];
+        sum += residual*residual;
+        if (!std::isfinite(sum)) return std::numeric_limits<double>::max();
+      }
+      return sum;
+    };
+    fitter.SetFCN(model.GetNpar(), chi2, model.GetParameters(), data_x.size(), 1);
+    fitter.Config().SetMinimizer("Minuit2", "Migrad");
+    fitter.Config().MinimizerOptions().SetTolerance(1e-6);
+    fitter.Config().MinimizerOptions().SetMaxFunctionCalls(200000);
+    fitter.Config().SetNormErrors(false); // Scale unknown scatter explicitly below.
+    for (int i=0; i<model.GetNpar(); ++i)
+      fitter.Config().ParSettings(i).SetName(model.GetParName(i));
+${fitterParameterSetup}
+    const bool success = fitter.FitFCN();
+    TFitResult result(fitter.Result());
+    if (!success || !result.IsValid() || result.Status() != 0 || !std::isfinite(result.Chi2()))
+      throw std::runtime_error("ROOT fit failed (status " + std::to_string(result.Status()) + "); no successful fit artifacts were written");
+    if (${free} > 0 && result.CovMatrixStatus() != 3)
+      throw std::runtime_error("ROOT could not determine a full-rank parameter covariance");
+    for (int i=0; i<model.GetNpar(); ++i) {
+      if (!std::isfinite(result.Parameter(i)) || !std::isfinite(result.ParError(i)))
+        throw std::runtime_error("ROOT fit produced non-finite parameters or errors");
+      model.SetParameter(i, result.Parameter(i)); model.SetParError(i, result.ParError(i));
+    }
+    for (double x : data_x)
+      if (!std::isfinite(model.Eval(x))) throw std::runtime_error("ROOT fit produced non-finite predictions");
+    model.SetChisquare(result.Chi2()); model.SetNDF(result.Ndf());
+    return result;
+  };
+  TFitResult fit_result = run_fit();
+  const int df = static_cast<int>(data_x.size()) - ${free};
+  std::string uncertainty_reason;
 ${
   description.knownSigma
     ? ""
@@ -759,18 +877,33 @@ ${
   // Refit with that uniform error so ROOT's covariance uses the same scale.
   double preliminary_sse = 0.0;
   for (size_t i=0; i<data_x.size(); ++i) preliminary_sse += std::pow(data_y[i]-model.Eval(data_x[i]), 2);
-  const int df = static_cast<int>(data_x.size()) - ${free};
+  if (!std::isfinite(preliminary_sse)) throw std::runtime_error("Residual sum of squares overflowed");
   if (df > 0 && preliminary_sse > 0) {
     const double scatter = std::sqrt(preliminary_sse/df);
     for (size_t i=0; i<data_ey.size(); ++i) { data_ey[i]=scatter; graph.SetPointError(i, 0.0, scatter); }
-    fit_result = graph.Fit(&model, "SQREX0");
+    fit_result = run_fit();
+  } else {
+    uncertainty_reason = "residual scatter cannot be estimated (zero SSE or nonpositive degrees of freedom)";
   }`
 }
+  if (uncertainty_reason.empty() && ${cppString(description.inference)} == std::string("descriptive"))
+    uncertainty_reason = "statistical assumptions are not supported";
+  const bool errors_available = uncertainty_reason.empty();
+  const bool fixed_parameters[] = {${settings.parameters.map((parameter) => String(parameter.fixed)).join(", ")}};
+  if (!errors_available) {
+    std::cout << "Standard errors unavailable: " << uncertainty_reason << "\\n";
+    for (int i=0; i<model.GetNpar(); ++i)
+      if (!fixed_parameters[i]) model.SetParError(i, std::numeric_limits<double>::quiet_NaN());
+  }
   model.SetRange(x_min, x_max); // Display zoom never changes the fitted sample.
+  std::cout << std::setprecision(17);
+  std::cout << "fit status = " << fit_result.Status() << "; covariance status = " << fit_result.CovMatrixStatus() << "\\n";
   std::cout << "ROOT fit (standard error):\\n";
   for (int i=0; i<${settings.parameters.length}; ++i) {
-    std::cout << "  " << model.GetParName(i) << " = " << model.GetParameter(i)
-              << " (SE=" << model.GetParError(i) << ")\\n";
+    std::cout << "  " << model.GetParName(i) << " = " << model.GetParameter(i);
+    if (fixed_parameters[i]) std::cout << " (fixed)\\n";
+    else if (errors_available) std::cout << " (SE=" << model.GetParError(i) << ")\\n";
+    else std::cout << " (SE=unavailable)\\n";
   }
   std::cout << "chi2 = " << model.GetChisquare() << "; ndf = " << model.GetNDF() << "\\n";
 
@@ -790,13 +923,17 @@ ${
   graph.Draw("${graphDrawOption}"); graph.GetXaxis()->SetLimits(x_min, x_max);${yLimits}
   model.SetLineColor(kOrange+7); model.SetLineWidth(3); model.Draw("same");${guideCode}
   TGraph excluded_graph(excluded_x.size(), excluded_x.data(), excluded_y.data());
-  excluded_graph.SetName("excluded_data"); excluded_graph.SetMarkerStyle(5); excluded_graph.SetMarkerColor(kGray+1); excluded_graph.Draw("P SAME");
+  excluded_graph.SetName("excluded_data"); excluded_graph.SetMarkerStyle(5); excluded_graph.SetMarkerColor(kGray+1);
+  if (!excluded_x.empty()) excluded_graph.Draw("P SAME");
 ${residualPanel}
   const std::string output_base =
     output_stem && *output_stem ? output_stem : ${cppString(`${description.fileStem}-root`)};
   canvas.SaveAs((output_base + ".pdf").c_str());
   TFile output((output_base + ".root").c_str(), "RECREATE");
-  graph.Write(); excluded_graph.Write(); model.Write();${view.showResiduals ? " residuals.Write();" : ""} canvas.Write(); fit_result->Write("fit_result");
+  graph.Write(); excluded_graph.Write(); model.Write();${view.showResiduals ? " residuals.Write();" : ""} canvas.Write();
+  // Keep an unavailable covariance explicitly separate from statistical errors.
+  if (!errors_available) fit_result.SetTitle(("Numerical minimizer result; standard errors unavailable: " + uncertainty_reason).c_str());
+  fit_result.Write(errors_available ? "fit_result" : "numerical_fit_result");
   output.Close();
 }
 `;
@@ -824,6 +961,11 @@ plot window. Apply the same generated model to another compatible table with:
 \`\`\`bash
 python3 fit_scipy.py --data another-run.csv --output another-fit.png
 \`\`\`
+
+The optional \`--analysis\` metadata may change starting values, fixed flags,
+uncertainty, and display choices. Its model, parameter order, custom expression,
+and supplied equation constants must match the generated program; incompatible
+metadata is rejected.
 
 ## C++ / ROOT
 
@@ -860,6 +1002,12 @@ stored Data Tool solution is their reference result.
 Different solver versions, stopping rules, roundoff, and nonlinear basins can
 produce different results. Statistical interpretation remains conditional on
 the assumptions recorded in \`analysis.json\`.
+
+Standard errors are reported as unavailable when statistical assumptions are
+unsupported or residual scatter cannot be estimated. ROOT preserves such a raw
+minimizer result as \`numerical_fit_result\`, with an explanatory title, rather
+than presenting its provisional covariance as statistical uncertainty. Failed
+or rank-deficient ROOT optimizations stop before writing fit artifacts.
 `;
 }
 

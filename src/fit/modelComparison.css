@@ -128,13 +128,13 @@
 .comparison-plot {
   display: block;
   width: 100%;
-  height: min(42vh, 360px);
+  height: auto;
 }
 .comparison-residual-plot {
   display: block;
   width: 100%;
-  height: min(20vh, 170px);
-  margin-top: 4px;
+  height: auto;
+  margin-top: 0;
 }
 .comparison-plot text {
   fill: var(--muted);

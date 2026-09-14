@@ -181,7 +181,13 @@ export function renderEquation(
     },
   };
   function walk(node: Node): string {
-    if (node.kind === "number") return String(node.value);
+    if (node.kind === "number") {
+      const value = String(node.value);
+      // C++ integer literals would turn constant subexpressions such as 1/2
+      // into integer arithmetic, although the equation evaluator uses doubles.
+      if (target === "root" && !/[.eE]/.test(value)) return `${value}.0`;
+      return value;
+    }
     if (node.kind === "name") {
       const i = def.names.indexOf(node.name);
       if (i >= 0) return parameter(i);

@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { oscillationDerivedQuantities } from "../../src/core/fit/derivedParameters";
 import { modelGuideValues } from "../../src/core/fit/modelGuides";
 import { initialSettings } from "../../src/core/fit/schema";
-import type { FitResult } from "../../src/core/fit/solve";
+import { fit, type FitResult } from "../../src/core/fit/solve";
 import { syntheticRequest } from "../support/synthetic";
 
 function result(coefficients: number[], covariance: number[][]): FitResult {
@@ -113,4 +113,69 @@ it("marks phase as undefined at zero amplitude and supplied frequency as fixed",
     value: 0.25,
     standardError: { value: null, reason: "fixed" },
   });
+});
+
+it("keeps fitted phase and propagated uncertainty invariant when Y units change", () => {
+  const inUnits = (scale: number, unit: string) => {
+    const request = syntheticRequest();
+    request.dataset.yColumn.unit = unit;
+    request.uncertainty = {
+      ...request.uncertainty,
+      sigmaY: 1e-16 * scale,
+    } as typeof request.uncertainty;
+    request.dataset.rows = Array.from({ length: 20 }, (_, i) => {
+      const x = i / 10;
+      return {
+        id: `row-${i}`,
+        x,
+        y:
+          (2e-15 +
+            3e-15 * Math.sin(2 * Math.PI * x) +
+            4e-15 * Math.cos(2 * Math.PI * x) +
+            1e-16 * Math.sin(17 * i)) *
+          scale,
+        included: true,
+        missingReason: null,
+      };
+    });
+    const settings = initialSettings("sine");
+    settings.sinePeriod = 1;
+    return oscillationDerivedQuantities(
+      request,
+      settings,
+      fit(request, settings),
+    );
+  };
+  const meters = inUnits(1, "m");
+  const nanometers = inUnits(1e9, "nm");
+  expect(meters[0].value).toBeGreaterThan(0);
+  expect(meters[0].value).toBeLessThan(1e-14);
+  expect(meters[0].standardError.reason).toBeNull();
+  expect(meters[0].standardError.value! * 1e9).toBeCloseTo(
+    nanometers[0].standardError.value!,
+    20,
+  );
+  expect(meters[1].value).toBeCloseTo(0.926494728299927, 13);
+  expect(meters[1].value).toBeCloseTo(nanometers[1].value!, 14);
+  expect(meters[1].standardError.value).toBeCloseTo(0.006327585482687, 14);
+  expect(meters[1].standardError.value).toBeCloseTo(
+    nanometers[1].standardError.value!,
+    14,
+  );
+});
+
+it("returns unavailable derived values for nonfinite inputs without calling them fixed", () => {
+  const covariance = Array.from({ length: 5 }, () => Array(5).fill(0));
+  const quantities = oscillationDerivedQuantities(
+    syntheticRequest(),
+    initialSettings("damped-sine"),
+    result([1, NaN, 0, Number.MIN_VALUE, 8], covariance),
+  );
+  for (const quantity of quantities) {
+    expect(quantity.value).toBeNull();
+    expect(quantity.standardError).toEqual({
+      value: null,
+      reason: "nonfinite-derived-quantity",
+    });
+  }
 });

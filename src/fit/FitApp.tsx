@@ -1249,6 +1249,7 @@ export default function FitApp() {
   const [collisionReady, setCollisionReady] = useState(false);
   const [collisionOpen, setCollisionOpen] = useState(false);
   const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [comparisonVisited, setComparisonVisited] = useState(false);
   const [collisionRevision, setCollisionRevision] = useState(0);
   const [collisionSource, setCollisionSource] = useState<State | null>(null);
   const [mode, setMode] = useState<GraphMode>("linear");
@@ -1929,6 +1930,7 @@ export default function FitApp() {
           }
           setCollisionOpen(false);
           if (e.target.value === "model-comparison") {
+            setComparisonVisited(true);
             setComparisonOpen(true);
             return;
           }
@@ -2366,14 +2368,15 @@ export default function FitApp() {
             onReady={setMultiReady}
           />
         )}
-        {comparisonOpen && (
-          <ModelComparison
-            key={state.request.snapshotId}
-            source={state}
-            sourceResult={current}
-            analysisControl={analysisControl}
-            showResiduals={showResiduals}
-          />
+        {comparisonVisited && (
+          <div hidden={!comparisonOpen}>
+            <ModelComparison
+              source={state}
+              sourceResult={current}
+              analysisControl={comparisonOpen ? analysisControl : null}
+              showResiduals={showResiduals}
+            />
+          </div>
         )}
         {exportRender && !multiOpen && !collisionOpen && !comparisonOpen && (
           <div className="fit-export-render" aria-hidden="true" inert>

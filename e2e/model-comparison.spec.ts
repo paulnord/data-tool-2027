@@ -46,6 +46,10 @@ test("compares refitted candidates and safely stages two session files", async (
   await expect(table.locator("tbody tr")).toHaveCount(2);
   await expect(table).toContainText("Akaike");
   await expect(
+    table.getByRole("columnheader", { name: "ΔAIC", exact: true }),
+  ).toBeVisible();
+  await expect(table.locator("tbody")).toContainText("Not applicable");
+  await expect(
     table.locator("tbody tr").nth(1).locator("td").nth(8),
   ).toHaveText(/^(0|[0-9.]+e-\d+)$/);
   await expect(
@@ -63,7 +67,7 @@ test("compares refitted candidates and safely stages two session files", async (
   await copy.click();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toContain("AICc");
+    .toContain("delta AIC\t");
   await page.setViewportSize({ width: 800, height: 700 });
   await expect(
     page.getByRole("heading", { name: "Model comparison" }),

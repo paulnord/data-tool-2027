@@ -25,7 +25,7 @@ export interface ComparisonMetrics {
   logLikelihood: Statistic;
   aic: Statistic;
   aicc: Statistic;
-  deltaAicc: Statistic;
+  delta: Statistic;
   akaikeWeight: Statistic;
   bic: Statistic;
   inference: FitResult["inference"];
@@ -34,6 +34,7 @@ export interface ComparisonMetrics {
 
 export interface ModelComparison {
   compatible: boolean;
+  rankingCriterion: "AIC" | "AICc" | null;
   reasons: string[];
   metrics: ComparisonMetrics[];
 }
@@ -102,7 +103,10 @@ export function comparisonCompatibility(
 }
 
 const unavailable = (reason: string): Statistic => ({ value: null, reason });
-const available = (value: number): Statistic => ({ value, reason: null });
+const available = (value: number): Statistic =>
+  Number.isFinite(value)
+    ? { value, reason: null }
+    : unavailable("nonfinite-comparison-statistic");
 
 export function compareModels(
   candidates: readonly ComparisonCandidate[],
@@ -110,6 +114,7 @@ export function compareModels(
   if (candidates.length < 2)
     return {
       compatible: false,
+      rankingCriterion: null,
       reasons: ["At least two fitted candidates are required"],
       metrics: [],
     };
@@ -124,7 +129,10 @@ export function compareModels(
         ),
     ),
   ];
-  if (reasons.length) return { compatible: false, reasons, metrics: [] };
+  if (reasons.length)
+    return { compatible: false, rankingCriterion: null, reasons, metrics: [] };
+  const rankingCriterion =
+    candidates[0].request.uncertainty.kind === "unknown-equal" ? "AICc" : "AIC";
   const metrics = candidates.map((candidate): ComparisonMetrics => {
     const { request, settings, result } = candidate;
     const unknownScale = request.uncertainty.kind === "unknown-equal";
@@ -143,11 +151,14 @@ export function compareModels(
     else if (unknownScale) {
       logLikelihood = available(
         (-result.n / 2) *
-          (Math.log(2 * Math.PI) + 1 + Math.log(result.sse / result.n)),
+          (Math.log(2 * Math.PI) +
+            1 +
+            Math.log(result.sse) -
+            Math.log(result.n)),
       );
     } else {
       const normalizer = observations(candidate).reduce(
-        (sum, row) => sum + Math.log(2 * Math.PI * row[2]! * row[2]!),
+        (sum, row) => sum + Math.log(2 * Math.PI) + 2 * Math.log(row[2]!),
         0,
       );
       logLikelihood = available(
@@ -158,8 +169,11 @@ export function compareModels(
       logLikelihood.value === null
         ? unavailable(logLikelihood.reason!)
         : available(2 * likelihoodParameters - 2 * logLikelihood.value);
-    const aicc =
-      aic.value === null
+    // This regression correction estimates the bias from an unknown variance.
+    // Supplied known variances use AIC directly, without that extra penalty.
+    const aicc = !unknownScale
+      ? unavailable("not-applicable-known-variance")
+      : aic.value === null
         ? unavailable(aic.reason!)
         : result.n <= likelihoodParameters + 1
           ? unavailable("insufficient-sample-for-aicc")
@@ -185,33 +199,37 @@ export function compareModels(
       logLikelihood,
       aic,
       aicc,
-      deltaAicc: unavailable("not-yet-ranked"),
+      delta: unavailable("not-yet-ranked"),
       akaikeWeight: unavailable("not-yet-ranked"),
       bic,
       inference: result.inference,
       warnings: result.warnings.slice(),
     };
   });
-  const valid = metrics.filter((metric) => metric.aicc.value !== null);
+  const criterion = (metric: ComparisonMetrics) =>
+    rankingCriterion === "AIC" ? metric.aic : metric.aicc;
+  const valid = metrics.filter((metric) => criterion(metric).value !== null);
   if (valid.length >= 2) {
-    const minimum = Math.min(...valid.map((metric) => metric.aicc.value!));
+    const minimum = Math.min(
+      ...valid.map((metric) => criterion(metric).value!),
+    );
     const relative = valid.map((metric) =>
-      Math.exp(-0.5 * (metric.aicc.value! - minimum)),
+      Math.exp(-0.5 * (criterion(metric).value! - minimum)),
     );
     const total = relative.reduce((sum, value) => sum + value, 0);
     valid.forEach((metric, i) => {
-      metric.deltaAicc = available(metric.aicc.value! - minimum);
+      metric.delta = available(criterion(metric).value! - minimum);
       metric.akaikeWeight = available(relative[i] / total);
     });
   } else if (valid.length === 1) {
-    valid[0].deltaAicc = unavailable("fewer-than-two-comparable-aicc");
-    valid[0].akaikeWeight = unavailable("fewer-than-two-comparable-aicc");
+    valid[0].delta = unavailable("fewer-than-two-comparable-criteria");
+    valid[0].akaikeWeight = unavailable("fewer-than-two-comparable-criteria");
   }
   for (const metric of metrics) {
-    if (metric.aicc.value === null) {
-      metric.deltaAicc = unavailable(metric.aicc.reason!);
-      metric.akaikeWeight = unavailable(metric.aicc.reason!);
+    if (criterion(metric).value === null) {
+      metric.delta = unavailable(criterion(metric).reason!);
+      metric.akaikeWeight = unavailable(criterion(metric).reason!);
     }
   }
-  return { compatible: true, reasons: [], metrics };
+  return { compatible: true, rankingCriterion, reasons: [], metrics };
 }

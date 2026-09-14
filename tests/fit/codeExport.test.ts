@@ -43,14 +43,16 @@ it("generates a portable bundle with external data and explicit fit metadata", (
   expect(root).toContain("std::ifstream input(csv_path)");
   expect(root).toContain("void fit_root(const char *data_path");
   expect(root).toContain("c == '\\n' || c == '\\r'");
-  expect(root).toContain('graph.Fit(&model, "SQREX0")');
+  expect(root).toContain("ROOT::Fit::Fitter fitter");
+  expect(root).toContain("fitter.FitFCN()");
+  expect(root).toContain("result.Status() != 0");
   expect(root).toContain("fit_x_min = *fit_bounds.first");
   expect(root).toContain("model.SetRange(x_min, x_max)");
   expect(root).toContain('graph.Draw("AP")');
   expect(root).toContain("model.FixParameter(0, 1.2345678901234567)");
   expect(root).toContain("gPad->SetLogx()");
   expect(root).toContain("residuals.Write()");
-  expect(root).toContain("fit_result->Write");
+  expect(root).toContain("fit_result.Write");
   expect(root).not.toContain("const std::vector<double> x_all = {");
 
   const csv = generateCodeExportCsv(description);
@@ -196,7 +198,7 @@ it("translates custom equations from the validated AST for both targets", () => 
   expect(generatePythonCode(description)).toContain("np.log(x)");
   const root = generateRootCode(description);
   expect(root).toContain("std::log(x)");
-  expect(root).toContain("std::pow(p[2], 2)");
+  expect(root).toContain("std::pow(p[2], 2.0)");
 });
 
 it("keeps hostile labels inert and exported filenames bounded", () => {
@@ -209,7 +211,7 @@ it("keeps hostile labels inert and exported filenames bounded", () => {
     mode: "linear",
     xRange: [0, 2],
     yRange: null,
-    showResiduals: false,
+    showResiduals: true,
     showErrorBars: false,
     showGuides: false,
   });
@@ -222,4 +224,72 @@ it("keeps hostile labels inert and exported filenames bounded", () => {
   const python = generatePythonCode(description);
   expect(python).not.toContain("print('not code')");
   expect(generateRootCode(description)).toContain("\\u2028");
+  expect(generateRootCode(description)).toContain(
+    'residuals.SetTitle(";x\\"\\\\n [s];Residual")',
+  );
+});
+
+it("preserves floating-point custom constants and constant predictions in generated code", () => {
+  const request = syntheticRequest();
+  const settings = initialSettings("custom");
+  settings.custom = {
+    expression: "b+(1.0/2.0)*a*x",
+    variable: "x",
+    names: ["b", "a"],
+    units: ["m", "m/s"],
+  };
+  settings.parameters = [
+    { value: 0, fixed: false },
+    { value: 2, fixed: true },
+  ];
+  request.dataset.rows.forEach((row) => {
+    row.y = 2 + row.x!;
+  });
+  const result = fit(request, settings);
+  const description = buildCodeExportDescription(request, settings, result, {
+    mode: "linear",
+    xRange: [0, 2],
+    yRange: null,
+    showResiduals: true,
+    showErrorBars: true,
+    showGuides: false,
+  });
+  expect(generateRootCode(description)).toContain("(1.0 / 2.0)");
+  const python = generatePythonCode(description);
+  expect(python).toContain(
+    "np.broadcast_to(np.asarray(value, dtype=float), np.shape(x))",
+  );
+  expect(python).toContain('"parameterNames":["b","a"]'.replaceAll('"', '\\"'));
+  expect(python).toContain("if identity != expected_identity:");
+});
+
+it("uses one-sided physical ROOT limits and distinguishes unavailable residual scatter", () => {
+  const request = syntheticRequest();
+  const settings = initialSettings("gaussian");
+  settings.parameters = [0, 1, 1, 0.5].map((value) => ({
+    value,
+    fixed: false,
+  }));
+  request.dataset.rows.forEach((row) => {
+    row.y = Math.exp(-0.5 * ((row.x! - 1) / 0.5) ** 2);
+  });
+  const result = fit(request, settings);
+  const description = buildCodeExportDescription(request, settings, result, {
+    mode: "linear",
+    xRange: [0, 2],
+    yRange: null,
+    showResiduals: true,
+    showErrorBars: true,
+    showGuides: false,
+  });
+  const root = generateRootCode(description);
+  expect(root).toContain(
+    "ParSettings(3).SetLowerLimit(std::nextafter(0.0, 1.0))",
+  );
+  expect(root).not.toContain("1e300");
+  expect(root).toContain("result.CovMatrixStatus() != 3");
+  expect(root).toContain('"numerical_fit_result"');
+  expect(generatePythonCode(description)).toContain(
+    "Standard errors unavailable:",
+  );
 });

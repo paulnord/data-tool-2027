@@ -39,14 +39,14 @@ function peakSession() {
     settings,
   };
 }
-async function load(page: Page, session = peakSession()) {
+async function load(page: Page, session = peakSession(), dataOnly = false) {
   await page
     .locator('input[type="file"]')
     .first()
     .setInputFiles({
-      name: "peak.trksess",
+      name: dataOnly ? "observations.json" : "peak.trksess",
       mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(session)),
+      buffer: Buffer.from(JSON.stringify(dataOnly ? session.request : session)),
     });
   await page
     .getByRole("button", { name: "Use these data", exact: true })
@@ -191,7 +191,7 @@ test("new data confirmation is visible over comparison and updates every candida
     .slice(0, 90)
     .map((r) => ({ ...r, y: r.y! + 10 }));
   next.request.uncertainty.sigmaY = 0.1;
-  await load(page, next);
+  await load(page, next, true);
   const confirm = page.getByRole("alertdialog", {
     name: "Unsaved analysis changes",
   });
@@ -202,7 +202,7 @@ test("new data confirmation is visible over comparison and updates every candida
   await expect(
     workspace.getByRole("table", { name: "Model comparison statistics" }),
   ).toBeVisible();
-  await load(page, next);
+  await load(page, next, true);
   await confirm.getByRole("button", { name: "Discard changes" }).click();
   await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
     "model-comparison",

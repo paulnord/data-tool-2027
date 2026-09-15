@@ -13,7 +13,6 @@ async function openComparison(page: Page) {
   const session = JSON.parse(
     readFileSync("examples/data/ball-toss.trksess", "utf8"),
   );
-  session.settings = initialSettings("line");
   session.request.uncertainty = {
     kind: "supplied-per-row",
     errorStructure: "uncorrelated",
@@ -32,9 +31,9 @@ async function openComparison(page: Page) {
     .locator('input[type="file"]')
     .first()
     .setInputFiles({
-      name: "weighted.trksess",
+      name: "weighted.json",
       mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(session)),
+      buffer: Buffer.from(JSON.stringify(session.request)),
     });
   await page
     .getByRole("button", { name: "Use these data", exact: true })

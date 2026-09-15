@@ -50,11 +50,20 @@ test("comparison models survive navigation and new data refreshes every candidat
   await expect(workspace.getByRole("status")).toHaveText("Comparison complete");
   await page.getByLabel("Analysis", { exact: true }).selectOption("line");
   await expect(workspace).not.toBeVisible();
-  // A new main dataset must not silently edit or discard staged comparisons.
+  // New observations keep the staged candidate equations and labels.
   await page
     .locator("input[type=file]")
     .first()
-    .setInputFiles("examples/data/sine-demo.trksess");
+    .setInputFiles({
+      name: "sine-observations.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(
+        JSON.stringify(
+          JSON.parse(readFileSync("examples/data/sine-demo.trksess", "utf8"))
+            .request,
+        ),
+      ),
+    });
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
@@ -90,10 +99,10 @@ test("comparison models survive navigation and new data refreshes every candidat
     .click();
   await expect(
     first.getByLabel("Candidate 1 model", { exact: true }),
-  ).toHaveValue("sine");
+  ).toHaveValue("line");
   await expect(
     second.getByLabel("Candidate 2 model", { exact: true }),
-  ).toHaveValue("sine");
+  ).toHaveValue("line");
   await page
     .getByRole("button", { name: "Refit and compare", exact: true })
     .click();

@@ -133,7 +133,11 @@ before Data review, and again after review before replacement. Failed imports
 preserve current work. The native envelope gate accepts v6; TypeScript applies
 the complete semantic checks before acknowledgment or save.
 
-Open a workspace through **Data… → Load file**, then **Use these data**. Candidate
+Open a workspace through **Data… → Load file**, then **Use these data**. Opening
+a session restores its saved analysis setup, including switching from an existing
+workspace to a single fit for v1–v5 files. Importing observations (CSV or request
+JSON) keeps the selected workspace. Canceling review or keeping unsaved changes
+leaves the current setup intact. Candidate
 file controls still accept individual v1–v5 sessions; they direct workspace files
 to the main loader. Fit the restored candidates or intervals explicitly to
 recalculate results. The measured Cavendish example in `examples/data/cavendish/`

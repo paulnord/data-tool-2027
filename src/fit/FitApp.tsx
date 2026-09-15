@@ -236,6 +236,7 @@ type State = {
   settings: FitSettings;
   originalRequest?: FitRequest;
   dataTable?: DataTable;
+  singleFitSession?: true;
   workspaceSession?: Extract<FitSession, { version: 6 }>;
 };
 function fresh(): State {
@@ -1584,21 +1585,23 @@ export default function FitApp() {
     setXRange(null);
   }
   function replace(next: State) {
-    const { workspaceSession: restored, ...analysis } = next;
+    const { workspaceSession: restored, singleFitSession, ...analysis } = next;
     setInitialWorkspace(restored?.workspace);
     dirtyWorkspaces.current.clear();
     workspaceRevision.current += 1;
-    if (restored) {
-      setCollisionSource(analysis);
+    if (restored || singleFitSession) {
+      setCollisionSource(restored ? analysis : null);
       setCollisionRevision((v) => v + 1);
       setComparisonRevision((v) => v + 1);
       setMultiReady(false);
       setCollisionReady(false);
       setComparisonReady(false);
-      setMultiOpen(restored.workspace.kind === "multi-interval");
-      setCollisionOpen(restored.workspace.kind === "collision");
-      setComparisonOpen(restored.workspace.kind === "model-comparison");
-      setComparisonVisited(restored.workspace.kind === "model-comparison");
+      setMultiOpen(restored?.workspace.kind === "multi-interval");
+      setCollisionOpen(restored?.workspace.kind === "collision");
+      setComparisonOpen(restored?.workspace.kind === "model-comparison");
+      setComparisonVisited(restored?.workspace.kind === "model-comparison");
+    }
+    if (restored) {
       setShowResiduals(restored.view.showResiduals);
       setShowGuides(restored.view.showGuides);
       setShowErrorBars(restored.view.showErrorBars);
@@ -1738,7 +1741,9 @@ export default function FitApp() {
             settings: parsed.settings,
             originalRequest: parsed.originalRequest,
             dataTable: parsed.dataTable,
-            ...(parsed.version === 6 ? { workspaceSession: parsed } : {}),
+            ...(parsed.version === 6
+              ? { workspaceSession: parsed }
+              : { singleFitSession: true }),
           },
         });
       } else {
@@ -2917,8 +2922,8 @@ export default function FitApp() {
                   ? comparisonOpen
                     ? "Apply these data to every comparison candidate? Existing fit results will be cleared."
                     : "Apply these data and discard the unsaved interval analyses?"
-                  : pending?.workspaceSession
-                    ? "Open the saved workspace and discard unsaved analysis changes?"
+                  : pending?.workspaceSession || pending?.singleFitSession
+                    ? "Open the saved analysis setup and discard unsaved analysis changes?"
                     : pending && comparisonOpen
                       ? "Load the new dataset for every comparison candidate? Candidate equations and settings will be kept; existing fit results will be cleared."
                       : unsavedDraftWork

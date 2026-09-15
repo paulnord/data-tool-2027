@@ -5,6 +5,12 @@ import { readFileSync } from "node:fs";
 const cavendish = "examples/data/cavendish/cavendish-multi-interval.trksess";
 async function load(page: Page, file: string | object) {
   await page.goto("/");
+  await review(page, file);
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+}
+async function review(page: Page, file: string | object) {
   await page
     .locator('input[type="file"]')
     .first()
@@ -17,9 +23,6 @@ async function load(page: Page, file: string | object) {
             buffer: Buffer.from(JSON.stringify(file)),
           },
     );
-  await page
-    .getByRole("button", { name: "Use these data", exact: true })
-    .click();
 }
 async function save(page: Page) {
   const download = page.waitForEvent("download");
@@ -123,7 +126,11 @@ test("Cavendish session opens both intervals in seconds and saves a complete res
   expect(saved.view.showGuides).toBe(true);
   expect(saved.view.showResiduals).toBe(false);
   const reopened = await context.newPage();
-  await load(reopened, saved);
+  await load(reopened, cavendish);
+  await review(reopened, saved);
+  await reopened
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
   await expect(
     reopened.getByLabel("Interval from", { exact: true }),
   ).toHaveValue("1800");
@@ -221,7 +228,11 @@ test("comparison saves all candidates, custom units, shared uncertainty and the 
     ),
   ).toBe(true);
   const reopened = await context.newPage();
-  await load(reopened, saved);
+  await load(reopened, cavendish);
+  await review(reopened, saved);
+  await reopened
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
   await expect(
     reopened.getByRole("heading", { name: "Model comparison", exact: true }),
   ).toBeVisible();
@@ -267,10 +278,103 @@ test("collision setup reopens with four channels, windows and supplied uncertain
   expect(saved.workspace.kind).toBe("collision");
   expect(saved.workspace.columns).toHaveLength(4);
   const reopened = await context.newPage();
-  await load(reopened, saved);
+  await load(reopened, cavendish);
+  await review(reopened, saved);
+  await reopened
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
   await expect(
     reopened.getByRole("region", { name: "Collision analysis", exact: true }),
   ).toBeVisible();
   expect(await save(reopened)).toEqual(saved);
   await reopened.close();
+});
+
+for (const mode of ["multi-interval", "model-comparison", "collision"]) {
+  test(`opening a single-fit session from ${mode} restores its saved setup`, async ({
+    page,
+  }) => {
+    await load(page, "examples/data/collision.csv");
+    await page.getByLabel("Analysis", { exact: true }).selectOption(mode);
+    const saved = JSON.parse(
+      readFileSync("examples/data/published/ba137m-decay.trksess", "utf8"),
+    );
+    await review(page, saved);
+    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+      mode,
+    );
+    await page
+      .getByRole("button", { name: "Use these data", exact: true })
+      .click();
+    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+      "custom",
+    );
+    await expect(
+      page.getByLabel("Custom equation", { exact: true }),
+    ).toHaveValue(saved.settings.custom.expression);
+    await expect(page.getByLabel("T12 value", { exact: true })).toHaveValue(
+      "2.6",
+    );
+    await expect(
+      page.getByLabel("Y uncertainty model", { exact: true }),
+    ).toHaveValue("supplied-per-row");
+    const restored = await save(page);
+    expect(restored.version).toBe(3);
+    expect(restored.settings).toEqual(saved.settings);
+    expect(restored.request).toEqual(saved.request);
+    expect(restored.workspace).toBeUndefined();
+    // Previously visited candidate controls must not survive the new session.
+    await page
+      .getByLabel("Analysis", { exact: true })
+      .selectOption("model-comparison");
+    await expect(
+      page.getByLabel("Candidate 1 model", { exact: true }),
+    ).toHaveValue("custom");
+    await expect(
+      page.getByLabel("Candidate 1 T12 value", { exact: true }),
+    ).toHaveValue("2.6");
+  });
+}
+
+test("canceling session review or keeping unsaved intervals preserves their setup until replacement is accepted", async ({
+  page,
+}) => {
+  await load(page, cavendish);
+  await page.getByLabel("Interval from", { exact: true }).fill("100");
+  const single = "examples/data/published/ba137m-decay.trksess";
+  await review(page, single);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByLabel("Interval from", { exact: true })).toHaveValue(
+    "100",
+  );
+  await review(page, single);
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  const confirm = page.getByRole("alertdialog", {
+    name: "Unsaved analysis changes",
+  });
+  await expect(confirm).toContainText("Open the saved analysis setup");
+  await confirm
+    .getByRole("button", { name: "Keep working", exact: true })
+    .click();
+  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+    "multi-interval",
+  );
+  await expect(page.getByLabel("Interval from", { exact: true })).toHaveValue(
+    "100",
+  );
+  await review(page, single);
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await confirm
+    .getByRole("button", { name: "Discard changes", exact: true })
+    .click();
+  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+    "custom",
+  );
+  await expect(page.getByLabel("T12 value", { exact: true })).toHaveValue(
+    "2.6",
+  );
 });

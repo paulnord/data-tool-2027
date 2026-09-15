@@ -1,0 +1,2 @@
+# Preserve the supplied measurements byte-for-byte, including CRLF endings.
+examples/data/cavendish/Cavendish.csv -text whitespace=cr-at-eol

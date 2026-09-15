@@ -4,10 +4,10 @@ import { usePopoverLayout } from "./usePopoverLayout";
 import "./yAxisControls.css";
 
 export type AxisRange = [number, number];
-export function useYRange(key: string) {
+export function useYRange(key: string, initial: AxisRange | null = null) {
   const [saved, setSaved] = useState<{ key: string; range: AxisRange | null }>({
     key,
-    range: null,
+    range: initial,
   });
   return [
     saved.key === key ? saved.range : null,

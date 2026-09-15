@@ -46,8 +46,10 @@ import { statisticReasonText } from "../core/fit/diagnosticText";
 import {
   initialSettings,
   sessionSchema,
+  singleSessionSchema,
   type FitRequest,
   type FitSettings,
+  type ComparisonWorkspace,
 } from "../core/fit/schema";
 import {
   isNonlinearModel,
@@ -951,12 +953,13 @@ export type ModelComparisonActions = {
   copy: () => Promise<void>;
   print: () => void;
   exportCode: (target: "scipy" | "root") => CodeExportBundle | null;
-  saveSessions: () => CodeExportBundle | null;
+  session: () => ComparisonWorkspace;
 };
 
 export default function ModelComparison({
   source,
   sourceResult,
+  initialWorkspace: saved,
   analysisControl,
   showResiduals,
   showErrorBars,
@@ -969,6 +972,7 @@ export default function ModelComparison({
 }: {
   source: Analysis;
   sourceResult: FitResult | null;
+  initialWorkspace?: ComparisonWorkspace;
   analysisControl: ReactNode;
   showResiduals: boolean;
   showErrorBars: boolean;
@@ -979,11 +983,19 @@ export default function ModelComparison({
   exportSizes?: ExportPlotSize[];
   ref?: Ref<ModelComparisonActions>;
 }) {
-  const [drafts, setDrafts] = useState<Draft[]>(() => [
-    fromCurrent(source, sourceResult),
-    alternate(source),
-  ]);
-  const [activeCandidate, setActiveCandidate] = useState(0);
+  const [drafts, setDrafts] = useState<Draft[]>(
+    () =>
+      saved?.candidates.map(({ label, analysis }) => ({
+        label,
+        request: analysis.request,
+        settings: analysis.settings,
+        dataTable: analysis.dataTable,
+        originalRequest: analysis.originalRequest,
+      })) ?? [fromCurrent(source, sourceResult), alternate(source)],
+  );
+  const [activeCandidate, setActiveCandidate] = useState(
+    saved?.activeCandidate ?? 0,
+  );
   const previousSource = useRef(source.request);
   const [comparison, setComparison] = useState<ComparisonResult | null>(null);
   const [fitted, setFitted] = useState<ComparisonCandidate[] | null>(null);
@@ -1044,7 +1056,7 @@ export default function ModelComparison({
   useImperativeHandle(ref, () => ({
     copy,
     exportCode,
-    saveSessions,
+    session,
     print: () => {
       if (ready) setPrintOpen(true);
     },
@@ -1215,28 +1227,26 @@ export default function ModelComparison({
       files,
     };
   }
-  function saveSessions(): CodeExportBundle | null {
-    if (invalidDraft || busy) return null;
-    const files: Record<string, string> = {
-      "README.md":
-        "# Model comparison sessions\n\nEach candidate is a standard .trksess file. Open Model comparison and load these files into the candidate panels to restore the fits. Refitting recalculates results. Display preferences are not saved.\n",
-    };
-    drafts.forEach((draft, i) => {
-      const session = sessionSchema.parse({
-        format: "tracker-fit-session",
-        version: sessionVersion(draft.settings),
-        request: draft.request,
-        settings: draft.settings,
-        originalRequest: draft.originalRequest,
-        dataTable: draft.dataTable,
-        engine: sessionEngine(draft.settings),
-      });
-      files[`candidate-${i + 1}.trksess`] = JSON.stringify(session, null, 2);
-    });
+  function session(): ComparisonWorkspace {
+    if (invalidDraft || busy)
+      throw new Error(
+        "Finish the fit and apply or restore incomplete candidate settings before saving.",
+      );
     return {
-      archiveName: "model-comparison-sessions.zip",
-      directoryName: "model-comparison-sessions",
-      files,
+      kind: "model-comparison",
+      activeCandidate,
+      candidates: drafts.map((draft) => ({
+        label: draft.label,
+        analysis: singleSessionSchema.parse({
+          format: "tracker-fit-session",
+          version: sessionVersion(draft.settings),
+          request: draft.request,
+          settings: draft.settings,
+          originalRequest: draft.originalRequest,
+          dataTable: draft.dataTable,
+          engine: sessionEngine(draft.settings),
+        }),
+      })),
     };
   }
   function fitDraft(draft: Draft) {
@@ -1304,6 +1314,10 @@ export default function ModelComparison({
     }
     try {
       const session = sessionSchema.parse(JSON.parse(await file.text()));
+      if (session.version === 6)
+        throw new Error(
+          "Open workspace sessions through Data… to restore the whole workspace.",
+        );
       if (revision.current !== token) return;
       setActiveCandidate(index);
       change(index, {
@@ -1395,7 +1409,10 @@ export default function ModelComparison({
               key={i}
               role="tab"
               aria-selected={activeCandidate === i}
-              onClick={() => setActiveCandidate(i)}
+              onClick={() => {
+                onDirty();
+                setActiveCandidate(i);
+              }}
             >
               Candidate {i + 1}
             </button>

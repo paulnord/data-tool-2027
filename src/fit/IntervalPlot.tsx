@@ -36,6 +36,8 @@ export function IntervalPlot({
   xCustom = false,
   renderSize,
   forcedYRange,
+  yRange,
+  onYRange,
 }: {
   request: FitRequest;
   intervals: IntervalDefinition[];
@@ -53,6 +55,8 @@ export function IntervalPlot({
   xCustom?: boolean;
   renderSize?: ExportPlotSize;
   forcedYRange?: IntervalRange;
+  yRange?: IntervalRange | null;
+  onYRange?: (range: IntervalRange | null) => void;
 }) {
   const appearance = usePlotAppearance();
   const colors = requestedColors ?? appearanceColors(appearance);
@@ -177,9 +181,11 @@ export function IntervalPlot({
     ...(residual ? [0] : []),
   ];
   const automaticY = linearDomain(values);
-  const [customY, setCustomY] = useYRange(
+  const [localY, setLocalY] = useYRange(
     `${request.dataset.yColumn.label}/${request.dataset.yColumn.unit}`,
   );
+  const customY = onYRange ? yRange : localY;
+  const setCustomY = onYRange ?? setLocalY;
   const yDomain = forcedYRange ?? customY ?? automaticY;
   const sy = plotScale(yDomain, false),
     y = (v: number) =>

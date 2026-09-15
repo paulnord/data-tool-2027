@@ -1,8 +1,8 @@
 import { z } from "zod/v4";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { build } from "esbuild";
 const bundled = await build({stdin: {contents: 'export * from "./src/core/fit/schema.ts"; export * from "./tests/support/synthetic.ts";', resolveDir: process.cwd()}, bundle: true, platform: "node", format: "esm", write: false});
-const { requestSchema, sessionSchema, sessionV1Schema, sessionV2Schema, sessionV3Schema, sessionV4Schema, sessionV5Schema, acknowledgmentSchema, initialSettings, syntheticRequest, gaussianGenerator } = await import("data:text/javascript;base64," + Buffer.from(bundled.outputFiles[0].text).toString("base64"));
+const { requestSchema, sessionSchema, sessionV1Schema, sessionV2Schema, sessionV3Schema, sessionV4Schema, sessionV5Schema, sessionV6Schema, acknowledgmentSchema, initialSettings, syntheticRequest, gaussianGenerator } = await import("data:text/javascript;base64," + Buffer.from(bundled.outputFiles[0].text).toString("base64"));
 for (const [name, schema, version] of [
   ["request", requestSchema, 1],
   ["session", sessionV1Schema, 1],
@@ -10,16 +10,19 @@ for (const [name, schema, version] of [
   ["session", sessionV3Schema, 3],
   ["session", sessionV4Schema, 4],
   ["session", sessionV5Schema, 5],
+  ["session", sessionV6Schema, 6],
   ["ack", acknowledgmentSchema, 1],
 ]) {
   const json = z.toJSONSchema(schema, { target: "draft-7" });
   json.title = `Tracker fit ${name} v${version}`;
   json.$comment =
     "Structural schema. Also apply semantic rules in schemas/README.md: unique identities, row associations, missing-value consistency, model parameter count and assumption consistency.";
-  writeFileSync(
-    `schemas/tracker-fit-${name}.v${version}.json`,
-    JSON.stringify(json, null, 2) + "\n",
-  );
+  const path = `schemas/tracker-fit-${name}.v${version}.json`;
+  let previous;
+  try { previous = JSON.parse(readFileSync(path, "utf8")); } catch { /* New schema. */ }
+  // Keep published formatting intact when the structural schema is unchanged.
+  if (JSON.stringify(previous) !== JSON.stringify(json))
+    writeFileSync(path, JSON.stringify(json, null, 2) + "\n");
 }
 if (process.argv.includes("--schemas-only")) process.exit(0);
 const request = syntheticRequest();

@@ -112,4 +112,13 @@ test("app metadata and ordinary example downloads are available", async ({
   const files = unzipSync(new Uint8Array(await examples.body()));
   expect(files["Data Tool examples/ball-toss.csv"]).toBeDefined();
   expect(files["Data Tool examples/bounce-intervals.csv"]).toBeDefined();
+  expect(files["Data Tool examples/cavendish/Cavendish.csv"]).toBeDefined();
+  const workspace = JSON.parse(
+    new TextDecoder().decode(
+      files["Data Tool examples/cavendish/cavendish-multi-interval.trksess"],
+    ),
+  );
+  expect(workspace.version).toBe(6);
+  expect(workspace.workspace.kind).toBe("multi-interval");
+  expect(workspace.request.dataset.xColumn.unit).toBe("s");
 });

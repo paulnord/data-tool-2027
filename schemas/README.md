@@ -1,4 +1,4 @@
-# Fit interchange schemas (request/ack v1, sessions v1–v5)
+# Fit interchange schemas (request/ack v1, sessions v1–v6)
 
 Generate these files with `npm run schemas:fit`. They are generated from the strict Zod 4 schemas in `src/core/fit/schema.ts` using the Zod 4 entrypoint already included in the installed Zod package. Ajv is a development-only independent validator; no numerical runtime dependency was added. Format UUID checks are enforced by Zod; external validators should enable format validation.
 
@@ -48,3 +48,20 @@ Session v5 adds `gaussian-shape` with engine `qr-lm-3` and exactly six parameter
 and the existing row/table/uncertainty semantics. Custom-expression metadata is
 forbidden on this built-in model. See [v5 migration](../docs/integration.md#session-v5-for-adjustable-gaussian-peaks--2026-09-14).
 The v1–v4 schemas and request/ack v1 formats remain unchanged.
+
+## Workspace session v6
+
+The v6 schema adds a required source table, a tagged active workspace and view
+preferences. Every comparison candidate embeds a fully validated single-fit
+session (v1–v5); apply all its semantic checks. Candidate indices must exist.
+For interval/collision workspaces, X/time and Y assignments must be distinct
+available columns with numeric or missing cells. There must be one sigma entry
+and one nullable Y display range per series; supplied-mode sigmas must be
+positive. All non-null ranges are finite and increasing. Collision windows must
+be separated and ordered. Each interval needs settings for every series with
+the same equation, though parameter values, flags and units may differ. Exclusion
+IDs must exist in the source rows. The displayed interval count cannot exceed
+the stored slots, and active interval/series indices must be visible and valid.
+The root engine must match its settings. No cached results or nested workspaces
+are allowed. Published older schemas and request/ack v1 are unchanged.
+See the [migration and saved-field contract](../docs/integration.md#session-v6-for-saved-workspaces--2026-09-15).

@@ -28,6 +28,7 @@ import {
   parameterNames,
   type FitRequest,
   type FitSettings,
+  type MultiIntervalWorkspace,
 } from "../core/fit/schema";
 import {
   isNonlinearModel,
@@ -46,7 +47,7 @@ import {
 import { fitReportRows } from "../core/fit/report";
 import { IntervalPlot } from "./IntervalPlot";
 import { automaticDomain } from "./plotScale";
-import { useYRange } from "./YAxisControls";
+import { useYRange, type AxisRange } from "./YAxisControls";
 import type { ExportPlotSize } from "./exportSizing";
 import { appearanceColors, usePlotAppearance } from "./PlotAppearance";
 import {
@@ -85,11 +86,13 @@ function parameterUnit(
 export interface MultiIntervalActions {
   copy: () => Promise<void>;
   print: () => Promise<void>;
+  session: () => MultiIntervalWorkspace;
 }
 export default forwardRef<
   MultiIntervalActions,
   {
     source: TableAnalysis;
+    initialWorkspace?: MultiIntervalWorkspace;
     open: boolean;
     showResiduals?: boolean;
     showGuides?: boolean;
@@ -101,6 +104,7 @@ export default forwardRef<
 >(function MultiInterval(
   {
     source,
+    initialWorkspace: saved,
     open,
     showResiduals = true,
     showGuides = false,
@@ -122,27 +126,34 @@ export default forwardRef<
         : `Column ${i + 1}`,
       table.units[i],
     );
-  const [xColumn, setXColumn] = useState(table.x),
-    [columns, setColumns] = useState([table.y]);
-  const [sigmas, setSigmas] = useState([""]),
-    [noise, setNoise] = useState("estimate");
-  const [intervalCount, setIntervalCount] = useState(2);
-  const [intervalSlots, setIntervals] = useState<IntervalDefinition[]>(() => [
-    newInterval(0, 1),
-    newInterval(1, 1),
-  ]);
-  const [rangeDrafts, setRangeDrafts] = useState<string[][]>([
-    ["", ""],
-    ["", ""],
-  ]);
-  const [resultSlots, setResults] = useState<(IntervalFit[] | null)[]>([
-    null,
-    null,
-  ]);
-  const [active, setActive] = useState(0),
-    [curve, setCurve] = useState(0),
-    [conditional, setConditional] = useState(false),
-    [includeDetails, setIncludeDetails] = useState(false);
+  const [xColumn, setXColumn] = useState(saved?.x ?? table.x),
+    [columns, setColumns] = useState(saved?.columns ?? [table.y]);
+  const [sigmas, setSigmas] = useState(
+      saved?.sigmas.map((v) => (v === null ? "" : String(v))) ?? [""],
+    ),
+    [noise, setNoise] = useState(saved?.uncertainty ?? "estimate");
+  const [intervalCount, setIntervalCount] = useState(saved?.intervalCount ?? 2);
+  const [intervalSlots, setIntervals] = useState<IntervalDefinition[]>(
+    () => saved?.intervals ?? [newInterval(0, 1), newInterval(1, 1)],
+  );
+  const [rangeDrafts, setRangeDrafts] = useState<string[][]>(
+    saved?.intervals.map((v) => v.range?.map(String) ?? ["", ""]) ?? [
+      ["", ""],
+      ["", ""],
+    ],
+  );
+  const [resultSlots, setResults] = useState<(IntervalFit[] | null)[]>(() =>
+    intervalSlots.map(() => null),
+  );
+  const [active, setActive] = useState(saved?.activeInterval ?? 0),
+    [curve, setCurve] = useState(saved?.activeCurve ?? 0),
+    [conditional, setConditional] = useState(saved?.conditional ?? false),
+    [includeDetails, setIncludeDetails] = useState(
+      saved?.includeDetails ?? false,
+    );
+  const [yRanges, setYRanges] = useState<(AxisRange | null)[]>(
+    saved?.yRanges ?? [null],
+  );
   const [busy, setBusy] = useState<number | null>(null),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -280,6 +291,7 @@ export default forwardRef<
       : [0, 1];
   const [customX, setCustomX] = useYRange(
     `${source.request.snapshotId}/${xColumn}`,
+    saved?.xRange,
   );
   const domain = customX ?? automaticDomain(xs, false, 0.06);
   const selected = intervals[active],
@@ -295,6 +307,46 @@ export default forwardRef<
   const ready = results.some((r) => r?.some((f) => f.result));
   useEffect(() => onReady(ready), [ready, onReady]);
   useImperativeHandle(ref, () => ({
+    session: () => {
+      if (busy !== null || numericInvalid)
+        throw new Error(
+          "Finish the fit and complete parameter entries before saving.",
+        );
+      for (const [index, draft] of Object.entries(equationDrafts)) {
+        const custom = intervalSlots[Number(index)]?.settings[0].custom;
+        if (
+          custom &&
+          (draft.expression !== custom.expression ||
+            draft.variable !== custom.variable)
+        )
+          throw new Error(
+            "Apply or restore the custom equation before saving.",
+          );
+      }
+      if (
+        rangeDrafts.some(
+          (range, i) => range.some((v) => v.trim()) && !intervalSlots[i].range,
+        )
+      )
+        throw new Error(
+          "Complete or clear both limits of each interval before saving.",
+        );
+      return {
+        kind: "multi-interval",
+        x: xColumn,
+        columns,
+        uncertainty: noise,
+        sigmas: sigmas.map((v) => (v.trim() ? Number(v) : null)),
+        conditional,
+        intervals: intervalSlots,
+        intervalCount,
+        activeInterval: active,
+        activeCurve: curve,
+        includeDetails,
+        xRange: customX,
+        yRanges: columns.map((_, i) => yRanges[i] ?? null),
+      };
+    },
     copy: async () => {
       if (!ready) return;
       try {
@@ -463,6 +515,9 @@ export default forwardRef<
       if (next.length < count && !next.includes(i)) next.push(i);
     while (next.length < count) next.push(-1);
     setColumns(next);
+    setYRanges(
+      next.map((_, i) => (i < columns.length ? (yRanges[i] ?? null) : null)),
+    );
     setSigmas(next.map((_, i) => sigmas[i] ?? ""));
     setIntervals((old) =>
       old.map((item) => ({
@@ -573,6 +628,11 @@ export default forwardRef<
                 setColumns((old) =>
                   old.map((c, j) => (i === j ? Number(e.target.value) : c)),
                 );
+                setYRanges(
+                  columns.map((_, j) =>
+                    j === i ? null : (yRanges[j] ?? null),
+                  ),
+                );
               }}
             >
               <option value={-1}>Choose column…</option>
@@ -591,7 +651,7 @@ export default forwardRef<
             value={noise}
             onChange={(e) => {
               invalidate();
-              setNoise(e.target.value);
+              setNoise(e.target.value as "estimate" | "supplied");
             }}
           >
             <option value="estimate">Estimate scatter separately</option>
@@ -640,6 +700,7 @@ export default forwardRef<
               aria-pressed={i === active}
               style={{ borderColor: intervalColors[i] }}
               onClick={() => {
+                onDirty?.();
                 setActive(i);
               }}
             >
@@ -842,7 +903,10 @@ export default forwardRef<
               <select
                 aria-label="Parameter data series"
                 value={curve}
-                onChange={(e) => setCurve(Number(e.target.value))}
+                onChange={(e) => {
+                  onDirty?.();
+                  setCurve(Number(e.target.value));
+                }}
               >
                 {columns.map((c, i) => (
                   <option key={i} value={i}>
@@ -926,14 +990,17 @@ export default forwardRef<
           <input
             type="checkbox"
             checked={includeDetails}
-            onChange={(e) => setIncludeDetails(e.target.checked)}
+            onChange={(e) => {
+              onDirty?.();
+              setIncludeDetails(e.target.checked);
+            }}
           />
           Include {showResiduals ? "residuals and " : ""}diagnostics when
           printing
         </label>
         <p className="interval-draft-note">
-          Draft: interval setup is kept while switching analyses. Copy or print
-          results before closing; multi-interval sessions are not saved yet.
+          Save session preserves the data and interval setup. Reopen it and fit
+          each interval to recalculate results.
         </p>
       </aside>
       <main className="interval-workspace">
@@ -1009,7 +1076,19 @@ export default forwardRef<
                   onRange={selectRange}
                   onBoundary={boundary}
                   xCustom={!!customX}
-                  onXRange={setCustomX}
+                  onXRange={(range) => {
+                    onDirty?.();
+                    setCustomX(range);
+                  }}
+                  yRange={yRanges[i]}
+                  onYRange={(range) => {
+                    onDirty?.();
+                    setYRanges(
+                      columns.map((_, j) =>
+                        j === i ? range : (yRanges[j] ?? null),
+                      ),
+                    );
+                  }}
                 />
                 {showResiduals && (
                   <div className="interval-live-residual">

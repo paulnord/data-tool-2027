@@ -29,7 +29,7 @@ import {
   type CollisionConfig,
   type CollisionChannel,
 } from "../core/fit/collision";
-import type { FitRequest } from "../core/fit/schema";
+import type { FitRequest, CollisionWorkspace } from "../core/fit/schema";
 import { statisticReasonText } from "../core/fit/diagnosticText";
 import { automaticDomain, plotScale } from "./plotScale";
 import type { ExportPlotSize } from "./exportSizing";
@@ -107,6 +107,8 @@ function CollisionPlot({
   xCustom = false,
   renderSize,
   forcedYRange,
+  yRange,
+  onYRange,
 }: {
   request: FitRequest;
   channel?: CollisionChannel;
@@ -120,6 +122,8 @@ function CollisionPlot({
   xCustom?: boolean;
   renderSize?: ExportPlotSize;
   forcedYRange?: AxisRange;
+  yRange?: AxisRange | null;
+  onYRange?: (range: AxisRange | null) => void;
 }) {
   const appearance = usePlotAppearance();
   const validIntervals = validCollisionRanges(config);
@@ -162,9 +166,11 @@ function CollisionPlot({
         );
     }
   if (residual) values.push(0);
-  const [customY, setCustomY] = useYRange(
+  const [localY, setLocalY] = useYRange(
     `${request.dataset.yColumn.label}/${request.dataset.yColumn.unit}`,
   );
+  const customY = onYRange ? yRange : localY;
+  const setCustomY = onYRange ?? setLocalY;
   const yDomain: AxisRange = forcedYRange ?? customY ?? automaticDomain(values);
   const sx = plotScale(domain, false),
     sy = plotScale(yDomain, false);
@@ -449,12 +455,14 @@ function CollisionPlot({
 export type CollisionActions = {
   copy: () => Promise<void>;
   print: () => Promise<void>;
+  session: () => CollisionWorkspace;
 };
 
 export default forwardRef<
   CollisionActions,
   {
     source: TableAnalysis;
+    initialWorkspace?: CollisionWorkspace;
     open: boolean;
     showResiduals?: boolean;
     exportSizes?: ExportPlotSize[];
@@ -465,6 +473,7 @@ export default forwardRef<
 >(function CollisionDraft(
   {
     source,
+    initialWorkspace: saved,
     open,
     showResiduals = true,
     exportSizes,
@@ -476,19 +485,35 @@ export default forwardRef<
 ) {
   const defaults = useMemo(() => initial(source), [source]);
   const liveGraphs = useRef<HTMLElement>(null);
-  const [time, setTime] = useState(defaults.time),
-    [columns, setColumns] = useState(defaults.columns);
-  const [windows, setWindows] = useState(defaults.windows),
-    [sigmas, setSigmas] = useState(["", "", "", ""]);
-  const [conditional, setConditional] = useState(false),
+  const [time, setTime] = useState(saved?.time ?? defaults.time),
+    [columns, setColumns] = useState(saved?.columns ?? defaults.columns);
+  const [windows, setWindows] = useState(
+      saved ? [...saved.before, ...saved.after].map(String) : defaults.windows,
+    ),
+    [sigmas, setSigmas] = useState(
+      saved?.sigmas.map((v) => (v === null ? "" : String(v))) ?? [
+        "",
+        "",
+        "",
+        "",
+      ],
+    );
+  const [conditional, setConditional] = useState(saved?.conditional ?? false),
     [channels, setChannels] = useState<CollisionChannel[] | null>(null);
   const [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
-    [details, setDetails] = useState(false);
+    [details, setDetails] = useState(saved?.details ?? false);
   const worker = useRef<Worker | null>(null);
-  const [noise, setNoise] = useState<"estimate" | "supplied">("estimate");
-  const [includeDetails, setIncludeDetails] = useState(false);
+  const [noise, setNoise] = useState<"estimate" | "supplied">(
+    saved?.uncertainty ?? "estimate",
+  );
+  const [includeDetails, setIncludeDetails] = useState(
+    saved?.includeDetails ?? false,
+  );
+  const [yRanges, setYRanges] = useState<(AxisRange | null)[]>(
+    saved?.yRanges ?? [null, null, null, null],
+  );
   const table = tableForAnalysis(source),
     width = Math.max(0, ...table.cells.map((r) => r.length));
   const options = Array.from({ length: width }, (_, i) => ({
@@ -586,6 +611,24 @@ export default forwardRef<
     onReady(ready);
   }, [ready, onReady]);
   useImperativeHandle(ref, () => ({
+    session: () => {
+      if (busy || preview.error)
+        throw new Error(preview.error || "Finish the fit before saving.");
+      return {
+        kind: "collision",
+        time,
+        columns,
+        before: config.before,
+        after: config.after,
+        uncertainty: noise,
+        sigmas: sigmas.map((v) => (v.trim() ? Number(v) : null)),
+        conditional,
+        details,
+        includeDetails,
+        xRange: customX,
+        yRanges,
+      };
+    },
     copy: async () => {
       if (!channels) return;
       try {
@@ -611,6 +654,7 @@ export default forwardRef<
   const timeBounds = rangeOf(times);
   const [customX, setCustomX] = useYRange(
     `${source.request.snapshotId}/${time}`,
+    saved?.xRange,
   );
   const timeDomain = customX ?? automaticDomain(times, false, 0.06);
   function moveBoundary(index: number, value: number) {
@@ -693,6 +737,7 @@ export default forwardRef<
                         j === i ? Number(e.target.value) : c,
                       ),
                     );
+                    setYRanges(yRanges.map((v, j) => (j === i ? null : v)));
                   }}
                 >
                   <option value={-1}>Choose column</option>
@@ -779,7 +824,10 @@ export default forwardRef<
           <input
             type="checkbox"
             checked={includeDetails}
-            onChange={(e) => setIncludeDetails(e.target.checked)}
+            onChange={(e) => {
+              onDirty?.();
+              setIncludeDetails(e.target.checked);
+            }}
           />{" "}
           Include fit details when printing
         </label>
@@ -881,7 +929,15 @@ export default forwardRef<
                 height={showResiduals ? 245 : 390}
                 onBoundary={moveBoundary}
                 xCustom={!!customX}
-                onXRange={setCustomX}
+                onXRange={(range) => {
+                  onDirty?.();
+                  setCustomX(range);
+                }}
+                yRange={yRanges[i]}
+                onYRange={(range) => {
+                  onDirty?.();
+                  setYRanges(yRanges.map((v, j) => (j === i ? range : v)));
+                }}
               />
             </article>
           ))}
@@ -900,7 +956,10 @@ export default forwardRef<
             <button
               className="collision-details-toggle"
               aria-expanded={details}
-              onClick={() => setDetails(!details)}
+              onClick={() => {
+                onDirty?.();
+                setDetails(!details);
+              }}
             >
               {details ? "Hide" : "Show"}{" "}
               {showResiduals ? "residuals and " : ""}fit details

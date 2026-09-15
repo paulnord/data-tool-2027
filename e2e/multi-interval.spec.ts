@@ -111,7 +111,7 @@ test("student chooses three ranges, fits one at a time and preserves the other r
   await page.emulateMedia({ media: "screen" });
   await expect(
     page.getByRole("button", { name: "Save session", exact: true }),
-  ).toBeDisabled();
+  ).toBeEnabled();
 });
 test("draw a range, select sine for contact, and use custom equations with case-sensitive units", async ({
   page,

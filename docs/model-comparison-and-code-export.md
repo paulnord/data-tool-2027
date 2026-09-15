@@ -73,10 +73,13 @@ before shared selection is enabled. Per-candidate diagnostics include parameter
 standard errors, local 95% intervals, correlations, derived oscillation
 quantities, and numerical rank diagnostics.
 
-**Save candidate sessions (.zip)** writes one validated standard `.trksess` file
-per candidate. Load the individual files into candidate panels to restore their
-inputs and refit. Candidate labels and display preferences are not session fields;
-no new request/session protocol is introduced. The SciPy and ROOT exports include
+**Save session** writes one v6 `.trksess` containing every candidate's data,
+settings, label and source metadata, the active candidate, and guide/residual/error-bar
+visibility. Open it through **Data… → Load file** and accept the data review to
+restore the complete comparison. Press **Refit and compare** to recalculate
+results. Candidate file controls continue loading individual v1–v5 sessions.
+See the [workspace migration](integration.md#session-v6-for-saved-workspaces--2026-09-15).
+The SciPy and ROOT exports include
 separate candidate directories, each with its CSV, metadata, and executable
 program, plus the comparison report. Python directories include requirements.txt.
 

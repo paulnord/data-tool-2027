@@ -109,7 +109,9 @@ import {
   type FitSettings,
   type FitSession,
   type DataTable,
+  type FitWorkspace,
 } from "../core/fit/schema";
+import { tableForAnalysis } from "../core/fit/dataTable";
 import { emptyRequest } from "../core/fit/empty";
 import { listen } from "@tauri-apps/api/event";
 import "./fit.css";
@@ -234,6 +236,7 @@ type State = {
   settings: FitSettings;
   originalRequest?: FitRequest;
   dataTable?: DataTable;
+  workspaceSession?: Extract<FitSession, { version: 6 }>;
 };
 function fresh(): State {
   return {
@@ -1404,6 +1407,20 @@ export default function FitApp() {
   const [comparisonVisited, setComparisonVisited] = useState(false);
   const [collisionRevision, setCollisionRevision] = useState(0);
   const [collisionSource, setCollisionSource] = useState<State | null>(null);
+  const [initialWorkspace, setInitialWorkspace] = useState<FitWorkspace>();
+  const [comparisonRevision, setComparisonRevision] = useState(0);
+  const workspaceRevision = useRef(0);
+  const dirtyWorkspaces = useRef(new Set<FitWorkspace["kind"]>());
+  function draftChanged(kind: FitWorkspace["kind"]) {
+    workspaceRevision.current += 1;
+    dirtyWorkspaces.current.add(kind);
+    setUnsavedDraftWork(true);
+  }
+  function viewChanged() {
+    if (comparisonOpen) draftChanged("model-comparison");
+    else if (multiOpen) draftChanged("multi-interval");
+    else if (collisionOpen) draftChanged("collision");
+  }
   const [mode, setMode] = useState<GraphMode>("linear");
   const [yRange, setYRange] = useState<AxisRange | null>(null);
   const logX = mode === "log-x" || mode === "log-log";
@@ -1567,11 +1584,30 @@ export default function FitApp() {
     setXRange(null);
   }
   function replace(next: State) {
+    const { workspaceSession: restored, ...analysis } = next;
+    setInitialWorkspace(restored?.workspace);
+    dirtyWorkspaces.current.clear();
+    workspaceRevision.current += 1;
+    if (restored) {
+      setCollisionSource(analysis);
+      setCollisionRevision((v) => v + 1);
+      setComparisonRevision((v) => v + 1);
+      setMultiReady(false);
+      setCollisionReady(false);
+      setComparisonReady(false);
+      setMultiOpen(restored.workspace.kind === "multi-interval");
+      setCollisionOpen(restored.workspace.kind === "collision");
+      setComparisonOpen(restored.workspace.kind === "model-comparison");
+      setComparisonVisited(restored.workspace.kind === "model-comparison");
+      setShowResiduals(restored.view.showResiduals);
+      setShowGuides(restored.view.showGuides);
+      setShowErrorBars(restored.view.showErrorBars);
+    }
     setManualState(null);
     setSigmaDraft(null);
     setSigmaTouched(false);
     cancel();
-    setState(next);
+    setState(analysis);
     setResult(null);
     setDirty(false);
     setUnsavedDraftWork(false);
@@ -1702,6 +1738,7 @@ export default function FitApp() {
             settings: parsed.settings,
             originalRequest: parsed.originalRequest,
             dataTable: parsed.dataTable,
+            ...(parsed.version === 6 ? { workspaceSession: parsed } : {}),
           },
         });
       } else {
@@ -1766,32 +1803,48 @@ export default function FitApp() {
     await importText(text, fileName);
   }
   function session(): FitSession {
+    const workspace = comparisonOpen
+      ? comparisonActions.current?.session()
+      : multiOpen
+        ? multiActions.current?.session()
+        : collisionOpen
+          ? collisionActions.current?.session()
+          : undefined;
+    if ((comparisonOpen || multiOpen || collisionOpen) && !workspace)
+      throw new Error("The workspace is still opening. Try saving again.");
     return sessionSchema.parse({
       format: "tracker-fit-session",
-      version: sessionVersion(state.settings),
+      version: workspace ? 6 : sessionVersion(state.settings),
       request: state.request,
       settings: state.settings,
       originalRequest: state.originalRequest,
-      dataTable: state.dataTable,
+      dataTable: workspace ? tableForAnalysis(state) : state.dataTable,
       engine: sessionEngine(state.settings),
+      ...(workspace
+        ? { workspace, view: { showResiduals, showGuides, showErrorBars } }
+        : {}),
     });
   }
   async function saveFile() {
-    if (comparisonOpen) {
-      try {
-        const bundle = comparisonActions.current?.saveSessions();
-        if (bundle && (await saveAnalysisBundle(bundle)))
-          setNotice(
-            "Candidate sessions saved; load each file into a comparison candidate to restore them",
-          );
-      } catch (cause) {
-        setError(`Save failed: ${String(cause)}`);
-      }
+    if (
+      !comparisonOpen &&
+      !multiOpen &&
+      !collisionOpen &&
+      (sigmaInvalid || numericDraftInvalid || pendingEquation)
+    )
       return;
-    }
-    if (sigmaInvalid || numericDraftInvalid || pendingEquation) return;
     try {
+      setError("");
       let saved = session();
+      const revision = workspaceRevision.current;
+      const serialize = () => {
+        const data = JSON.stringify(saved, null, 2);
+        if (new TextEncoder().encode(data).length > 20_000_000)
+          throw new Error(
+            "Session exceeds the 20 MB limit; reduce the source table or number of candidates.",
+          );
+        return data;
+      };
       if (isTauri()) {
         const path = await save({
           defaultPath: "analysis.trksess",
@@ -1801,12 +1854,12 @@ export default function FitApp() {
         saved = nameSavedSession(saved, path);
         await invoke("write_fit_file", {
           path,
-          data: JSON.stringify(saved, null, 2),
+          data: serialize(),
         });
       } else {
         saved = nameSavedSession(saved, "analysis.trksess");
         const url = URL.createObjectURL(
-          new Blob([JSON.stringify(saved, null, 2)], {
+          new Blob([serialize()], {
             type: "application/json",
           }),
         );
@@ -1816,7 +1869,9 @@ export default function FitApp() {
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
-      if (liveState.current === state) {
+      const unchanged =
+        liveState.current === state && workspaceRevision.current === revision;
+      if (unchanged) {
         if (saved.request.dataset.label !== state.request.dataset.label) {
           cancel();
           const next = { ...state, request: saved.request };
@@ -1826,10 +1881,15 @@ export default function FitApp() {
           );
         }
         setDirty(false);
+        if (saved.version === 6)
+          dirtyWorkspaces.current.delete(saved.workspace.kind);
+        setUnsavedDraftWork(dirtyWorkspaces.current.size > 0);
       }
       setNotice(
-        liveState.current === state
-          ? "Session saved"
+        unchanged
+          ? saved.version === 6
+            ? "Workspace session saved; reopen and fit to recalculate results"
+            : "Session saved"
           : "Earlier version saved; newer changes remain unsaved",
       );
     } catch (e) {
@@ -2149,9 +2209,13 @@ export default function FitApp() {
           state.request.uncertainty.errorStructure)
     ) {
       setCollisionSource(state);
+      setInitialWorkspace(undefined);
       setCollisionRevision((v) => v + 1);
       setCollisionReady(false);
       setMultiReady(false);
+      dirtyWorkspaces.current.delete("multi-interval");
+      dirtyWorkspaces.current.delete("collision");
+      setUnsavedDraftWork(dirtyWorkspaces.current.size > 0);
     }
   }, [collisionOpen, multiOpen, state, collisionSource]);
   const analysisControl = (
@@ -2350,7 +2414,10 @@ export default function FitApp() {
                       <input
                         type="checkbox"
                         checked={showResiduals}
-                        onChange={(e) => setShowResiduals(e.target.checked)}
+                        onChange={(e) => {
+                          viewChanged();
+                          setShowResiduals(e.target.checked);
+                        }}
                       />
                       Show residual plots
                     </label>
@@ -2358,7 +2425,10 @@ export default function FitApp() {
                       <input
                         type="checkbox"
                         checked={showGuides}
-                        onChange={(e) => setShowGuides(e.target.checked)}
+                        onChange={(e) => {
+                          viewChanged();
+                          setShowGuides(e.target.checked);
+                        }}
                       />
                       Show fit guides when available
                     </label>
@@ -2468,22 +2538,15 @@ export default function FitApp() {
               <button
                 disabled={
                   !comparisonOpen &&
+                  !multiOpen &&
+                  !collisionOpen &&
                   (sigmaInvalid ||
                     numericDraftInvalid ||
-                    collisionOpen ||
-                    multiOpen ||
                     (state.settings.model === "custom" && equationPending))
-                }
-                title={
-                  collisionOpen || multiOpen
-                    ? "This analysis workspace is not saved in sessions; switch to a single fit to save the source table."
-                    : undefined
                 }
                 onClick={saveFile}
               >
-                {comparisonOpen
-                  ? "Save candidate sessions (.zip)"
-                  : "Save session"}
+                Save session
               </button>
               <button
                 disabled={
@@ -2662,19 +2725,29 @@ export default function FitApp() {
             <CollisionDraft
               key={collisionRevision}
               source={collisionSource}
+              initialWorkspace={
+                initialWorkspace?.kind === "collision"
+                  ? initialWorkspace
+                  : undefined
+              }
               open={collisionOpen}
               showResiduals={showResiduals}
               exportSizes={collisionOpen ? exportRender?.sizes : undefined}
               ref={collisionActions}
               analysisControl={analysisControl}
               onReady={setCollisionReady}
-              onDirty={() => setUnsavedDraftWork(true)}
+              onDirty={() => draftChanged("collision")}
             />
           )}
           {collisionSource && (
             <MultiInterval
               key={`multi-${collisionRevision}`}
               source={collisionSource}
+              initialWorkspace={
+                initialWorkspace?.kind === "multi-interval"
+                  ? initialWorkspace
+                  : undefined
+              }
               open={multiOpen}
               showGuides={showGuides}
               showResiduals={showResiduals}
@@ -2682,20 +2755,29 @@ export default function FitApp() {
               ref={multiActions}
               analysisControl={analysisControl}
               onReady={setMultiReady}
-              onDirty={() => setUnsavedDraftWork(true)}
+              onDirty={() => draftChanged("multi-interval")}
             />
           )}
           {comparisonVisited && (
             <div hidden={!comparisonOpen}>
               <ModelComparison
+                key={comparisonRevision}
+                initialWorkspace={
+                  initialWorkspace?.kind === "model-comparison"
+                    ? initialWorkspace
+                    : undefined
+                }
                 source={state}
                 sourceResult={current}
                 analysisControl={comparisonOpen ? analysisControl : null}
                 showResiduals={showResiduals}
                 showErrorBars={showErrorBars}
                 showGuides={showGuides}
-                onErrorBarsChange={setShowErrorBars}
-                onDirty={() => setUnsavedDraftWork(true)}
+                onErrorBarsChange={(show) => {
+                  viewChanged();
+                  setShowErrorBars(show);
+                }}
+                onDirty={() => draftChanged("model-comparison")}
                 onReady={setComparisonReady}
                 ref={comparisonActions}
                 exportSizes={comparisonOpen ? exportRender?.sizes : undefined}
@@ -2788,6 +2870,24 @@ export default function FitApp() {
               reviewing={!!dataPanel.incoming}
               onClose={() => setDataPanel(null)}
               onApply={(next, replacement) => {
+                let incoming: State = replacement
+                  ? next
+                  : { ...dataPanel.incoming, ...next };
+                if (incoming.workspaceSession) {
+                  try {
+                    const { workspaceSession, ...analysis } = incoming;
+                    const parsed = sessionSchema.parse({
+                      ...workspaceSession,
+                      ...analysis,
+                    });
+                    if (parsed.version !== 6)
+                      throw new Error("Workspace session version changed");
+                    incoming = { ...analysis, workspaceSession: parsed };
+                  } catch (cause) {
+                    rejectImport(dataPanel.source, cause);
+                    return;
+                  }
+                }
                 setDataPanel(null);
                 if (dataPanel.editing && !replacement) {
                   const updated = { ...state, ...next };
@@ -2805,9 +2905,7 @@ export default function FitApp() {
                     unsavedDraftWork ||
                     pendingEquation ||
                     sigmaDraft !== null;
-                  propose(
-                    replacement ? next : { ...dataPanel.incoming, ...next },
-                  );
+                  propose(incoming);
                 }
               }}
             />
@@ -2819,11 +2917,13 @@ export default function FitApp() {
                   ? comparisonOpen
                     ? "Apply these data to every comparison candidate? Existing fit results will be cleared."
                     : "Apply these data and discard the unsaved interval analyses?"
-                  : pending && comparisonOpen
-                    ? "Load the new dataset for every comparison candidate? Candidate equations and settings will be kept; existing fit results will be cleared."
-                    : unsavedDraftWork
-                      ? "Keep or discard your unsaved analysis? Multi-interval and collision setups are not saved in sessions."
-                      : "Keep or discard your unsaved analysis changes?"
+                  : pending?.workspaceSession
+                    ? "Open the saved workspace and discard unsaved analysis changes?"
+                    : pending && comparisonOpen
+                      ? "Load the new dataset for every comparison candidate? Candidate equations and settings will be kept; existing fit results will be cleared."
+                      : unsavedDraftWork
+                        ? "Keep or discard your unsaved workspace changes? Use Save session to preserve the active workspace."
+                        : "Keep or discard your unsaved analysis changes?"
               }
               onKeep={() => {
                 setPending(null);
@@ -2832,7 +2932,9 @@ export default function FitApp() {
               }}
               onApply={() => {
                 if (pending && pendingDataEdit) {
-                  setUnsavedDraftWork(false);
+                  dirtyWorkspaces.current.delete("multi-interval");
+                  dirtyWorkspaces.current.delete("collision");
+                  setUnsavedDraftWork(dirtyWorkspaces.current.size > 0);
                   setPendingDataEdit(false);
                   setPending(null);
                   change(pending);

@@ -12,7 +12,13 @@ Changing a column, interval or uncertainty clears the draft results and disables
 
 ## Persistence and compatibility
 
-The report can be copied or printed to PDF. Save session is explicitly disabled in collision mode until a versioned multi-analysis session format is implemented; switch to a single fit to save the source table. Draft settings and results are not saved in `.trksess`; source tables continue to save through the existing single-fit workflow. Existing request, session and acknowledgment schemas are unchanged. There are no native host or Tracker repository changes.
+**Save session** writes the complete source table and active collision setup in a
+v6 `.trksess`: all five column assignments, both windows, uncertainty mode and
+values, assumption acceptance, plot limits and detail preferences. Reopen it
+through Data review, then press **Fit before and after** to recalculate results.
+Invalid column assignments, windows or uncertainties block saving. Reports are
+still copied or printed separately. See the [v6 migration](integration.md#session-v6-for-saved-workspaces--2026-09-15);
+request/ack v1 and older single-fit session schemas remain unchanged.
 
 ## Rollback
 

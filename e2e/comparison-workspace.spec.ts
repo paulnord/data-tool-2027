@@ -148,14 +148,13 @@ test("comparison opens directly with data, uses chosen uncertainties, and preser
       strFromU8(files[`${base}/candidate-2/data.csv`]),
     );
   }
-  const files = await downloadZip(
-    page,
-    "Save candidate sessions (.zip)",
-    false,
+  const pendingSession = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save session", exact: true }).click();
+  const workspaceSession = JSON.parse(
+    await readFile((await (await pendingSession).path())!, "utf8"),
   );
-  const saved = JSON.parse(
-    strFromU8(files["model-comparison-sessions/candidate-2.trksess"]),
-  );
+  expect(workspaceSession.version).toBe(6);
+  const saved = workspaceSession.workspace.candidates[1].analysis;
   expect(saved.settings.custom.units).toContain("mH");
   expect(saved.request.dataset.rows).toEqual(request.dataset.rows);
   await workspace

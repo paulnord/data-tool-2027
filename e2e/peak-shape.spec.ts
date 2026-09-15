@@ -1,6 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { unzipSync, strFromU8 } from "fflate";
 import { syntheticRequest } from "../tests/support/synthetic";
 import {
   initialSettings,
@@ -159,17 +158,15 @@ test("comparison retains peak controls, guides, moments and candidate session ex
   const pending = page.waitForEvent("download");
   await page
     .getByRole("button", {
-      name: "Save candidate sessions (.zip)",
+      name: "Save session",
       exact: true,
     })
     .click();
-  const files = unzipSync(readFileSync((await (await pending).path())!));
-  const key =
-    Object.keys(files).find((k) => k.endsWith("candidate-1.trksess")) ??
-    Object.keys(files).find(
-      (k) => k.includes("candidate-1") && k.endsWith(".trksess"),
-    )!;
-  const saved = JSON.parse(strFromU8(files[key]));
+  const restored = JSON.parse(
+    readFileSync((await (await pending).path())!, "utf8"),
+  );
+  expect(restored.version).toBe(6);
+  const saved = restored.workspace.candidates[0].analysis;
   expect(saved.version).toBe(5);
   expect(saved.settings.model).toBe("gaussian-shape");
 });

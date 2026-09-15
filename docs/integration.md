@@ -60,7 +60,7 @@ Custom equations save as `tracker-fit-session`, version `3`, engine `qr-expressi
 
 The published v1 and v2 structures are unchanged. New builds accept all three session versions. Legacy models still save as v1, the five nonlinear built-ins as v2, and custom equations as v3. Older applications must reject v3 rather than discard the equation. Selecting a built-in again permits saving in its older format. Requests, original snapshots and acknowledgments remain v1; source tables and uncertainty assumptions retain their existing validation. Tracker and OSP code remain untouched.
 
-The multi-interval UI is a separate in-memory draft. It does not add fields to any existing session version or change Tracker request/ack compatibility. Multi-interval session saving remains disabled pending an explicit schema migration; source tables and single-fit sessions remain savable as before. See [multi-interval scope](multi-interval.md).
+Versions 1–5 contain a single analysis. Multi-interval, comparison and collision workspaces use the explicit v6 migration below; no workspace fields are inserted into older versions.
 
 ## Session v4 for additional model families — 2026-09-14
 
@@ -90,3 +90,51 @@ Native envelope validation accepts v5, and full semantic validation runs on
 import and save. Candidate session exports preserve each model's own version.
 
 See [equation families and notation](equation-families.md) for menu organization and validation scope.
+
+## Session v6 for saved workspaces — 2026-09-15
+
+**Save session** in multi-interval, model-comparison or collision mode writes one
+`tracker-fit-session` version `6` file, retaining `.trksess`. The strict schema is
+`schemas/tracker-fit-session.v6.json`. It preserves the active workspace; other
+hidden workspaces are not included. Single fits continue saving as versions 1–5
+according to their model, with the published schemas unchanged. Requests,
+original snapshots and acknowledgments remain v1. Older readers must reject v6.
+
+The root request/settings/engine retain the source analysis, and `dataTable` is
+required so unused columns, exact cell text, row identities, headings and units
+survive. The root engine must match its model. `workspace.kind` selects:
+
+- `multi-interval`: X/Y column assignments, estimate/supplied uncertainty mode,
+  retained common sigmas, assumption acceptance, interval names/ranges, and each
+  series' equation, custom units, starting values and fixed flags. All interval
+  slots are retained when the displayed count is reduced; active interval and
+  series indices identify the open controls.
+- `model-comparison`: two to six labeled candidates, each containing a complete
+  validated v1–v5 analysis, plus the active candidate. Independent snapshots,
+  exclusions, uncertainties, original requests and source tables are retained.
+  Compatibility for statistical comparison is checked when fitting, not assumed
+  by saving the file. Nested workspaces are not permitted.
+- `collision`: time and four position assignments, separated before/after
+  windows, uncertainty mode/values, assumption acceptance and detail visibility.
+
+`view` preserves residual, guide and error-bar visibility. Interval and collision
+workspaces also preserve shared X limits, individual data-graph Y limits and the
+print-details preference. Appearance, output size, undo histories, uncommitted
+editor drafts and computed results are not serialized. Restored starts remain as
+saved until edited or another equation is chosen; they are not re-suggested on
+load. Opening a workspace never fits automatically.
+
+Validate every nested analysis and the source table, available/distinct columns,
+finite increasing ranges, positive supplied sigmas, per-series settings counts,
+shared interval equation, existing row references and active indices. A blank
+unselected interval may have a null range. Collision windows must be separated.
+Incomplete numbers or unapplied equations block saving. Import validation occurs
+before Data review, and again after review before replacement. Failed imports
+preserve current work. The native envelope gate accepts v6; TypeScript applies
+the complete semantic checks before acknowledgment or save.
+
+Open a workspace through **Data… → Load file**, then **Use these data**. Candidate
+file controls still accept individual v1–v5 sessions; they direct workspace files
+to the main loader. Fit the restored candidates or intervals explicitly to
+recalculate results. The measured Cavendish example in `examples/data/cavendish/`
+contains the original CSV and a two-interval session using elapsed seconds.

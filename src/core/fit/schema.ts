@@ -433,12 +433,193 @@ export const sessionV2Schema = sessionV2Object.superRefine(checkSession);
 export const sessionV3Schema = sessionV3Object.superRefine(checkSession);
 export const sessionV4Schema = sessionV4Object.superRefine(checkSession);
 export const sessionV5Schema = sessionV5Object.superRefine(checkSession);
-export const sessionSchema = z.union([
+export const singleSessionSchema = z.discriminatedUnion("version", [
   sessionV1Schema,
   sessionV2Schema,
   sessionV3Schema,
   sessionV4Schema,
   sessionV5Schema,
+]);
+const axisRangeSchema = z
+  .tuple([finite, finite])
+  .refine(([lo, hi]) => lo < hi, "Range minimum must be below maximum");
+const columnIndexSchema = z.number().int().nonnegative();
+const workspaceDisplaySchema = z
+  .object({
+    xRange: axisRangeSchema.nullable(),
+    yRanges: z.array(axisRangeSchema.nullable()).min(1).max(4),
+    includeDetails: z.boolean(),
+  })
+  .strict();
+const workspaceUncertainty = {
+  uncertainty: z.enum(["estimate", "supplied"]),
+  sigmas: z.array(finite.positive().nullable()).min(1).max(4),
+  conditional: z.boolean(),
+};
+export const multiIntervalWorkspaceSchema = workspaceDisplaySchema.extend({
+  kind: z.literal("multi-interval"),
+  x: columnIndexSchema,
+  columns: z.array(columnIndexSchema).min(1).max(4),
+  ...workspaceUncertainty,
+  intervals: z
+    .array(
+      z
+        .object({
+          name: text.refine(
+            (s) => !!s.trim(),
+            "Interval name must not be blank",
+          ),
+          range: axisRangeSchema.nullable(),
+          settings: z.array(settingsSchema).min(1).max(4),
+        })
+        .strict(),
+    )
+    .min(1)
+    .max(5),
+  intervalCount: z.number().int().min(1).max(5),
+  activeInterval: columnIndexSchema,
+  activeCurve: columnIndexSchema,
+});
+export const comparisonWorkspaceSchema = z
+  .object({
+    kind: z.literal("model-comparison"),
+    candidates: z
+      .array(
+        z
+          .object({
+            label: text,
+            analysis: singleSessionSchema,
+          })
+          .strict(),
+      )
+      .min(2)
+      .max(6),
+    activeCandidate: columnIndexSchema,
+  })
+  .strict();
+export const collisionWorkspaceSchema = workspaceDisplaySchema.extend({
+  kind: z.literal("collision"),
+  time: columnIndexSchema,
+  columns: z.array(columnIndexSchema).length(4),
+  ...workspaceUncertainty,
+  before: axisRangeSchema,
+  after: axisRangeSchema,
+  details: z.boolean(),
+});
+export const workspaceSchema = z.discriminatedUnion("kind", [
+  multiIntervalWorkspaceSchema,
+  comparisonWorkspaceSchema,
+  collisionWorkspaceSchema,
+]);
+export type MultiIntervalWorkspace = z.infer<
+  typeof multiIntervalWorkspaceSchema
+>;
+export type ComparisonWorkspace = z.infer<typeof comparisonWorkspaceSchema>;
+export type CollisionWorkspace = z.infer<typeof collisionWorkspaceSchema>;
+export type FitWorkspace = z.infer<typeof workspaceSchema>;
+export const workspaceViewSchema = z
+  .object({
+    showResiduals: z.boolean(),
+    showGuides: z.boolean(),
+    showErrorBars: z.boolean(),
+  })
+  .strict();
+const sessionV6Object = sessionV1Object.extend({
+  version: z.literal(6),
+  settings: settingsSchema,
+  engine: z.enum(["qr-vp-sine-2", "qr-lm-3", "qr-expression-4"]),
+  dataTable: dataTableSchema,
+  workspace: workspaceSchema,
+  view: workspaceViewSchema,
+});
+/** Version 6 saves one active workspace. Results are always recalculated. */
+export const sessionV6Schema = sessionV6Object.superRefine((s, ctx) => {
+  // Reuse the complete legacy analysis validation without weakening v1–v5.
+  const source = singleSessionSchema.safeParse({
+    format: s.format,
+    version: sessionVersion(s.settings),
+    engine: s.engine,
+    request: s.request,
+    originalRequest: s.originalRequest,
+    dataTable: s.dataTable,
+    settings: s.settings,
+  });
+  if (!source.success)
+    for (const issue of source.error.issues) ctx.addIssue(issue);
+  if (s.engine !== sessionEngine(s.settings))
+    ctx.addIssue({
+      code: "custom",
+      message: "Session engine does not match model",
+    });
+  const w = s.workspace;
+  const fail = (message: string) =>
+    ctx.addIssue({ code: "custom", path: ["workspace"], message });
+  if (w.kind === "model-comparison") {
+    if (w.activeCandidate >= w.candidates.length)
+      fail("Active candidate is out of range");
+    return;
+  }
+  const x = w.kind === "multi-interval" ? w.x : w.time;
+  const selected = [x, ...w.columns];
+  const width = s.dataTable.cells.reduce(
+    (n, row) => Math.max(n, row.length),
+    0,
+  );
+  if (
+    new Set(selected).size !== selected.length ||
+    selected.some((i) => i >= width)
+  )
+    fail("Workspace requires distinct, available X and Y columns");
+  try {
+    for (const row of s.dataTable.cells.slice(s.dataTable.headerRows))
+      for (const i of selected) numericCell(row[i] ?? "");
+  } catch {
+    fail(
+      "Selected workspace columns must contain finite numbers or missing values",
+    );
+  }
+  if (
+    w.sigmas.length !== w.columns.length ||
+    w.yRanges.length !== w.columns.length
+  )
+    fail("Each data series requires an uncertainty entry and a display range");
+  if (w.uncertainty === "supplied" && w.sigmas.some((v) => v === null))
+    fail("Enter a positive uncertainty for every data series");
+  if (w.kind === "collision") {
+    if (w.before[1] >= w.after[0])
+      fail("Collision intervals must be separated and ordered");
+    return;
+  }
+  if (
+    w.intervalCount > w.intervals.length ||
+    w.activeInterval >= w.intervalCount ||
+    w.activeCurve >= w.columns.length
+  )
+    fail("Active interval or data series is out of range");
+  const ids = new Set(s.request.dataset.rows.map((r) => r.id));
+  for (const interval of w.intervals) {
+    if (interval.settings.length !== w.columns.length)
+      fail("Every interval requires settings for each data series");
+    for (const settings of interval.settings) {
+      if (settings.excludedIds.some((id) => !ids.has(id)))
+        fail("Interval exclusion references an unknown row");
+      const first = interval.settings[0];
+      if (
+        settings.model !== first.model ||
+        settings.custom?.expression !== first.custom?.expression ||
+        settings.custom?.variable !== first.custom?.variable
+      )
+        fail("Data series in an interval must share an equation");
+    }
+  }
+});
+export const sessionSchema = z.discriminatedUnion("version", [
+  sessionV1Schema,
+  sessionV2Schema,
+  sessionV3Schema,
+  sessionV4Schema,
+  sessionV5Schema,
+  sessionV6Schema,
 ]);
 export const sessionVersion = (settings: { model: string }) =>
   settings.model === "gaussian-shape"

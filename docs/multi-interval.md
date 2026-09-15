@@ -26,8 +26,24 @@ All are explicitly labeled synthetic with independent Gaussian scatter and a rep
 
 ## Persistence and compatibility
 
-This is a reversible draft, like the existing collision setup. Switching analyses preserves the setup for the same source table in the current window. Multi-interval setups are not saved in sessions yet; the Save session control explains this. Copy or print the report before closing. The existing request/session/ack schemas and native host are unchanged; no new multi-interval fields are inserted into a v1, v2 or v3 file. Save the source table through a single-fit session or CSV when needed. A future persistent multi-analysis format needs an explicit versioned migration.
+**Save session** preserves the active multi-interval workspace in a v6 `.trksess`
+file: complete source table, assignments, uncertainty settings, interval names
+and ranges, equations, per-series starting/fixed parameters and custom units,
+active controls, plot limits and guide/residual visibility. Hidden interval slots
+are retained when the displayed interval count is reduced. Reopen through
+**Data… → Load file**, accept the data review, then fit each interval explicitly.
+Results and undo history are recalculated rather than stored. Incomplete numeric
+entries and unapplied equations must be resolved before saving. Other hidden
+workspaces are not part of this file; their unsaved-work protection remains active.
 
-The new core is `src/core/fit/intervals.ts`; the UI and worker are separate from the numerical engine. Original observations, weights, rank checks and inference rules use the existing fitting core. Core tests cover one through four data series, explicit ranges and five-interval limits, overlapping and shared-endpoint ranges, missing observations, mixed equations, fixed parameters and known-false assumptions. Browser tests cover graph selection, boundary invalidation, independent results, equation editing, curve counts, uncertainty controls and reports. Existing collision code and schemas are unchanged. The pre-draft `FitApp.tsx` integration is locally checkpointed in `.tools/rollback-multi-interval/`.
+The [v6 migration](integration.md#session-v6-for-saved-workspaces--2026-09-15)
+leaves request/ack v1 and all single-fit session versions unchanged. Import/save
+validation checks row associations, columns, settings and ranges. Core and browser
+tests cover persistence, invalid imports and reproduction of both Cavendish fits.
+
+The measured example `examples/data/cavendish/cavendish-multi-interval.trksess`
+restores two damped fits over 0–1400 s and 1800–4500 s. Its companion CSV preserves
+all original fields and missing observations; the folder README describes the
+provenance and uncertainty limitations.
 
 The same guide setting marks Gaussian/Lorentzian centers, the mean position of either undamped sine model, and the logistic sigmoid midpoint and two asymptotes. These model references use the same keyed legend above the plot. Explicit view limits clip the guides without changing fits.

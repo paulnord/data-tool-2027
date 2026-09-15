@@ -2,12 +2,12 @@
 
 Data Tool 2027 is a separate desktop process. Tracker owns video decoding, calibration and digitization; Data Tool receives an immutable numerical snapshot. No Java classes, shared UI, decoder or network service crosses the boundary.
 
-## Stable v1 files
+## Current file formats
 
 Continue using the published strict schemas in `schemas/`:
 
 - `tracker-fit-request.v1.json`: one numerical dataset, explicit units and uncertainty/provenance.
-- `tracker-fit-session.v1.json`: request plus fit settings, source table and original snapshot when present. Existing `.trksess` files remain readable and savable.
+- `tracker-fit-session.v7.json`: the only supported session format, for single fits and every workspace; retains the `.trksess` extension.
 - `tracker-fit-ack.v1.json`: import accepted or error, correlated by request UUID.
 
 The `tracker-fit-*` names are protocol identifiers, not branding. Keeping them avoids breaking existing files or adapters. New incompatible fields require a new version and documented migration. Request and snapshot UUIDs are opaque identities; the current implementation does not claim they are content hashes. Physical derived quantities from Tracker arrive as labeled analysis inputs, never as new raw measurements.
@@ -42,103 +42,83 @@ This release does not automatically send fitted parameters back to Tracker. The 
 
 ## Validation
 
-`npm run test:integration` launches the actual release app with a request, a legacy session and an invalid request, checks accepted/error acknowledgment files and request IDs, then terminates only the test-owned processes. There are no production smoke commands or environment-controlled test data paths. Windows/Linux portability is an architectural target; only macOS binaries have been built here.
+`npm run test:integration` launches the actual release app with a request, current single-fit and multi-fit sessions, an unsupported session version and an invalid request, checks accepted/error acknowledgment files and request IDs, then terminates only the test-owned processes. There are no production smoke commands or environment-controlled test data paths. Windows/Linux portability is an architectural target; only macOS binaries have been built here.
 
-## Session v2 for nonlinear models — 2026-09-09
+## One session format: v7 — pre-beta migration, 2026-09-15
 
-The new `exponential-decay`, `power-law-free`, `gaussian`, `damped-sine` and `lorentzian` model identifiers are saved with `format: "tracker-fit-session"`, `version: 2`, and engine `qr-lm-3`. Their structural schema is `schemas/tracker-fit-session.v2.json`. This is an explicit version boundary: the published v1 session schema and its model identifiers remain unchanged.
+Session v7 replaces all six development formats. The app reads and writes only
+`format: "tracker-fit-session", version: 7`. Versions 1–6 and unknown future
+versions are rejected before replacing work. There is no compatibility reader or
+model-dependent version selection. Requests, original snapshots and acknowledgments
+remain v1. The file extension stays `.trksess`.
 
-The `.trksess` filename extension is retained for both session versions. New Data Tool builds read both versions. Existing models still save as v1 with `qr-vp-sine-2`; selecting a new model saves as v2. Returning to a legacy model permits saving as v1 because its settings again fit that schema. No new-model session is silently rewritten as a v1 approximation. Older readers must reject v2 rather than reinterpret it; export CSV if only the observations are needed by an older application.
+The root contains a validated analysis: `request`, `settings`, matching `engine`,
+optional `originalRequest`, and optional `dataTable`. The source table is required
+for multi-fit workspaces, and preserves exact cell text, unused columns, row IDs,
+headings, column assignments and case-sensitive units. Numeric-only single fits
+can reconstruct their displayed table from the preserved request.
 
-Request snapshots, original requests and acknowledgment envelopes remain v1. A v2 session embeds a v1 numerical request, preserves the same source-table validation, and records starting/fixed parameters without cached optimization results. The CLI accepts v2 sessions and emits the same correlated v1 accepted/error acknowledgment after validation. Unknown session versions and engine identifiers are rejected. The release integration test now also launches a v2 Gaussian session.
+Every session requires `workspace` and `view`. `workspace.kind` identifies what to
+open:
 
-See [nonlinear model equations and numerical limitations](nonlinear-fits.md).
+- `single-fit`: use the root equation, parameter values/fixed flags, exclusions,
+  units and uncertainty assumptions. All built-in and custom equations use the
+  same settings schema and file version.
+- `multi-interval`: X/Y assignments, uncertainty mode and retained common sigmas,
+  assumption acceptance, interval names/ranges, and each series' settings. Hidden
+  interval slots are retained; active interval and series indices restore the
+  selected controls.
+- `model-comparison`: two to six labeled candidates and the active candidate.
+  Each candidate contains a validated analysis, using the same request/settings/
+  engine/source fields as the root. It has no separate format, version or nested
+  workspace. Compatibility for statistical comparison is checked when fitting.
+- `collision`: time/four position assignments, separated before/after windows,
+  uncertainty mode/values and detail visibility.
 
-## Session v3 for custom equations — 2026-09-10
+`view` preserves residual, guide and error-bar visibility for every analysis.
+Interval/collision workspaces also retain shared X limits, per-graph Y limits and
+print-detail preferences. Appearance, single-fit graph mode/axis limits, output
+size, undo history, editor drafts and computed results are not serialized. Fits
+are recalculated explicitly after opening; saved starts are not re-suggested.
 
-Custom equations save as `tracker-fit-session`, version `3`, engine `qr-expression-4`, retaining `.trksess`. The strict structural schema is `schemas/tracker-fit-session.v3.json`. `settings.model` is `custom`; `settings.custom` records `expression`, `variable`, ordered `names`, and parallel `units`. `parameters` contains 1–8 finite starting values and fixed flags in that same order. Names must exactly match first occurrence in the parsed expression excluding the independent variable and reserved constants; unit entries may be blank (unknown). Apply the parser limits and syntax validation in [custom equations](custom-equations.md), in addition to all existing session semantic checks.
+The shared settings schema validates model-specific coefficient counts, positive
+widths/time constants, fixed flags and custom-expression grammar, names and
+units. Engines identify the current solver: `qr-vp-sine-2` for basis models,
+`qr-lm-3` for nonlinear built-ins, and `qr-expression-4` for custom equations.
+Adding an equation does not select another session format.
 
-The published v1 and v2 structures are unchanged. New builds accept all three session versions. Legacy models still save as v1, the five nonlinear built-ins as v2, and custom equations as v3. Older applications must reject v3 rather than discard the equation. Selecting a built-in again permits saving in its older format. Requests, original snapshots and acknowledgments remain v1; source tables and uncertainty assumptions retain their existing validation. Tracker and OSP code remain untouched.
+Validate every request and original snapshot, retained uncertainty map, exclusion
+identity, source-table association and nested candidate. Workspace validation also
+checks available/distinct columns, finite increasing ranges, positive sigmas,
+per-series settings/range counts and existing active indices. Collision windows
+must be separated. Incomplete numeric or equation drafts block saving.
 
-Versions 1–5 contain a single analysis. Multi-interval, comparison and collision workspaces use the explicit v6 migration below; no workspace fields are inserted into older versions.
+Open through **Data… → Load file**, then **Use these data**. Applying a session
+restores its saved analysis type and setup. Importing observations (CSV or request
+JSON) keeps the current workspace. Canceling review or keeping unsaved changes
+leaves current work intact. Candidate-specific file controls accept single-fit
+v7 sessions; other workspace files belong in the main loader.
 
-## Session v4 for additional model families — 2026-09-14
+### Conversion of bundled examples
 
-Degree-5 through degree-10 polynomials (`polynomial-5` … `polynomial-10`), `exponential-growth`, and `sigmoid` save as `tracker-fit-session`, version `4`. The structural schema is `schemas/tracker-fit-session.v4.json`. Polynomial coefficients are `c0` through `cN` in increasing power order, with N+1 finite values and fixed flags; their engine remains `qr-vp-sine-2`. Growth uses `b`, `A`, `tau`; logistic sigmoid uses `b`, `A`, `x0`, `w`. These use engine `qr-lm-3`, with positive tau or w. A mismatched model/engine pair is rejected.
+All 40 checked-in `.trksess` examples were converted together. For former single
+fits, conversion sets version 7, adds `workspace: {kind: "single-fit"}`, and sets
+view defaults to residuals/error bars on and guides off. Existing multi-fit
+workspace and view objects are preserved. Candidate analyses use unversioned
+analysis objects. The former `qr-mgs2-1` label is updated to the current basis
+solver identifier; equations, parameter meanings and numerical algorithms are
+unchanged. The nonlinear/custom protocol examples now have filenames without
+obsolete version suffixes.
 
-The published v1–v3 schemas are unchanged. New builds read all four session versions. Degree 2–4 polynomials retain their original `quadratic`, `cubic`, and `quartic` identities and v1 encoding. The supplied-rate exponential remains valid in old files and can still be edited when loaded; it is omitted from the chooser for new analyses because the decay/growth models allow a fixed time constant. The constant-acceleration and supplied-period sine choices are likewise hidden for new analyses but retained when loading their saved models. New sinusoid analyses use `sine-free-period`, with T fixed when a supplied period is desired. No automatic conversion alters old coefficients, uncertainty assumptions, or fit results. Requests and acknowledgments stay v1 and the `.trksess` extension is retained. Older readers must reject v4.
+Before conversion, every file was validated and its inputs and available fit
+results recorded. After conversion, requests, originals, exact source tables,
+settings and saved workspace/view fields were compared in full, and single-fit
+coefficients, objective, sample size, rank and degrees of freedom reproduced
+exactly. Original data CSV files were not rewritten. Cavendish retains both damped
+fits using elapsed seconds.
 
-## Session v5 for adjustable Gaussian peaks — 2026-09-14
-
-`gaussian-shape` saves as `tracker-fit-session` version `5` with engine `qr-lm-3`,
-using `schemas/tracker-fit-session.v5.json`. Its six ordered parameters are
-`[b, A, mu, w, skew, tail]` with finite values and fixed flags; w and tail must
-be strictly positive. b/A have Y units, mu/w have X units, and skew/tail are
-dimensionless. w is a width scale, not generally a standard deviation. The
-mode-centered equation and derived moment conventions are in [peak shapes](peak-shapes.md).
-
-Enabling either Gaussian shape option preserves the four existing parameter
-values and flags, adds skew = 0 and tail = 1, and frees the selected option.
-Disabling an option fixes it at its Gaussian value. Disabling both returns to
-the original `gaussian` identity and v2. No observations or uncertainty assumptions
-change during these transitions. Derived moments and fit results are not serialized.
-
-Published v1–v4 schemas remain unchanged. New builds read all five session
-versions; older readers must reject v5 rather than approximate the peak.
-Requests, original snapshots and acknowledgments stay v1; `.trksess` is retained.
-Native envelope validation accepts v5, and full semantic validation runs on
-import and save. Candidate session exports preserve each model's own version.
-
-See [equation families and notation](equation-families.md) for menu organization and validation scope.
-
-## Session v6 for saved workspaces — 2026-09-15
-
-**Save session** in multi-interval, model-comparison or collision mode writes one
-`tracker-fit-session` version `6` file, retaining `.trksess`. The strict schema is
-`schemas/tracker-fit-session.v6.json`. It preserves the active workspace; other
-hidden workspaces are not included. Single fits continue saving as versions 1–5
-according to their model, with the published schemas unchanged. Requests,
-original snapshots and acknowledgments remain v1. Older readers must reject v6.
-
-The root request/settings/engine retain the source analysis, and `dataTable` is
-required so unused columns, exact cell text, row identities, headings and units
-survive. The root engine must match its model. `workspace.kind` selects:
-
-- `multi-interval`: X/Y column assignments, estimate/supplied uncertainty mode,
-  retained common sigmas, assumption acceptance, interval names/ranges, and each
-  series' equation, custom units, starting values and fixed flags. All interval
-  slots are retained when the displayed count is reduced; active interval and
-  series indices identify the open controls.
-- `model-comparison`: two to six labeled candidates, each containing a complete
-  validated v1–v5 analysis, plus the active candidate. Independent snapshots,
-  exclusions, uncertainties, original requests and source tables are retained.
-  Compatibility for statistical comparison is checked when fitting, not assumed
-  by saving the file. Nested workspaces are not permitted.
-- `collision`: time and four position assignments, separated before/after
-  windows, uncertainty mode/values, assumption acceptance and detail visibility.
-
-`view` preserves residual, guide and error-bar visibility. Interval and collision
-workspaces also preserve shared X limits, individual data-graph Y limits and the
-print-details preference. Appearance, output size, undo histories, uncommitted
-editor drafts and computed results are not serialized. Restored starts remain as
-saved until edited or another equation is chosen; they are not re-suggested on
-load. Opening a workspace never fits automatically.
-
-Validate every nested analysis and the source table, available/distinct columns,
-finite increasing ranges, positive supplied sigmas, per-series settings counts,
-shared interval equation, existing row references and active indices. A blank
-unselected interval may have a null range. Collision windows must be separated.
-Incomplete numbers or unapplied equations block saving. Import validation occurs
-before Data review, and again after review before replacement. Failed imports
-preserve current work. The native envelope gate accepts v6; TypeScript applies
-the complete semantic checks before acknowledgment or save.
-
-Open a workspace through **Data… → Load file**, then **Use these data**. Opening
-a session restores its saved analysis setup, including switching from an existing
-workspace to a single fit for v1–v5 files. Importing observations (CSV or request
-JSON) keeps the selected workspace. Canceling review or keeping unsaved changes
-leaves the current setup intact. Candidate
-file controls still accept individual v1–v5 sessions; they direct workspace files
-to the main loader. Fit the restored candidates or intervals explicitly to
-recalculate results. The measured Cavendish example in `examples/data/cavendish/`
-contains the original CSV and a two-interval session using elapsed seconds.
+Unconverted personal v1–v6 sessions do not open in this build; keep their originals
+for explicit offline conversion using the field mapping above. Never relabel an
+unknown version on import or silently discard its fields. Future incompatible
+structure changes require another documented migration; only one current session
+format should remain in the application.

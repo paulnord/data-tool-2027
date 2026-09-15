@@ -1,8 +1,7 @@
 import { validateEquation, type CustomEquation } from "./customEquation";
 import { higherPolynomialIds, polynomialDegree } from "./polynomialModels";
 import {
-  nonlinearV2ModelIds,
-  additionalNonlinearModelIds,
+  nonlinearModelIds,
   nonlinearModels,
   isNonlinearModel,
 } from "./nonlinearModels";
@@ -131,7 +130,15 @@ export const requestSchema = requestObjectSchema.superRefine((r, ctx) => {
       message: "Correlation contradicts asserted independence",
     });
 });
-export const settingsV1Schema = z
+const customSchema = z
+  .object({
+    expression: z.string().min(1).max(1000),
+    variable: z.string().min(1).max(64),
+    names: z.array(z.string().min(1).max(64)).min(1).max(8),
+    units: z.array(z.string().max(100)).min(1).max(8),
+  })
+  .strict();
+export const settingsSchema = z
   .object({
     model: z.enum([
       "line",
@@ -145,11 +152,15 @@ export const settingsV1Schema = z
       "power-law",
       "reciprocal",
       "constant-acceleration",
+      ...higherPolynomialIds,
+      ...nonlinearModelIds,
+      "custom",
     ]),
     parameters: z
       .array(z.object({ value: finite, fixed: z.boolean() }).strict())
-      .min(2)
-      .max(5),
+      .min(1)
+      .max(11),
+    custom: customSchema.optional(),
     sinePeriod: finite.positive().optional(),
     periodMin: finite.positive().optional(),
     periodMax: finite.positive().optional(),
@@ -188,110 +199,26 @@ function checkSettings(
     });
   if (s.model === "sine-free-period" && !(s.parameters[3]?.value > 0))
     ctx.addIssue({ code: "custom", message: "Period must be positive" });
+  if (isNonlinearModel(s.model))
+    for (const j of nonlinearModels[s.model].positive)
+      if (!(s.parameters[j]?.value > 0))
+        ctx.addIssue({
+          code: "custom",
+          message: `${nonlinearModels[s.model].names[j]} must be positive`,
+        });
+  try {
+    if (s.model === "custom") {
+      if (!s.custom) throw Error("Custom equation is required");
+      validateEquation(s.custom);
+    } else if (s.custom)
+      throw Error("Custom equation is only valid for a custom model");
+  } catch (error) {
+    ctx.addIssue({ code: "custom", message: String(error) });
+  }
   if (new Set(s.excludedIds).size !== s.excludedIds.length)
     ctx.addIssue({ code: "custom", message: "Duplicate exclusion identity" });
 }
 
-export const settingsV2Schema = settingsV1Schema
-  .extend({
-    model: z.enum([
-      ...settingsV1Schema.shape.model.options,
-      ...nonlinearV2ModelIds,
-    ]),
-  })
-  .superRefine(checkSettings)
-  .superRefine((s, ctx) => {
-    if (isNonlinearModel(s.model))
-      for (const j of nonlinearModels[s.model].positive) {
-        if (!(s.parameters[j]?.value > 0))
-          ctx.addIssue({
-            code: "custom",
-            message: `${nonlinearModels[s.model].names[j]} must be positive`,
-          });
-      }
-  });
-const customSchema = z
-  .object({
-    expression: z.string().min(1).max(1000),
-    variable: z.string().min(1).max(64),
-    names: z.array(z.string().min(1).max(64)).min(1).max(8),
-    units: z.array(z.string().max(100)).min(1).max(8),
-  })
-  .strict();
-export const settingsV3Schema = settingsV2Schema
-  .extend({
-    model: z.enum([...settingsV2Schema.shape.model.options, "custom"]),
-    parameters: z
-      .array(z.object({ value: finite, fixed: z.boolean() }).strict())
-      .min(1)
-      .max(8),
-    custom: customSchema.optional(),
-  })
-  .superRefine(checkSettings)
-  .superRefine((s, ctx) => {
-    try {
-      if (s.model === "custom") {
-        if (!s.custom) throw Error("Custom equation is required");
-        validateEquation(s.custom);
-      } else {
-        if (s.custom)
-          throw Error("Custom equation is only valid for a custom model");
-        settingsV2Schema.parse(s);
-      }
-    } catch (error) {
-      ctx.addIssue({ code: "custom", message: String(error) });
-    }
-  });
-export const settingsV4Schema = settingsV2Schema
-  .extend({
-    model: z.enum([...higherPolynomialIds, ...additionalNonlinearModelIds]),
-    parameters: z
-      .array(z.object({ value: finite, fixed: z.boolean() }).strict())
-      .min(3)
-      .max(11),
-    custom: customSchema.optional(),
-  })
-  .superRefine(checkSettings)
-  .superRefine((s, ctx) => {
-    if (s.custom)
-      ctx.addIssue({
-        code: "custom",
-        message: "Custom equation is only valid for a custom model",
-      });
-    if (isNonlinearModel(s.model))
-      for (const j of nonlinearModels[s.model].positive)
-        if (!(s.parameters[j]?.value > 0))
-          ctx.addIssue({
-            code: "custom",
-            message: `${nonlinearModels[s.model].names[j]} must be positive`,
-          });
-  });
-export const settingsV5Schema = settingsV4Schema
-  .extend({
-    model: z.literal("gaussian-shape"),
-    parameters: z
-      .array(z.object({ value: finite, fixed: z.boolean() }).strict())
-      .length(6),
-  })
-  .superRefine(checkSettings)
-  .superRefine((s, ctx) => {
-    if (s.custom)
-      ctx.addIssue({
-        code: "custom",
-        message: "Custom equation is only valid for a custom model",
-      });
-    for (const i of [3, 5])
-      if (!(s.parameters[i]?.value > 0))
-        ctx.addIssue({
-          code: "custom",
-          message: `${nonlinearModels["gaussian-shape"].names[i]} must be positive`,
-        });
-  });
-export const settingsSchema = z.union([
-  settingsV3Schema,
-  settingsV4Schema,
-  settingsV5Schema,
-]);
 export const dataTableSchema = z
   .object({
     cells: z.array(z.array(z.string()).max(1000)).max(100001),
@@ -304,55 +231,23 @@ export const dataTableSchema = z
   })
   .strict();
 export type DataTable = z.infer<typeof dataTableSchema>;
-const sessionV1Object = z
+const analysisObjectSchema = z
   .object({
-    format: z.literal("tracker-fit-session"),
-    version: z.literal(1),
     request: requestSchema,
     originalRequest: requestSchema.optional(),
     dataTable: dataTableSchema.optional(),
-    settings: settingsV1Schema,
-    engine: z.enum(["qr-mgs2-1", "qr-vp-sine-2"]),
+    settings: settingsSchema,
+    engine: z.enum(["qr-vp-sine-2", "qr-lm-3", "qr-expression-4"]),
   })
   .strict();
-const sessionV2Object = sessionV1Object.extend({
-  version: z.literal(2),
-  settings: settingsV2Schema,
-  engine: z.literal("qr-lm-3"),
-});
-const sessionV3Object = sessionV1Object.extend({
-  version: z.literal(3),
-  settings: settingsV3Schema,
-  engine: z.literal("qr-expression-4"),
-});
-const sessionV4Object = sessionV1Object.extend({
-  version: z.literal(4),
-  settings: settingsV4Schema,
-  engine: z.enum(["qr-vp-sine-2", "qr-lm-3"]),
-});
-const sessionV5Object = sessionV1Object.extend({
-  version: z.literal(5),
-  settings: settingsV5Schema,
-  engine: z.literal("qr-lm-3"),
-});
-function checkSession(
-  s:
-    | z.infer<typeof sessionV1Object>
-    | z.infer<typeof sessionV2Object>
-    | z.infer<typeof sessionV3Object>
-    | z.infer<typeof sessionV4Object>
-    | z.infer<typeof sessionV5Object>,
+function checkAnalysis(
+  s: z.infer<typeof analysisObjectSchema>,
   ctx: z.RefinementCtx,
 ) {
-  if (s.version === 4 && s.engine !== sessionEngine(s.settings))
+  if (s.engine !== sessionEngine(s.settings))
     ctx.addIssue({
       code: "custom",
       message: "Session engine does not match model",
-    });
-  if (s.settings.model === "sine-free-period" && s.engine === "qr-mgs2-1")
-    ctx.addIssue({
-      code: "custom",
-      message: "Fitted-period sine requires engine qr-vp-sine-2",
     });
   if (s.settings.retainedPerRowUncertainty) {
     const retained = requestSchema.safeParse({
@@ -428,18 +323,9 @@ function checkSession(
       message: "Exclusion references an unknown row",
     });
 }
-export const sessionV1Schema = sessionV1Object.superRefine(checkSession);
-export const sessionV2Schema = sessionV2Object.superRefine(checkSession);
-export const sessionV3Schema = sessionV3Object.superRefine(checkSession);
-export const sessionV4Schema = sessionV4Object.superRefine(checkSession);
-export const sessionV5Schema = sessionV5Object.superRefine(checkSession);
-export const singleSessionSchema = z.discriminatedUnion("version", [
-  sessionV1Schema,
-  sessionV2Schema,
-  sessionV3Schema,
-  sessionV4Schema,
-  sessionV5Schema,
-]);
+/** An analysis has no file envelope; candidates use the same validated inputs. */
+export const analysisSchema = analysisObjectSchema.superRefine(checkAnalysis);
+export type FitAnalysis = z.infer<typeof analysisSchema>;
 const axisRangeSchema = z
   .tuple([finite, finite])
   .refine(([lo, hi]) => lo < hi, "Range minimum must be below maximum");
@@ -488,7 +374,7 @@ export const comparisonWorkspaceSchema = z
         z
           .object({
             label: text,
-            analysis: singleSessionSchema,
+            analysis: analysisSchema,
           })
           .strict(),
       )
@@ -507,6 +393,7 @@ export const collisionWorkspaceSchema = workspaceDisplaySchema.extend({
   details: z.boolean(),
 });
 export const workspaceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("single-fit") }).strict(),
   multiIntervalWorkspaceSchema,
   comparisonWorkspaceSchema,
   collisionWorkspaceSchema,
@@ -524,36 +411,27 @@ export const workspaceViewSchema = z
     showErrorBars: z.boolean(),
   })
   .strict();
-const sessionV6Object = sessionV1Object.extend({
-  version: z.literal(6),
-  settings: settingsSchema,
-  engine: z.enum(["qr-vp-sine-2", "qr-lm-3", "qr-expression-4"]),
-  dataTable: dataTableSchema,
+export const SESSION_VERSION = 7 as const;
+const sessionObjectSchema = analysisObjectSchema.extend({
+  format: z.literal("tracker-fit-session"),
+  version: z.literal(SESSION_VERSION, {
+    error:
+      "Unsupported session version. This build opens session version 7 only.",
+  }),
   workspace: workspaceSchema,
   view: workspaceViewSchema,
 });
-/** Version 6 saves one active workspace. Results are always recalculated. */
-export const sessionV6Schema = sessionV6Object.superRefine((s, ctx) => {
-  // Reuse the complete legacy analysis validation without weakening v1–v5.
-  const source = singleSessionSchema.safeParse({
-    format: s.format,
-    version: sessionVersion(s.settings),
-    engine: s.engine,
-    request: s.request,
-    originalRequest: s.originalRequest,
-    dataTable: s.dataTable,
-    settings: s.settings,
-  });
-  if (!source.success)
-    for (const issue of source.error.issues) ctx.addIssue(issue);
-  if (s.engine !== sessionEngine(s.settings))
-    ctx.addIssue({
-      code: "custom",
-      message: "Session engine does not match model",
-    });
+/** One current file format for every equation and analysis workspace. */
+export const sessionSchema = sessionObjectSchema.superRefine((s, ctx) => {
+  checkAnalysis(s, ctx);
   const w = s.workspace;
   const fail = (message: string) =>
     ctx.addIssue({ code: "custom", path: ["workspace"], message });
+  if (w.kind === "single-fit") return;
+  if (!s.dataTable) {
+    fail("A multi-fit workspace requires its source table");
+    return;
+  }
   if (w.kind === "model-comparison") {
     if (w.activeCandidate >= w.candidates.length)
       fail("Active candidate is out of range");
@@ -613,33 +491,36 @@ export const sessionV6Schema = sessionV6Object.superRefine((s, ctx) => {
     }
   }
 });
-export const sessionSchema = z.discriminatedUnion("version", [
-  sessionV1Schema,
-  sessionV2Schema,
-  sessionV3Schema,
-  sessionV4Schema,
-  sessionV5Schema,
-  sessionV6Schema,
-]);
-export const sessionVersion = (settings: { model: string }) =>
-  settings.model === "gaussian-shape"
-    ? (5 as const)
-    : (higherPolynomialIds as readonly string[]).includes(settings.model) ||
-        (additionalNonlinearModelIds as readonly string[]).includes(
-          settings.model,
-        )
-      ? (4 as const)
-      : settings.model === "custom"
-        ? (3 as const)
-        : isNonlinearModel(settings.model)
-          ? (2 as const)
-          : (1 as const);
 export const sessionEngine = (settings: { model: string }) =>
   settings.model === "custom"
     ? ("qr-expression-4" as const)
     : isNonlinearModel(settings.model)
       ? ("qr-lm-3" as const)
       : ("qr-vp-sine-2" as const);
+/** Construct a current session; file import itself never fills missing fields. */
+export function createSession(
+  analysis: Omit<FitAnalysis, "engine">,
+  workspace: FitWorkspace = { kind: "single-fit" },
+  view: z.infer<typeof workspaceViewSchema> = {
+    showResiduals: true,
+    showGuides: false,
+    showErrorBars: true,
+  },
+): FitSession {
+  return sessionSchema.parse({
+    format: "tracker-fit-session",
+    version: SESSION_VERSION,
+    request: analysis.request,
+    settings: analysis.settings,
+    ...(analysis.originalRequest
+      ? { originalRequest: analysis.originalRequest }
+      : {}),
+    ...(analysis.dataTable ? { dataTable: analysis.dataTable } : {}),
+    engine: sessionEngine(analysis.settings),
+    workspace,
+    view,
+  });
+}
 export const acknowledgmentSchema = z.discriminatedUnion("status", [
   z
     .object({
@@ -662,7 +543,7 @@ export const acknowledgmentSchema = z.discriminatedUnion("status", [
 export type FitRequest = z.infer<typeof requestSchema>;
 export type FitSettings = z.infer<typeof settingsSchema>;
 export type FitSession = z.infer<typeof sessionSchema>;
-const legacyParameterNames: Record<string, string[]> = {
+const basisParameterNames: Record<string, string[]> = {
   line: ["b", "m"],
   logarithmic: ["b", "a"],
   sine: ["b", "s", "c"],
@@ -681,7 +562,7 @@ export function parameterNames(
   if (degree !== undefined)
     return Array.from({ length: degree + 1 }, (_, i) => `c${i}`);
   if (isNonlinearModel(model)) return nonlinearModels[model].names;
-  return legacyParameterNames[model] ?? [];
+  return basisParameterNames[model] ?? [];
 }
 export function initialSettings(
   model: FitSettings["model"] = "constant-acceleration",

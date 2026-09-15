@@ -38,7 +38,7 @@ fn atomic_text(path: &Path, data: &str) -> Result<()> {atomic_bytes(path,data.as
 fn validate_fit_json(data: &str) -> Result<()> {
     if data.len()>20_000_000 {return Err("Fit file exceeds 20 MB".into())}
     let value: serde_json::Value = serde_json::from_str(data).map_err(err)?;
-    if !((value["version"] == 1 && matches!(value["format"].as_str(),Some("tracker-fit-request"|"tracker-fit-session"))) || ((value["version"] == 2 || value["version"] == 3 || value["version"] == 4 || value["version"] == 5 || value["version"] == 6) && value["format"] == "tracker-fit-session")) {return Err("Unsupported fit file".into())}
+    if !((value["version"] == 1 && value["format"] == "tracker-fit-request") || (value["version"] == 7 && value["format"] == "tracker-fit-session")) {return Err("Unsupported fit file: expected request v1 or session v7".into())}
     Ok(())
 }
 #[tauri::command]
@@ -200,16 +200,15 @@ mod tests {
         File::create(&path).unwrap().set_len(100_000_001).unwrap();
         assert!(read_archive_bytes(&path).is_err());
     }
-    #[test] fn legacy_envelopes_and_acknowledgments() {
+    #[test] fn current_envelopes_and_acknowledgments() {
         validate_fit_json(r#"{"format":"tracker-fit-request","version":1}"#).unwrap();
         assert!(validate_fit_json(r#"{"format":"tracker-2027","version":1}"#).is_err());
         assert!(validate_fit_json(r#"{"format":"tracker-fit-request","version":2}"#).is_err());
-        validate_fit_json(r#"{"format":"tracker-fit-session","version":2}"#).unwrap();
-        validate_fit_json(r#"{"format":"tracker-fit-session","version":3}"#).unwrap();
-        validate_fit_json(r#"{"format":"tracker-fit-session","version":4}"#).unwrap();
-        validate_fit_json(r#"{"format":"tracker-fit-session","version":5}"#).unwrap();
-        validate_fit_json(r#"{"format":"tracker-fit-session","version":6}"#).unwrap();
-        assert!(validate_fit_json(r#"{"format":"tracker-fit-session","version":7}"#).is_err());
+        validate_fit_json(r#"{"format":"tracker-fit-session","version":7}"#).unwrap();
+        for version in [0,1,2,3,4,5,6,8] {
+            assert!(validate_fit_json(&format!(r#"{{"format":"tracker-fit-session","version":{version}}}"#)).is_err());
+        }
+
         validate_ack(r#"{"format":"tracker-fit-ack","version":1,"requestId":"e7c00000-0000-4000-8000-000000000001","status":"accepted"}"#).unwrap();
         assert!(validate_ack(r#"{"format":"tracker-fit-ack","version":1,"status":"error"}"#).is_err());
     }

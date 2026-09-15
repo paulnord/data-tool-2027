@@ -1,7 +1,4 @@
 {
-  "format": "tracker-fit-session",
-  "version": 2,
-  "engine": "qr-lm-3",
   "request": {
     "format": "tracker-fit-request",
     "version": 1,
@@ -14,7 +11,7 @@
     },
     "dataset": {
       "id": "gaussian-v2",
-      "label": "Gaussian \u00b7 synthetic protocol fixture",
+      "label": "Gaussian · synthetic protocol fixture",
       "xColumn": {
         "id": "t",
         "label": "Time",
@@ -33,7 +30,7 @@
       "rows": [
         {
           "id": "row-0",
-          "x": -4.0,
+          "x": -4,
           "y": 0.19653142330254988,
           "included": true,
           "missingReason": null
@@ -103,7 +100,7 @@
         },
         {
           "id": "row-10",
-          "x": -3.0,
+          "x": -3,
           "y": 0.23844756584216426,
           "included": true,
           "missingReason": null
@@ -173,7 +170,7 @@
         },
         {
           "id": "row-20",
-          "x": -2.0,
+          "x": -2,
           "y": 0.23863352447004477,
           "included": true,
           "missingReason": null
@@ -243,7 +240,7 @@
         },
         {
           "id": "row-30",
-          "x": -1.0,
+          "x": -1,
           "y": 0.8767363648780991,
           "included": true,
           "missingReason": null
@@ -313,7 +310,7 @@
         },
         {
           "id": "row-40",
-          "x": 0.0,
+          "x": 0,
           "y": 2.8460483684112448,
           "included": true,
           "missingReason": null
@@ -383,7 +380,7 @@
         },
         {
           "id": "row-50",
-          "x": 1.0,
+          "x": 1,
           "y": 2.4483486609376683,
           "included": true,
           "missingReason": null
@@ -453,7 +450,7 @@
         },
         {
           "id": "row-60",
-          "x": 2.0,
+          "x": 2,
           "y": 0.6409319941577071,
           "included": true,
           "missingReason": null
@@ -523,7 +520,7 @@
         },
         {
           "id": "row-70",
-          "x": 3.0,
+          "x": 3,
           "y": 0.21081889611671753,
           "included": true,
           "missingReason": null
@@ -593,7 +590,7 @@
         },
         {
           "id": "row-80",
-          "x": 4.0,
+          "x": 4,
           "y": 0.20820819835288173,
           "included": true,
           "missingReason": null
@@ -601,8 +598,8 @@
       ]
     },
     "uncertainty": {
-      "kind": "unknown-equal",
-      "errorStructure": "unknown"
+      "errorStructure": "unknown",
+      "kind": "unknown-equal"
     }
   },
   "settings": {
@@ -629,5 +626,16 @@
     "conditionalInference": false,
     "physicalTimeConfirmed": false,
     "selectionAfterInspection": false
+  },
+  "engine": "qr-lm-3",
+  "format": "tracker-fit-session",
+  "version": 7,
+  "workspace": {
+    "kind": "single-fit"
+  },
+  "view": {
+    "showResiduals": true,
+    "showGuides": false,
+    "showErrorBars": true
   }
 }

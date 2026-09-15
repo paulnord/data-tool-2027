@@ -25,14 +25,14 @@ Polynomials use the existing column-scaled, pivoted, twice-reorthogonalized QR a
 
 Custom equations retain their existing eight-parameter limit. Conversion to a custom equation is disabled for degree 8–10 polynomials, whose 9–11 coefficients exceed it. They still support fixed coefficients, uncertainty controls, reports, comparison, and SciPy/ROOT exports.
 
-[Session v4](integration.md#session-v4-for-additional-model-families--2026-09-14) handles the added models without changing v1–v3 files. Independent reference fixtures in `tests/fit/extended-model-reference.json` are generated with SciPy least squares, complex-step Jacobians, and SVD covariance. Checks cover fitted and fixed coefficients, starting suggestions, analytic derivatives, rank failure, positive widths, and session boundaries. These are numerical validation cases, not a claim that every dataset or nonlinear starting point will converge.
+[Session v7](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15) covers every equation and workspace. Independent reference fixtures in `tests/fit/extended-model-reference.json` are generated with SciPy least squares, complex-step Jacobians, and SVD covariance. Checks cover fitted and fixed coefficients, starting suggestions, analytic derivatives, rank failure, positive widths, and session boundaries. These are numerical validation cases, not a claim that every dataset or nonlinear starting point will converge.
 
 ## Peak shape
 
 Gaussian peaks offer optional skew and tail controls, with derived skewness and
 excess kurtosis. Both off gives an ordinary Gaussian; see [peak shape definitions,
 validation and limits](peak-shapes.md). These settings are shared across analysis
-views and preserved in session v5 and SciPy/ROOT exports.
+views and preserved in session v7 and SciPy/ROOT exports.
 
 ## Number display
 

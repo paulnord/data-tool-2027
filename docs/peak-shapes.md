@@ -58,8 +58,8 @@ tail-only and joint fits are checked, along with the Gaussian limit, analytic
 derivatives, and propagated moment uncertainties. Actual exported SciPy and ROOT
 programs also reproduce all three fits and moments.
 
-Sessions use the documented [v5 migration](integration.md#session-v5-for-adjustable-gaussian-peaks--2026-09-14).
-Disabling both options returns to the ordinary Gaussian and v2. SciPy/ROOT exports
+Sessions use the documented [current format](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15).
+Disabling both options returns to the ordinary Gaussian within the same session format. SciPy/ROOT exports
 contain editable model, fit, plot and moment routines. **Edit as custom equation**
 is unavailable for this model because the current custom-expression language
 cannot express its mode-root calculation.

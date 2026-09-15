@@ -36,6 +36,84 @@ async function settings(page: Page, label: string, checked: boolean) {
   await page.getByLabel(label, { exact: true }).setChecked(checked);
   await page.locator(".fit-settings-menu summary").click();
 }
+test("retired session versions are rejected without replacing the current interval setup", async ({
+  page,
+}) => {
+  await load(page, cavendish);
+  await page.getByLabel("Interval from", { exact: true }).fill("100");
+  const current = JSON.parse(
+    readFileSync("examples/data/ball-toss.trksess", "utf8"),
+  );
+  for (const version of [1, 2, 3, 4, 5, 6, 8]) {
+    await review(page, { ...current, version });
+    await expect(page.locator(".fit-error")).toContainText(
+      "This build opens session version 7 only",
+    );
+    await expect(
+      page.getByRole("button", { name: "Use these data", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+      "multi-interval",
+    );
+    await expect(page.getByLabel("Interval from", { exact: true })).toHaveValue(
+      "100",
+    );
+  }
+});
+test("single-fit sessions preserve view preferences and protect unsaved view changes", async ({
+  page,
+}) => {
+  await load(page, "examples/data/ball-toss.trksess");
+  await save(page);
+  const unsaved = () =>
+    page.evaluate(() => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  expect(await unsaved()).toBe(false);
+  await settings(page, "Show residual plots", false);
+  expect(await unsaved()).toBe(true);
+  await settings(page, "Show fit guides when available", true);
+  const saved = await save(page);
+  expect(saved.workspace).toEqual({ kind: "single-fit" });
+  expect(saved.view).toEqual({
+    showResiduals: false,
+    showGuides: true,
+    showErrorBars: true,
+  });
+  expect(await unsaved()).toBe(false);
+  await load(page, cavendish);
+  await review(page, saved);
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+    saved.settings.model,
+  );
+  expect(await save(page)).toEqual(saved);
+});
+test("changing columns during session review validates the resulting analysis and solver", async ({
+  page,
+}) => {
+  await load(page, cavendish);
+  await review(page, "examples/data/published/ba137m-decay.trksess");
+  const panel = page.getByRole("dialog", { name: "Data", exact: true });
+  await panel.getByLabel("x column", { exact: true }).selectOption("1");
+  await panel.getByLabel("y column", { exact: true }).selectOption("0");
+  await panel
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+    "line",
+  );
+  const saved = await save(page);
+  expect(saved.version).toBe(7);
+  expect(saved.engine).toBe("qr-vp-sine-2");
+  expect(saved.request.dataset.rows[0]).toMatchObject({ x: 173.8, y: 0 });
+  expect(saved.dataTable.x).toBe(1);
+  expect(saved.dataTable.y).toBe(0);
+});
 test("Cavendish session opens both intervals in seconds and saves a complete restorable workspace", async ({
   page,
   context,
@@ -106,7 +184,7 @@ test("Cavendish session opens both intervals in seconds and saves a complete res
   }
   const original = JSON.parse(readFileSync(cavendish, "utf8"));
   const saved = await save(page);
-  expect(saved.version).toBe(6);
+  expect(saved.version).toBe(7);
   expect(saved.dataTable).toEqual(original.dataTable);
   expect(saved.request).toEqual(original.request);
   expect(saved.workspace.activeInterval).toBe(1);
@@ -319,10 +397,10 @@ for (const mode of ["multi-interval", "model-comparison", "collision"]) {
       page.getByLabel("Y uncertainty model", { exact: true }),
     ).toHaveValue("supplied-per-row");
     const restored = await save(page);
-    expect(restored.version).toBe(3);
+    expect(restored.version).toBe(7);
     expect(restored.settings).toEqual(saved.settings);
     expect(restored.request).toEqual(saved.request);
-    expect(restored.workspace).toBeUndefined();
+    expect(restored.workspace).toEqual({ kind: "single-fit" });
     // Previously visited candidate controls must not survive the new session.
     await page
       .getByLabel("Analysis", { exact: true })

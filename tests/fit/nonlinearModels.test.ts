@@ -4,8 +4,6 @@ import { fit, modelGradient, predict } from "../../src/core/fit/solve";
 import {
   initialSettings,
   sessionSchema,
-  sessionV1Schema,
-  sessionV2Schema,
   type FitRequest,
 } from "../../src/core/fit/schema";
 import {
@@ -186,24 +184,26 @@ for (const fixture of reference.fixtures) {
       expect(v).toBeCloseTo(fixture.cases[0].coefficients[j], 5),
     );
     const session = {
+      workspace: { kind: "single-fit" },
+      view: { showResiduals: true, showGuides: false, showErrorBars: true },
       format: "tracker-fit-session",
-      version: 2,
+      version: 7,
       engine: "qr-lm-3",
       request: r,
       settings,
     };
     expect(
       sessionSchema.parse(JSON.parse(JSON.stringify(session))).version,
-    ).toBe(2);
+    ).toBe(7);
     expect(
-      sessionV1Schema.safeParse({
+      sessionSchema.safeParse({
         ...session,
         version: 1,
         engine: "qr-vp-sine-2",
       }).success,
     ).toBe(false);
     expect(
-      sessionV2Schema.safeParse({
+      sessionSchema.safeParse({
         ...session,
         settings: { ...settings, excludedIds: ["not-a-row"] },
       }).success,

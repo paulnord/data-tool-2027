@@ -1,6 +1,4 @@
 {
-  "format": "tracker-fit-session",
-  "version": 1,
   "request": {
     "format": "tracker-fit-request",
     "version": 1,
@@ -627,5 +625,15 @@
     "physicalTimeConfirmed": false,
     "selectionAfterInspection": false
   },
-  "engine": "qr-vp-sine-2"
+  "engine": "qr-vp-sine-2",
+  "format": "tracker-fit-session",
+  "version": 7,
+  "workspace": {
+    "kind": "single-fit"
+  },
+  "view": {
+    "showResiduals": true,
+    "showGuides": false,
+    "showErrorBars": true
+  }
 }

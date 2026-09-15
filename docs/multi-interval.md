@@ -26,7 +26,7 @@ All are explicitly labeled synthetic with independent Gaussian scatter and a rep
 
 ## Persistence and compatibility
 
-**Save session** preserves the active multi-interval workspace in a v6 `.trksess`
+**Save session** preserves the active multi-interval workspace in a v7 `.trksess`
 file: complete source table, assignments, uncertainty settings, interval names
 and ranges, equations, per-series starting/fixed parameters and custom units,
 active controls, plot limits and guide/residual visibility. Hidden interval slots
@@ -36,8 +36,8 @@ Results and undo history are recalculated rather than stored. Incomplete numeric
 entries and unapplied equations must be resolved before saving. Other hidden
 workspaces are not part of this file; their unsaved-work protection remains active.
 
-The [v6 migration](integration.md#session-v6-for-saved-workspaces--2026-09-15)
-leaves request/ack v1 and all single-fit session versions unchanged. Import/save
+The [current format](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15)
+replaces session v1–v6 while leaving request/ack v1 unchanged. Import/save
 validation checks row associations, columns, settings and ranges. Core and browser
 tests cover persistence, invalid imports and reproduction of both Cavendish fits.
 

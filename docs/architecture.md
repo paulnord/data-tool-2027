@@ -8,6 +8,6 @@
 - `tests/`: scientific tests, independent references and deterministic test-data generators.
 - `e2e/`: fitting/data workflows and explicit empty-startup checks; no Tracker video tests.
 
-New analyses have zero observations, unspecified units and unknown uncertainty/assumptions. Nothing is implicitly fitted. Imported sessions retain the versioned compatibility schemas; invalid imports cannot replace the active analysis. Table edits and selection changes retain undo behavior. Labels/units never silently rescale values.
+New analyses have zero observations, unspecified units and unknown uncertainty/assumptions. Nothing is implicitly fitted. Imported sessions use the current v7 schema; invalid imports cannot replace the active analysis. Table edits and selection changes retain undo behavior. Labels/units never silently rescale values.
 
 The application identity is `org.opensourcephysics.datatool2027`, independent of Tracker. The source tree, build artifacts, local toolchains and Git repository are independent; neither program's build writes into the other directory. Future Tracker integration uses the documented file-and-process boundary.

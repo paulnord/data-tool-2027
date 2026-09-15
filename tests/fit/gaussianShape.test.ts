@@ -7,12 +7,7 @@ import {
   gaussianShapeMoments,
   gaussianShapeValueGradient,
 } from "../../src/core/fit/gaussianShape";
-import {
-  initialSettings,
-  sessionSchema,
-  sessionV5Schema,
-  sessionVersion,
-} from "../../src/core/fit/schema";
+import { initialSettings, sessionSchema } from "../../src/core/fit/schema";
 import { withPeakShape } from "../../src/core/fit/peakShapeSettings";
 import { fitDerivedQuantities } from "../../src/core/fit/derivedParameters";
 import { fit } from "../../src/core/fit/solve";
@@ -52,26 +47,30 @@ describe("adjustable Gaussian peak", () => {
       })[1].standardError.reason,
     ).toBe("zero-peak-amplitude");
   });
-  it("publishes a separate strict v5 structural schema", () => {
+  it("validates adjustable peaks with the current structural schema", () => {
     const { title, $comment, ...published } = JSON.parse(
-      readFileSync("schemas/tracker-fit-session.v5.json", "utf8"),
+      readFileSync("schemas/tracker-fit-session.v7.json", "utf8"),
     );
     expect(published).toEqual(
-      z.toJSONSchema(sessionV5Schema, { target: "draft-7" }),
+      z.toJSONSchema(sessionSchema, { target: "draft-7" }),
     );
     const validate = new Ajv({ strict: false, validateFormats: false }).compile(
       published,
     );
     const session = {
+      workspace: { kind: "single-fit" },
+      view: { showResiduals: true, showGuides: false, showErrorBars: true },
       format: "tracker-fit-session",
-      version: 5,
+      version: 7,
       engine: "qr-lm-3",
       request: syntheticRequest(),
       settings: initialSettings("gaussian-shape"),
     };
     expect(validate(session)).toBe(true);
     expect(validate({ ...session, version: 4 })).toBe(false);
-    expect(validate({ ...session, engine: "qr-vp-sine-2" })).toBe(false);
+    expect(
+      sessionSchema.safeParse({ ...session, engine: "qr-vp-sine-2" }).success,
+    ).toBe(false);
     expect(
       sessionSchema.safeParse({
         ...session,
@@ -128,7 +127,7 @@ describe("adjustable Gaussian peak", () => {
         }
       }
   });
-  it("toggles options immutably, counts only enabled parameters, and validates session v5", () => {
+  it("toggles options immutably, counts only enabled parameters, and validates the current session", () => {
     const plain = initialSettings("gaussian"),
       original = structuredClone(plain);
     const skew = withPeakShape(plain, "skew", true),
@@ -140,13 +139,15 @@ describe("adjustable Gaussian peak", () => {
     ).toEqual(plain);
     expect(plain).toEqual(original);
     const session = {
+      workspace: { kind: "single-fit" },
+      view: { showResiduals: true, showGuides: false, showErrorBars: true },
       format: "tracker-fit-session",
-      version: sessionVersion(both),
+      version: 7,
       engine: "qr-lm-3",
       request: syntheticRequest(),
       settings: both,
     };
-    expect(sessionSchema.parse(session).version).toBe(5);
+    expect(sessionSchema.parse(session).version).toBe(7);
     expect(sessionSchema.safeParse({ ...session, version: 4 }).success).toBe(
       false,
     );

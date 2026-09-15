@@ -126,7 +126,7 @@ test("Settings stays inside a scaled viewport, dismisses naturally, and identifi
   }
 });
 
-test("residual visibility reallocates the single-fit figure in the display, both print layouts, and SVG without changing the fit or session", async ({
+test("residual visibility reallocates the figure and is saved without changing fitted inputs or results", async ({
   page,
 }) => {
   await openData(page, "ball-toss.trksess");
@@ -177,7 +177,10 @@ test("residual visibility reallocates the single-fit figure in the display, both
   expect(await page.locator(".parameter-result").allTextContents()).toEqual(
     parameters,
   );
-  expect(await saveSession(page)).toEqual(saved);
+  expect(await saveSession(page)).toEqual({
+    ...saved,
+    view: { ...saved.view, showResiduals: false },
+  });
 
   const exported = await exportPlots(page);
   expect(exported.map((plot) => plot.label)).toEqual(["Data and fitted curve"]);

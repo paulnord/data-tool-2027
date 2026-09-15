@@ -1,6 +1,4 @@
 {
-  "format": "tracker-fit-session",
-  "version": 6,
   "request": {
     "format": "tracker-fit-request",
     "version": 1,
@@ -14787,6 +14785,8 @@
     "selectionAfterInspection": false
   },
   "engine": "qr-vp-sine-2",
+  "format": "tracker-fit-session",
+  "version": 7,
   "workspace": {
     "xRange": null,
     "yRanges": [

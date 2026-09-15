@@ -189,7 +189,7 @@ Appearance propagates to single fits, draft analyses, printing, and figure expor
 
 ### 5.4 Model guides and derived oscillation quantities
 
-Guides are model-provided presentation references, not arbitrary user equations or extra fitted components. The damped-sine model currently provides a baseline `y=b` and the symmetric envelope `b ± sqrt(s²+c²) exp(-x/tau)`. In the single-fit workspace, **Show fit guides when available** defaults off and controls both the baseline and envelopes, with exactly one baseline when enabled. These muted dotted/dashed guides remain subordinate to the fitted curve, affect automatic displayed Y bounds when visible, and carry through printing and figure/code exports. Multi-interval plots retain their existing labeled **b** guides independently of this single-fit preference. The preference is saved in v6 workspace sessions and never triggers a fit; single-fit v1–v5 schemas remain unchanged.
+Guides are model-provided presentation references, not arbitrary user equations or extra fitted components. The damped-sine model currently provides a baseline `y=b` and the symmetric envelope `b ± sqrt(s²+c²) exp(-x/tau)`. In the single-fit workspace, **Show fit guides when available** defaults off and controls both the baseline and envelopes, with exactly one baseline when enabled. These muted dotted/dashed guides remain subordinate to the fitted curve, affect automatic displayed Y bounds when visible, and carry through printing and figure/code exports. Multi-interval plots retain their existing labeled **b** guides independently of this single-fit preference. The preference is saved in every v7 session and never triggers a fit.
 
 Sine-family fits report amplitude, phase and frequency. First-order standard errors use the complete covariance; phase is relative to the current X origin and unavailable at zero amplitude, without an absolute threshold in the chosen Y units. The interface does not draw separate sine and cosine contributions because those components also change under an X-origin shift. Detailed equations are in [model comparison, guides and code export](model-comparison-and-code-export.md).
 
@@ -245,7 +245,7 @@ Custom equations are emitted from the validated syntax tree, with real-valued nu
 
 ## 7. Multiple fits and intervals
 
-The **Analysis** selector also offers model-comparison, collision and multi-interval workspaces. They use the same scientific core. Session v6 preserves the active workspace setup and observations; results are recalculated explicitly after reopening.
+The **Analysis** selector also offers model-comparison, collision and multi-interval workspaces. They use the same scientific core. Session v7 preserves the active workspace setup and observations; results are recalculated explicitly after reopening.
 
 ### 7.1 Model comparison
 
@@ -275,7 +275,7 @@ Per-column unknown scatter or supplied common sigma is supported; single-fit per
 
 ### 7.4 Workspace persistence
 
-Switching analyses preserves collision/interval setups and results while the source table is unchanged; editing/replacing source observations resets dependent interval work. Newly loaded main data are applied to comparison candidates after confirmation, retaining their equations and settings and clearing fitted results. **Save session** writes the active multi-interval, collision or model-comparison workspace in v6, with source data, per-fit settings, uncertainties, ranges and view preferences as specified in [the migration](integration.md#session-v6-for-saved-workspaces--2026-09-15). Reopening restores the active workspace and requires explicit refitting; results and undo history are not stored. Saving one workspace does not clear unsaved protection for other hidden workspaces. All legacy session schemas and request/ack v1 remain unchanged. Independent fits remain independent; saving does not imply a joint fit.
+Switching analyses preserves collision/interval setups and results while the source table is unchanged; editing/replacing source observations resets dependent interval work. Newly loaded main data are applied to comparison candidates after confirmation, retaining their equations and settings and clearing fitted results. **Save session** writes the active multi-interval, collision or model-comparison workspace in v7, with source data, per-fit settings, uncertainties, ranges and view preferences as specified in [the migration](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15). Reopening restores the active workspace and requires explicit refitting; results and undo history are not stored. Saving one workspace does not clear unsaved protection for other hidden workspaces. Only session v7 is supported; request/ack v1 remains unchanged. Independent fits remain independent; saving does not imply a joint fit.
 
 Single-fit and model-comparison reports use measured paper previews. Collision and multi-interval workspaces retain separate print layouts and native pagination that require their own validation.
 
@@ -285,18 +285,13 @@ Single-fit and model-comparison reports use measured paper previews. Collision a
 
 Keep the established `tracker-fit-*` format names even though the program is independently branded. Validate both structure and semantics before importing or saving. Unknown versions/engines, duplicate row/exclusion identities, invalid uncertainty associations, inconsistent source tables, and incompatible settings are errors, not best-effort conversions.
 
-| File                                               | Current version / engine                                                       | Compatibility rule                                                                            |
-| -------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `tracker-fit-request`                              | v1                                                                             | Immutable numerical request; remains v1 inside all current sessions.                          |
-| `tracker-fit-ack`                                  | v1                                                                             | Accepted/error envelope correlated by request UUID.                                           |
-| `tracker-fit-session` for legacy built-ins         | v1; current writer `qr-vp-sine-2`, compatible older `qr-mgs2-1` reader support | Published v1 model set and engine constraints remain intact.                                  |
-| Session for the five newer nonlinear built-ins     | v2; `qr-lm-3`                                                                  | Explicit documented nonlinear migration.                                                      |
-| Session for custom expressions                     | v3; `qr-expression-4`                                                          | Includes exact expression, independent variable, ordered names/units, values and fixed flags. |
-| Session for higher polynomials, growth and sigmoid | v4; `qr-vp-sine-2` or `qr-lm-3`                                                | Explicit model and engine matching.                                                           |
-| Session for adjustable Gaussian peaks              | v5; `qr-lm-3`                                                                  | Six parameters with positive width and tail.                                                  |
-| Active multi-fit workspace                         | v6; root engine matches its source model                                       | Preserves source table and workspace; candidates embed validated single-fit sessions.         |
+| File                  | Current version / engine | Compatibility rule                                                                         |
+| --------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
+| `tracker-fit-request` | v1                       | Immutable numerical request; remains v1 inside all current sessions.                       |
+| `tracker-fit-ack`     | v1                       | Accepted/error envelope correlated by request UUID.                                        |
+| `tracker-fit-session` | v7                       | One format for every equation and workspace; root and candidate analyses share validation. |
 
-All six session versions use `.trksess`. Current readers accept them; older readers must reject unknown versions rather than approximate or discard unsupported equations. Choosing a legacy built-in permits saving in its applicable older version. Original requests and acknowledgments stay v1. Full schemas and migration detail are in [integration.md](integration.md).
+Session files use `.trksess` and only version 7 is supported. Opening older or unknown versions fails without replacing work. Bundled examples were converted from the retired formats. Model changes do not change the file version. Requests, original snapshots and acknowledgments remain v1. See the [current format and pre-beta migration](integration.md).
 
 ### 8.2 Tracker import and process integration
 
@@ -338,7 +333,7 @@ A rebuild should first freeze representative sessions, numerical fixtures, and o
 | Guarded model comparison                                                                           | Both candidates refit; incompatible samples/likelihoods block; normalized log likelihood and parameter-counted AIC/AICc/weights/BIC match reference formulas. `model-comparison.spec.ts`, core comparison tests. |
 | CSV-backed SciPy/ROOT analysis bundle                                                              | ZIP layout, round-trippable CSV/masks/missing values, JSON metadata, alternate-input CLI, custom AST translation and unknown-scatter conventions are tested. `guides-code-export.spec.ts`, `codeExport.test.ts`. |
 | Switching among single/multi-interval/collision modes                                              | Correct active graphs/report, unaffected results retained, affected work invalidated, unsupported draft saving explicitly disabled.                                                                              |
-| Legacy/v2/v3 sessions and native acknowledgment                                                    | Validated compatibility and correct request correlation; accepted means staged review. Schema, workflow, and integration tests.                                                                                  |
+| Current sessions, rejected versions and native acknowledgment                                      | Validated compatibility and correct request correlation; accepted means staged review. Schema, workflow, and integration tests.                                                                                  |
 
 Required repository checks are `npm test`, `npm run build`, and `npm run test:e2e`. Native host changes additionally require `npm run test:desktop`; protocol/launcher work should exercise `npm run test:integration`. Hosted changes should exercise the actual base-path build and `npm run test:web`. Keep reference generation reproducible and separate from the runtime. Release checks must validate the final source state, not an earlier partially implemented layout.
 
@@ -379,4 +374,4 @@ The next implementation is successful when a user can confidently move from exac
 
 The [September 2026 usability audit](usability-audit-2026-09-12.md) records reproducible findings, local corrections, verification, and remaining design decisions, including the distinction between saved fit provenance and later source-note edits in draft workspaces.
 
-The shared equation chooser groups related functions and supports polynomial degrees 2–10. See [equation families](equation-families.md) for the additional growth/sigmoid models, numerical limits, and session v4.
+The shared equation chooser groups related functions and supports polynomial degrees 2–10. See [equation families](equation-families.md) for the additional growth/sigmoid models, numerical limits, and the current session format.

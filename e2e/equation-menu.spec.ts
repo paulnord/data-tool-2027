@@ -6,7 +6,6 @@ const reference: {
 import { syntheticRequest } from "../tests/support/synthetic";
 import {
   initialSettings,
-  sessionVersion,
   sessionEngine,
   type FitSettings,
 } from "../src/core/fit/schema";
@@ -63,7 +62,7 @@ test("polynomial family and degree selector are shared by main, comparison and i
 });
 
 for (const model of ["exponential-growth", "sigmoid"] as const)
-  test(`${model} fits, fixes shape, saves v4 and reopens without changing the equation`, async ({
+  test(`${model} fits, fixes shape, saves v7 and reopens without changing the equation`, async ({
     page,
   }) => {
     const fixture = reference.fixtures.find((f) => f.model === model)!;
@@ -81,8 +80,10 @@ for (const model of ["exponential-growth", "sigmoid"] as const)
       fixed: false,
     }));
     const session = {
+      workspace: { kind: "single-fit" },
+      view: { showResiduals: true, showGuides: false, showErrorBars: true },
       format: "tracker-fit-session",
-      version: sessionVersion(settings),
+      version: 7,
       engine: sessionEngine(settings),
       settings,
       request,
@@ -110,7 +111,7 @@ for (const model of ["exponential-growth", "sigmoid"] as const)
       .getByRole("button", { name: "Save session", exact: true })
       .click();
     const bytes = readFileSync((await (await downloaded).path())!);
-    expect(JSON.parse(bytes.toString()).version).toBe(4);
+    expect(JSON.parse(bytes.toString()).version).toBe(7);
     await page.locator('input[type="file"]').first().setInputFiles({
       name: "saved.trksess",
       mimeType: "application/json",
@@ -161,8 +162,10 @@ test("reference symbols are absent from built-in equations and reports; old fixe
       mimeType: "application/json",
       buffer: Buffer.from(
         JSON.stringify({
+          workspace: { kind: "single-fit" },
+          view: { showResiduals: true, showGuides: false, showErrorBars: true },
           format: "tracker-fit-session",
-          version: 1,
+          version: 7,
           engine: sessionEngine(settings),
           settings,
           request,

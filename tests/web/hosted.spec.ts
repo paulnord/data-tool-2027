@@ -118,7 +118,7 @@ test("app metadata and ordinary example downloads are available", async ({
       files["Data Tool examples/cavendish/cavendish-multi-interval.trksess"],
     ),
   );
-  expect(workspace.version).toBe(6);
+  expect(workspace.version).toBe(7);
   expect(workspace.workspace.kind).toBe("multi-interval");
   expect(workspace.request.dataset.xColumn.unit).toBe("s");
 });

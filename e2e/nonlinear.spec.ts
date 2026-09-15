@@ -8,7 +8,7 @@ const cases = [
   ["lorentzian", "gamma", 0.6],
 ] as const;
 for (const [model, parameter, truth] of cases)
-  test(`${model}: ordinary CSV, fit, fix parameter, print and v2 reopen`, async ({
+  test(`${model}: ordinary CSV, fit, fix parameter, print and session reopen`, async ({
     page,
   }) => {
     await page.goto("/");
@@ -48,7 +48,7 @@ for (const [model, parameter, truth] of cases)
     const file = await promise;
     const bytes = readFileSync((await file.path())!);
     const session = JSON.parse(bytes.toString());
-    expect(session.version).toBe(2);
+    expect(session.version).toBe(7);
     expect(session.engine).toBe("qr-lm-3");
     expect(session.request.version).toBe(1);
     await page.getByRole("button", { name: "Print", exact: true }).click();

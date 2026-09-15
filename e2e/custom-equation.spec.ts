@@ -45,7 +45,7 @@ test("custom equation fits, preserves units, prints and round trips", async ({
   await page.getByRole("button", { name: "Save session", exact: true }).click();
   const file = (await (await promise).path())!;
   const saved = JSON.parse(readFileSync(file, "utf8"));
-  expect(saved.version).toBe(3);
+  expect(saved.version).toBe(7);
   expect(saved.settings.custom.units).toEqual(["m", "mH"]);
   await page.reload();
   await page.locator("input[type=file]").setInputFiles({

@@ -173,8 +173,10 @@ describe("delimited input and immutable corrections", () => {
     const session = sessionSchema.parse(
       JSON.parse(
         JSON.stringify({
+          workspace: { kind: "single-fit" },
+          view: { showResiduals: true, showGuides: false, showErrorBars: true },
           format: "tracker-fit-session",
-          version: 1,
+          version: 7,
           ...edited,
           originalRequest: original,
           engine: "qr-vp-sine-2",
@@ -213,8 +215,10 @@ describe("delimited input and immutable corrections", () => {
     });
     expect(() =>
       sessionSchema.parse({
+        workspace: { kind: "single-fit" },
+        view: { showResiduals: true, showGuides: false, showErrorBars: true },
         format: "tracker-fit-session",
-        version: 1,
+        version: 7,
         ...repaired,
         originalRequest: { ...r, derived: 1 },
         engine: "qr-vp-sine-2",

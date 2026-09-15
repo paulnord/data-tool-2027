@@ -152,7 +152,7 @@ test("comparison opens directly with data, uses chosen uncertainties, and preser
   const workspaceSession = JSON.parse(
     await readFile((await (await pendingSession).path())!, "utf8"),
   );
-  expect(workspaceSession.version).toBe(6);
+  expect(workspaceSession.version).toBe(7);
   const saved = workspaceSession.workspace.candidates[1].analysis;
   expect(saved.settings.custom.units).toContain("mH");
   expect(saved.request.dataset.rows).toEqual(request.dataset.rows);

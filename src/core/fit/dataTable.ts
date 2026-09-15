@@ -22,7 +22,7 @@ export type TableAnalysis = {
   settings: FitSettings;
   dataTable?: DataTable;
 };
-/** Older sessions reconstruct a table from their preserved analysis inputs. */
+/** Reconstruct a table when an analysis contains numeric observations only. */
 export function tableForAnalysis(analysis: TableAnalysis): DataTable {
   if (analysis.dataTable) return analysis.dataTable;
   const { request: r, settings: s } = analysis;

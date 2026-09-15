@@ -4,8 +4,12 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 app=root/'src-tauri/target/release/bundle/macos/Data Tool 2027.app/Contents/MacOS/data-tool-2027'
 with tempfile.TemporaryDirectory(prefix='data-tool-integration-') as tmp:
- for fixture,expected in [('synthetic-request.json','accepted'),('synthetic-session.trksess','accepted'),('nonlinear-session-v2.trksess','accepted'),('custom-session-v3.trksess','accepted'),('invalid-extra-field.json','error'),('cavendish-multi-interval.trksess','accepted')]:
-  input_path=root/('examples/data/cavendish' if fixture == 'cavendish-multi-interval.trksess' else 'examples/fit')/fixture
+ unsupported=Path(tmp)/'unsupported-session.trksess'
+ retired=json.loads((root/'examples/fit/synthetic-session.trksess').read_text())
+ retired['version']=6
+ unsupported.write_text(json.dumps(retired))
+ for fixture,expected in [('synthetic-request.json','accepted'),('synthetic-session.trksess','accepted'),('nonlinear-session.trksess','accepted'),('custom-session.trksess','accepted'),('invalid-extra-field.json','error'),('unsupported-session.trksess','error'),('cavendish-multi-interval.trksess','accepted')]:
+  input_path=unsupported if fixture == 'unsupported-session.trksess' else root/('examples/data/cavendish' if fixture == 'cavendish-multi-interval.trksess' else 'examples/fit')/fixture
   ack=Path(tmp)/(fixture+'.ack.json')
   process=subprocess.Popen([str(app),'--open',str(input_path),'--ack',str(ack)])
   try:

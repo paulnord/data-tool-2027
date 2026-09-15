@@ -13,8 +13,7 @@ import { searchPeriod } from "./periodSearch";
 import { polynomialDegree } from "./polynomialModels";
 import {
   requestSchema,
-  sessionSchema,
-  sessionVersion,
+  analysisSchema,
   sessionEngine,
   type FitRequest,
   type FitSettings,
@@ -144,9 +143,7 @@ export function modelGradient(
   ];
 }
 export function fit(request: FitRequest, settings: FitSettings): FitResult {
-  sessionSchema.parse({
-    format: "tracker-fit-session",
-    version: sessionVersion(settings),
+  analysisSchema.parse({
     request,
     settings,
     engine: sessionEngine(settings),

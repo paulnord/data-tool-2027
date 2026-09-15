@@ -42,8 +42,10 @@ describe("Tracker numerical snapshot import", () => {
     const saved = sessionSchema.parse(
       JSON.parse(
         JSON.stringify({
+          workspace: { kind: "single-fit" },
+          view: { showResiduals: true, showGuides: false, showErrorBars: true },
           format: "tracker-fit-session",
-          version: 1,
+          version: 7,
           ...timed,
           engine: "qr-vp-sine-2",
         }),

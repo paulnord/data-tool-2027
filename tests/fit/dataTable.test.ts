@@ -33,8 +33,10 @@ it("retains all source columns and assignments through a validated session round
   const saved = sessionSchema.parse(
     JSON.parse(
       JSON.stringify({
+        workspace: { kind: "single-fit" },
+        view: { showResiduals: true, showGuides: false, showErrorBars: true },
         format: "tracker-fit-session",
-        version: 1,
+        version: 7,
         ...a,
         engine: "qr-vp-sine-2",
       }),
@@ -131,8 +133,10 @@ it("reopening equal weighting keeps retained point errors, stable IDs and exclus
   const reopen = sessionSchema.parse(
     JSON.parse(
       JSON.stringify({
+        workspace: { kind: "single-fit" },
+        view: { showResiduals: true, showGuides: false, showErrorBars: true },
         format: "tracker-fit-session",
-        version: 1,
+        version: 7,
         ...edited,
         engine: "qr-vp-sine-2",
       }),
@@ -173,8 +177,10 @@ it("copies preamble records to source context and preserves edited notes on reop
   const reopened = sessionSchema.parse(
     JSON.parse(
       JSON.stringify({
+        workspace: { kind: "single-fit" },
+        view: { showResiduals: true, showGuides: false, showErrorBars: true },
         format: "tracker-fit-session",
-        version: 1,
+        version: 7,
         ...edited,
         engine: "qr-vp-sine-2",
       }),
@@ -193,8 +199,10 @@ it("retains an explicit source filename through title edits and session round tr
   const saved = sessionSchema.parse(
     JSON.parse(
       JSON.stringify({
+        workspace: { kind: "single-fit" },
+        view: { showResiduals: true, showGuides: false, showErrorBars: true },
         format: "tracker-fit-session",
-        version: 1,
+        version: 7,
         ...edited,
         engine: "qr-vp-sine-2",
       }),

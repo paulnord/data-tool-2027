@@ -4,7 +4,7 @@ Independent local-data fitting app extracted from Tracker 2027. Only modify this
 
 TypeScript scientific core in src/core/fit is independent of UI and native APIs. Preserve exact observations, explicit units, uncertainty assumptions, rank diagnostics and immutable state. No video engine, network service or telemetry. Default startup is an empty table. Examples are ordinary files opened through the file chooser; never add example-selection menus to either window. Unit entry is case-sensitive: disable capitalization, autocorrection, spell-checking and autocomplete. Preserve symbols such as m and mH exactly as typed.
 
-Keep the versioned tracker-fit-request/session/ack v1 protocol and .trksess compatibility until a documented migration supersedes them. See docs/integration.md; the five nonlinear model additions use the documented session v2 migration while requests and acknowledgments stay v1. Validate before import/save; failed imports preserve work.
+Support only tracker-fit-session v7 (.trksess), with one format for single fits and all workspaces. The documented pre-beta migration in docs/integration.md supersedes session v1–v6 compatibility. Requests and acknowledgments remain v1. Convert bundled examples when the session structure changes; do not introduce model-specific session versions. Validate before import/save; failed imports preserve work.
 
 Documentation and in-app guidance present a general-purpose numerical analysis tool. Explain implemented methods, statistical conventions, validation evidence and limitations in accessible language. Keep lab-report assignments and course-specific advice out of the software. Cite specific methods and references rather than claiming blanket standards compliance or certification.
 

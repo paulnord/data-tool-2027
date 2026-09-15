@@ -7,7 +7,6 @@ import {
 import {
   initialSettings,
   sessionSchema,
-  sessionVersion,
   sessionEngine,
   type FitSettings,
 } from "../../src/core/fit/schema";
@@ -130,11 +129,13 @@ it("matches independently calculated SciPy nonlinear optimum and covariance", ()
   s.conditionalInference = true;
   expect(fit(r, s).covariance).toBeNull();
 });
-it("round trips v3 strictly and rejects reinterpretation by v1/v2", () => {
+it("round trips custom sessions strictly and rejects unsupported versions", () => {
   const s = settings("b+m*x", [1, 2]);
   const session = {
+    workspace: { kind: "single-fit" },
+    view: { showResiduals: true, showGuides: false, showErrorBars: true },
     format: "tracker-fit-session",
-    version: sessionVersion(s),
+    version: 7,
     engine: sessionEngine(s),
     settings: s,
     request: syntheticRequest(),
@@ -163,15 +164,23 @@ it("round trips v3 strictly and rejects reinterpretation by v1/v2", () => {
 it("converts every built-in equation without changing its curve or fixed values", async () => {
   const { customFromModel } =
     await import("../../src/core/fit/customFromModel");
-  const { settingsV2Schema } = await import("../../src/core/fit/schema");
+  const { settingsSchema } = await import("../../src/core/fit/schema");
   const { predict } = await import("../../src/core/fit/solve");
-  for (const model of settingsV2Schema.shape.model.options) {
+  for (const model of settingsSchema.shape.model.options.filter(
+    (m) => m !== "custom" && m !== "gaussian-shape",
+  )) {
     const original = initialSettings(model);
     if (
       !model.includes("free") &&
       original.parameters.every((p) => p.value === 0)
     )
       original.parameters.forEach((p, i) => (p.value = i + 1));
+    if (original.parameters.length > 8) {
+      expect(() => customFromModel(original, syntheticRequest())).toThrow(
+        /at most eight/,
+      );
+      continue;
+    }
     const converted = customFromModel(original, syntheticRequest());
     for (const x of [0.5, 1, 2])
       expect(

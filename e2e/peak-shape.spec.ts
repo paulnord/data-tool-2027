@@ -1,11 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { syntheticRequest } from "../tests/support/synthetic";
-import {
-  initialSettings,
-  sessionVersion,
-  sessionEngine,
-} from "../src/core/fit/schema";
+import { initialSettings, sessionEngine } from "../src/core/fit/schema";
 const reference: {
   cases: { x: number[]; y: number[]; sigma: number; start: number[] }[];
 } = JSON.parse(readFileSync("tests/fit/peak-shape-reference.json", "utf8"));
@@ -32,8 +28,10 @@ function peakSession() {
     .slice(0, 4)
     .map((value) => ({ value, fixed: false }));
   return {
+    workspace: { kind: "single-fit" },
+    view: { showResiduals: true, showGuides: false, showErrorBars: true },
     format: "tracker-fit-session",
-    version: sessionVersion(settings),
+    version: 7,
     engine: sessionEngine(settings),
     request,
     settings,
@@ -58,7 +56,7 @@ async function run(page: Page) {
     .click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
 }
-test("Gaussian shape controls fit, save v5, reopen, and return to ordinary Gaussian", async ({
+test("Gaussian shape controls fit, save v7, reopen, and return to ordinary Gaussian", async ({
   page,
 }, info) => {
   await page.goto("/");
@@ -91,7 +89,7 @@ test("Gaussian shape controls fit, save v5, reopen, and return to ordinary Gauss
   await page.getByRole("button", { name: "Save session", exact: true }).click();
   const bytes = readFileSync((await (await pending).path())!);
   const saved = JSON.parse(bytes.toString());
-  expect(saved.version).toBe(5);
+  expect(saved.version).toBe(7);
   expect(
     saved.settings.parameters.filter((p: { fixed: boolean }) => !p.fixed),
   ).toHaveLength(6);
@@ -165,9 +163,9 @@ test("comparison retains peak controls, guides, moments and candidate session ex
   const restored = JSON.parse(
     readFileSync((await (await pending).path())!, "utf8"),
   );
-  expect(restored.version).toBe(6);
+  expect(restored.version).toBe(7);
   const saved = restored.workspace.candidates[0].analysis;
-  expect(saved.version).toBe(5);
+  expect(saved.version).toBeUndefined();
   expect(saved.settings.model).toBe("gaussian-shape");
 });
 

@@ -36,6 +36,6 @@ Tests compare coefficients, weighted objectives and full covariance, check analy
 
 The scientific core remains independent of React, native APIs, file access and generators. All random generation and independent numerical reference tooling stay under tests/scripts.
 
-The additional exponential-growth and logistic-sigmoid models are described in [equation families](equation-families.md) and use session v4.
+The additional exponential-growth and logistic-sigmoid models are described in [equation families](equation-families.md) and use session v7.
 
-Gaussian peaks also support optional [skew and tail controls](peak-shapes.md), using session v5. The Lorentzian CSV includes its original per-point generating uncertainties; assign the third column as Y uncertainty on import.
+Gaussian peaks also support optional [skew and tail controls](peak-shapes.md), using session v7. The Lorentzian CSV includes its original per-point generating uncertainties; assign the third column as Y uncertainty on import.

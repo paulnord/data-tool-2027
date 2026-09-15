@@ -68,7 +68,7 @@ test("log modes preserve fits and session data, use original tick units, and pri
   const saved = JSON.parse(
     readFileSync((await (await download).path())!, "utf8"),
   );
-  expect(saved.version).toBe(1);
+  expect(saved.version).toBe(7);
   expect(saved.request.dataset.rows.map((r: { y: number }) => r.y)).toEqual([
     -10, 0, 10, 100, 1000,
   ]);

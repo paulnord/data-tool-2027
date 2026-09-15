@@ -1,5 +1,7 @@
 # PR #5 verification and corrections
 
+Historical release record. Current development builds support only session v7; see the [pre-beta migration](integration.md).
+
 Verified on macOS arm64, 2026-09-14. These checks cover the shared model-comparison
 workspace, equation families, Gaussian peak shapes, fit guides, number display, and SciPy/ROOT analysis
 exports. They do not establish universal solver agreement or native printer

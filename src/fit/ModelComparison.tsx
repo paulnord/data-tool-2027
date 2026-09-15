@@ -22,7 +22,7 @@ import {
   generateCodeExportBundle,
   type CodeExportBundle,
 } from "../core/fit/codeExport";
-import { sessionVersion, sessionEngine } from "../core/fit/schema";
+import { sessionEngine } from "../core/fit/schema";
 import { fitReportTsv } from "../core/fit/report";
 import {
   useEffect,
@@ -46,7 +46,7 @@ import { statisticReasonText } from "../core/fit/diagnosticText";
 import {
   initialSettings,
   sessionSchema,
-  singleSessionSchema,
+  analysisSchema,
   type FitRequest,
   type FitSettings,
   type ComparisonWorkspace,
@@ -1237,9 +1237,7 @@ export default function ModelComparison({
       activeCandidate,
       candidates: drafts.map((draft) => ({
         label: draft.label,
-        analysis: singleSessionSchema.parse({
-          format: "tracker-fit-session",
-          version: sessionVersion(draft.settings),
+        analysis: analysisSchema.parse({
           request: draft.request,
           settings: draft.settings,
           originalRequest: draft.originalRequest,
@@ -1314,7 +1312,7 @@ export default function ModelComparison({
     }
     try {
       const session = sessionSchema.parse(JSON.parse(await file.text()));
-      if (session.version === 6)
+      if (session.workspace.kind !== "single-fit")
         throw new Error(
           "Open workspace sessions through Data… to restore the whole workspace.",
         );

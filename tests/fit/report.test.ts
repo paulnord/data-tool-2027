@@ -67,8 +67,10 @@ it("numbers observations by original input position while preserving stable iden
   };
   const s = { ...settings(), excludedIds: [request.dataset.rows[6].id] };
   const session = sessionSchema.parse({
+    workspace: { kind: "single-fit" },
+    view: { showResiduals: true, showGuides: false, showErrorBars: true },
     format: "tracker-fit-session",
-    version: 1,
+    version: 7,
     request,
     settings: s,
     engine: "qr-vp-sine-2",
@@ -219,8 +221,10 @@ it("uses the saved session basename only for generically named pasted datasets",
   request.dataset.label = "Pasted data";
   request.source.fileName = null;
   const session = sessionSchema.parse({
+    workspace: { kind: "single-fit" },
+    view: { showResiduals: true, showGuides: false, showErrorBars: true },
     format: "tracker-fit-session",
-    version: 1,
+    version: 7,
     request,
     settings: settings(),
     engine: "qr-vp-sine-2",

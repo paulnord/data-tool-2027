@@ -2,7 +2,7 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { unzipSync } from "fflate";
 import { ENGINE } from "../core/fit/solve";
 import { analysisFromTable } from "../core/fit/dataTable";
-import { sessionSchema, type DataTable } from "../core/fit/schema";
+import { analysisSchema, type DataTable } from "../core/fit/schema";
 
 const TRACKER = "org.opensourcephysics.cabrillo.tracker.";
 const MEDIA = "org.opensourcephysics.media.core.";
@@ -339,9 +339,7 @@ export function trackerAnalysis(
       ].join("\n"),
     },
   };
-  const validated = sessionSchema.parse({
-    format: "tracker-fit-session",
-    version: 1,
+  const validated = analysisSchema.parse({
     ...analysis,
     request,
     engine: ENGINE,

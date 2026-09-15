@@ -5,9 +5,8 @@ import Ajv from "ajv";
 import { z } from "zod/v4";
 import {
   initialSettings,
-  sessionV6Schema,
   sessionSchema,
-  singleSessionSchema,
+  analysisSchema,
   type MultiIntervalWorkspace,
 } from "../../src/core/fit/schema";
 import { tableForAnalysis } from "../../src/core/fit/dataTable";
@@ -16,7 +15,7 @@ import { fitInterval } from "../../src/core/fit/intervals";
 import { syntheticRequest } from "../support/synthetic";
 const examplePath = "examples/data/cavendish/";
 const example = () =>
-  sessionV6Schema.parse(
+  sessionSchema.parse(
     JSON.parse(
       readFileSync(examplePath + "cavendish-multi-interval.trksess", "utf8"),
     ),
@@ -43,9 +42,9 @@ export function multiSession() {
     yRanges: [[-2, 10]],
     includeDetails: true,
   };
-  return sessionV6Schema.parse({
+  return sessionSchema.parse({
     format: "tracker-fit-session",
-    version: 6,
+    version: 7,
     request,
     settings,
     dataTable,
@@ -60,7 +59,7 @@ it("Cavendish preserves every source field, missing row and elapsed-time assignm
   expect(createHash("sha256").update(csv).digest("hex")).toBe(
     "0380dd44f812bb372369a01fe73021e115bd843b188e4c6647e632adf621996b",
   );
-  expect(s.dataTable.cells).toEqual(parseDelimited(csv.toString(), ","));
+  expect(s.dataTable!.cells).toEqual(parseDelimited(csv.toString(), ","));
   expect(s.request.dataset.rows).toHaveLength(919);
   expect(s.request.dataset.rows.filter((r) => r.included)).toHaveLength(907);
   expect(s.request.dataset.xColumn.unit).toBe("s");
@@ -88,14 +87,12 @@ it("the Cavendish saved starting values reproduce both independent damped fits i
     expect(result.result!.inference).toBe("descriptive");
   }
 });
-it("v6 structural schema is reproducible and independently validates the example", () => {
+it("current structural schema is reproducible and independently validates the example", () => {
   const published = JSON.parse(
-    readFileSync("schemas/tracker-fit-session.v6.json", "utf8"),
+    readFileSync("schemas/tracker-fit-session.v7.json", "utf8"),
   );
   const { title: _, $comment: __, ...actual } = published;
-  expect(actual).toEqual(
-    z.toJSONSchema(sessionV6Schema, { target: "draft-7" }),
-  );
+  expect(actual).toEqual(z.toJSONSchema(sessionSchema, { target: "draft-7" }));
   const validate = new Ajv({ strict: false, validateFormats: false }).compile(
     published,
   );
@@ -106,10 +103,10 @@ it("workspace round trips preserve hidden intervals, separate curve units, const
   const s = multiSession();
   if (s.workspace.kind !== "multi-interval") throw Error("Wrong workspace");
   const w = s.workspace;
-  s.dataTable.cells.forEach((row, i) =>
+  s.dataTable!.cells.forEach((row, i) =>
     row.push(i ? String(i / 1000) : "Second Y"),
   );
-  s.dataTable.units = ["s", "m", "mH"];
+  s.dataTable!.units = ["s", "m", "mH"];
   w.columns.push(2);
   w.sigmas.push(0.007);
   w.yRanges.push(null);
@@ -145,7 +142,7 @@ const invalidCases: [
     (_, w) => (w.intervals[0].settings[0].parameters[0].value = NaN),
   ],
   ["blank name", (_, w) => (w.intervals[0].name = " ")],
-  ["changed source cell", (s) => (s.dataTable.cells[1][0] = "123")],
+  ["changed source cell", (s) => (s.dataTable!.cells[1][0] = "123")],
   ["source engine mismatch", (s) => (s.engine = "qr-lm-3")],
   ["bad axis limits", (_, w) => (w.xRange = [1, 1])],
 ];
@@ -158,19 +155,16 @@ it.each(invalidCases)(
     expect(sessionSchema.safeParse(s).success).toBe(false);
   },
 );
-it("comparison retains full candidate snapshots, legacy/custom engines and the active candidate", () => {
+it("comparison retains full candidate snapshots, built-in/custom engines and the active candidate", () => {
   const s = multiSession();
-  const base = singleSessionSchema.parse({
-    format: s.format,
-    version: 1,
+  const base = analysisSchema.parse({
     request: s.request,
     settings: s.settings,
     dataTable: s.dataTable,
     engine: s.engine,
   });
-  const custom = singleSessionSchema.parse({
+  const custom = analysisSchema.parse({
     ...base,
-    version: 3,
     settings: initialSettings("custom"),
     engine: "qr-expression-4",
   });
@@ -193,10 +187,10 @@ it("comparison retains full candidate snapshots, legacy/custom engines and the a
 });
 it("collision sessions validate channel assignments and ordered separated windows", () => {
   const s = multiSession();
-  s.dataTable.cells.forEach((r, i) =>
+  s.dataTable!.cells.forEach((r, i) =>
     r.push(...(i ? ["1", "2", "3"] : ["y2", "y3", "y4"])),
   );
-  s.dataTable.units.push("m", "m", "m");
+  s.dataTable!.units.push("m", "m", "m");
   const collision = {
     ...s,
     workspace: {

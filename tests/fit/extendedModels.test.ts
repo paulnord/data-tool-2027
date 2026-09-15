@@ -8,8 +8,6 @@ import { fit, predict, modelGradient } from "../../src/core/fit/solve";
 import {
   initialSettings,
   sessionSchema,
-  sessionV4Schema,
-  sessionVersion,
   sessionEngine,
   type FitSettings,
 } from "../../src/core/fit/schema";
@@ -62,13 +60,15 @@ for (const fixture of reference.fixtures) {
       expect(result.df).toBe(fixture.x.length - free.length);
       expect(JSON.stringify({ request, settings })).toBe(before);
       const session = {
+        workspace: { kind: "single-fit" },
+        view: { showResiduals: true, showGuides: false, showErrorBars: true },
         format: "tracker-fit-session",
-        version: sessionVersion(settings),
+        version: 7,
         engine: sessionEngine(settings),
         request,
         settings,
       };
-      expect(session.version).toBe(4);
+      expect(session.version).toBe(7);
       expect(sessionSchema.parse(JSON.parse(JSON.stringify(session)))).toEqual(
         session,
       );
@@ -104,20 +104,22 @@ for (const fixture of reference.fixtures) {
   });
 }
 
-it("v4 has a separate strict schema; invalid engines, parameter counts, widths and rank are rejected", () => {
+it("current schema is strict; invalid engines, parameter counts, widths and rank are rejected", () => {
   const {
     title: _,
     $comment: __,
     ...published
-  } = JSON.parse(readFileSync("schemas/tracker-fit-session.v4.json", "utf8"));
+  } = JSON.parse(readFileSync("schemas/tracker-fit-session.v7.json", "utf8"));
   expect(published).toEqual(
-    z.toJSONSchema(sessionV4Schema, { target: "draft-7" }),
+    z.toJSONSchema(sessionSchema, { target: "draft-7" }),
   );
   const settings = initialSettings("polynomial-10"),
     request = syntheticRequest();
   const session = {
+    workspace: { kind: "single-fit" },
+    view: { showResiduals: true, showGuides: false, showErrorBars: true },
     format: "tracker-fit-session",
-    version: 4,
+    version: 7,
     engine: sessionEngine(settings),
     settings,
     request,

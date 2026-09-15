@@ -103,8 +103,7 @@ import {
   parameterNames,
   requestSchema,
   sessionSchema,
-  sessionVersion,
-  sessionEngine,
+  createSession,
   type FitRequest,
   type FitSettings,
   type FitSession,
@@ -236,8 +235,7 @@ type State = {
   settings: FitSettings;
   originalRequest?: FitRequest;
   dataTable?: DataTable;
-  singleFitSession?: true;
-  workspaceSession?: Extract<FitSession, { version: 6 }>;
+  sessionFile?: FitSession;
 };
 function fresh(): State {
   return {
@@ -1421,6 +1419,10 @@ export default function FitApp() {
     if (comparisonOpen) draftChanged("model-comparison");
     else if (multiOpen) draftChanged("multi-interval");
     else if (collisionOpen) draftChanged("collision");
+    else {
+      workspaceRevision.current += 1;
+      setDirty(true);
+    }
   }
   const [mode, setMode] = useState<GraphMode>("linear");
   const [yRange, setYRange] = useState<AxisRange | null>(null);
@@ -1585,23 +1587,23 @@ export default function FitApp() {
     setXRange(null);
   }
   function replace(next: State) {
-    const { workspaceSession: restored, singleFitSession, ...analysis } = next;
+    const { sessionFile: restored, ...analysis } = next;
     setInitialWorkspace(restored?.workspace);
     dirtyWorkspaces.current.clear();
     workspaceRevision.current += 1;
-    if (restored || singleFitSession) {
-      setCollisionSource(restored ? analysis : null);
+    if (restored) {
+      setCollisionSource(
+        restored.workspace.kind === "single-fit" ? null : analysis,
+      );
       setCollisionRevision((v) => v + 1);
       setComparisonRevision((v) => v + 1);
       setMultiReady(false);
       setCollisionReady(false);
       setComparisonReady(false);
-      setMultiOpen(restored?.workspace.kind === "multi-interval");
-      setCollisionOpen(restored?.workspace.kind === "collision");
-      setComparisonOpen(restored?.workspace.kind === "model-comparison");
-      setComparisonVisited(restored?.workspace.kind === "model-comparison");
-    }
-    if (restored) {
+      setMultiOpen(restored.workspace.kind === "multi-interval");
+      setCollisionOpen(restored.workspace.kind === "collision");
+      setComparisonOpen(restored.workspace.kind === "model-comparison");
+      setComparisonVisited(restored.workspace.kind === "model-comparison");
       setShowResiduals(restored.view.showResiduals);
       setShowGuides(restored.view.showGuides);
       setShowErrorBars(restored.view.showErrorBars);
@@ -1741,9 +1743,7 @@ export default function FitApp() {
             settings: parsed.settings,
             originalRequest: parsed.originalRequest,
             dataTable: parsed.dataTable,
-            ...(parsed.version === 6
-              ? { workspaceSession: parsed }
-              : { singleFitSession: true }),
+            sessionFile: parsed,
           },
         });
       } else {
@@ -1817,19 +1817,16 @@ export default function FitApp() {
           : undefined;
     if ((comparisonOpen || multiOpen || collisionOpen) && !workspace)
       throw new Error("The workspace is still opening. Try saving again.");
-    return sessionSchema.parse({
-      format: "tracker-fit-session",
-      version: workspace ? 6 : sessionVersion(state.settings),
-      request: state.request,
-      settings: state.settings,
-      originalRequest: state.originalRequest,
-      dataTable: workspace ? tableForAnalysis(state) : state.dataTable,
-      engine: sessionEngine(state.settings),
-      ...(workspace
-        ? { workspace, view: { showResiduals, showGuides, showErrorBars } }
-        : {}),
-    });
+    return createSession(
+      {
+        ...state,
+        dataTable: workspace ? tableForAnalysis(state) : state.dataTable,
+      },
+      workspace ?? { kind: "single-fit" },
+      { showResiduals, showGuides, showErrorBars },
+    );
   }
+
   async function saveFile() {
     if (
       !comparisonOpen &&
@@ -1886,13 +1883,13 @@ export default function FitApp() {
           );
         }
         setDirty(false);
-        if (saved.version === 6)
+        if (saved.workspace.kind !== "single-fit")
           dirtyWorkspaces.current.delete(saved.workspace.kind);
         setUnsavedDraftWork(dirtyWorkspaces.current.size > 0);
       }
       setNotice(
         unchanged
-          ? saved.version === 6
+          ? saved.workspace.kind !== "single-fit"
             ? "Workspace session saved; reopen and fit to recalculate results"
             : "Session saved"
           : "Earlier version saved; newer changes remain unsaved",
@@ -2878,16 +2875,15 @@ export default function FitApp() {
                 let incoming: State = replacement
                   ? next
                   : { ...dataPanel.incoming, ...next };
-                if (incoming.workspaceSession) {
+                if (incoming.sessionFile) {
                   try {
-                    const { workspaceSession, ...analysis } = incoming;
-                    const parsed = sessionSchema.parse({
-                      ...workspaceSession,
-                      ...analysis,
-                    });
-                    if (parsed.version !== 6)
-                      throw new Error("Workspace session version changed");
-                    incoming = { ...analysis, workspaceSession: parsed };
+                    const { sessionFile, ...analysis } = incoming;
+                    const parsed = createSession(
+                      analysis,
+                      sessionFile.workspace,
+                      sessionFile.view,
+                    );
+                    incoming = { ...analysis, sessionFile: parsed };
                   } catch (cause) {
                     rejectImport(dataPanel.source, cause);
                     return;
@@ -2922,7 +2918,7 @@ export default function FitApp() {
                   ? comparisonOpen
                     ? "Apply these data to every comparison candidate? Existing fit results will be cleared."
                     : "Apply these data and discard the unsaved interval analyses?"
-                  : pending?.workspaceSession || pending?.singleFitSession
+                  : pending?.sessionFile
                     ? "Open the saved analysis setup and discard unsaved analysis changes?"
                     : pending && comparisonOpen
                       ? "Load the new dataset for every comparison candidate? Candidate equations and settings will be kept; existing fit results will be cleared."
@@ -3027,7 +3023,10 @@ export default function FitApp() {
                         type="checkbox"
                         checked={showErrorBars && u.kind !== "unknown-equal"}
                         disabled={u.kind === "unknown-equal"}
-                        onChange={(e) => setShowErrorBars(e.target.checked)}
+                        onChange={(e) => {
+                          viewChanged();
+                          setShowErrorBars(e.target.checked);
+                        }}
                       />
                       {u.kind === "unknown-equal"
                         ? "Error bars unavailable · σ unknown"

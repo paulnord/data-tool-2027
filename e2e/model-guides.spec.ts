@@ -5,7 +5,6 @@ import { syntheticRequest } from "../tests/support/synthetic";
 import {
   initialSettings,
   parameterNames,
-  sessionVersion,
   sessionEngine,
 } from "../src/core/fit/schema";
 import { predict } from "../src/core/fit/solve";
@@ -54,8 +53,14 @@ for (const model of [
         mimeType: "application/json",
         buffer: Buffer.from(
           JSON.stringify({
+            workspace: { kind: "single-fit" },
+            view: {
+              showResiduals: true,
+              showGuides: false,
+              showErrorBars: true,
+            },
             format: "tracker-fit-session",
-            version: sessionVersion(settings),
+            version: 7,
             engine: sessionEngine(settings),
             request,
             settings,

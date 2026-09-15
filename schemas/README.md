@@ -1,67 +1,44 @@
-# Fit interchange schemas (request/ack v1, sessions v1–v6)
+# Fit interchange schemas: request/ack v1, session v7
 
-Generate these files with `npm run schemas:fit`. They are generated from the strict Zod 4 schemas in `src/core/fit/schema.ts` using the Zod 4 entrypoint already included in the installed Zod package. Ajv is a development-only independent validator; no numerical runtime dependency was added. Format UUID checks are enforced by Zod; external validators should enable format validation.
+`tracker-fit-session.v7.json` is the only supported session schema. It covers
+single fits, multi-interval fits, model comparison and collision analysis. All
+models share one settings schema; file versions do not depend on the equation.
+The pre-beta migration replaces session v1–v6; see the [field contract and conversion](../docs/integration.md#one-session-format-v7--pre-beta-migration-2026-09-15).
 
-These draft-07 schemas define request, session and acknowledgment structures. They are ready for review, not a promise of upstream Tracker compatibility. Examples and intentionally invalid examples are in `examples/fit/`.
+Generate schemas with `npm run schemas:fit -- --schemas-only`. Omitting the flag
+also regenerates the synthetic protocol fixtures in the current format. These
+strict draft-07 schemas come from Zod in `src/core/fit/schema.ts`; Ajv independently
+validates the examples. External validators should enable UUID format validation.
+Generators are development tools, never production imports.
 
-JSON Schema alone does not express every cross-row invariant. After structural validation, adapters MUST also check:
+JSON Schema checks structure. The application also validates these semantic rules
+on import, before saving, and for numerical analysis before fitting:
 
-- Row IDs and exclusion IDs are unique; exclusions refer to existing rows.
-- Missing x/y requires a non-null reason and an excluded source row. Complete rows require a null reason.
-- Included source rows have supplied per-row uncertainties; uncertainty entries refer to existing rows.
+- Unique row and exclusion identities; exclusions and uncertainty maps reference
+  existing rows. Included rows have all required supplied uncertainties.
+- Missing X/Y values have a missing reason and cannot be included; complete rows
+  have a null reason. All numerical inputs remain finite in binary64.
 - Known correlation cannot coexist with asserted independent Gaussian errors.
-- Model parameter count is two for line/logarithmic, three for quadratic/constant acceleration/sine, four for cubic and five for quartic. Optional sinePeriod must be finite and positive; absent means 2π in the declared x-unit.
-- Values remain finite in the target binary64 representation, including JSON numbers that overflow a parser.
+- Model-specific parameter counts, positive widths/time constants and valid
+  ordered period bounds. The engine must match the model.
+- Custom expressions use the restricted grammar, exact first-occurrence parameter
+  order and matching names/units/parameters (1–8). Custom metadata is forbidden
+  for built-ins. Polynomial degree N requires N+1 coefficients (up to 11).
+- Optional retained per-row uncertainties are validated against the current
+  request just as active uncertainties are. Original snapshots are independently
+  validated and can retain earlier row sets and assumptions.
+- Source table rows, numbers, units and selected sigma column agree with the
+  current analysis. Preserve exact cell text and unused columns.
+- Every workspace has a kind and every file has view preferences. Multi-fit
+  workspaces require a source table. Candidate analyses have no file envelope or
+  nested workspace, and undergo the full analysis validation.
+- Workspace columns are distinct and available, with numeric or missing values.
+  Each series has settings and uncertainty/display-range entries. Supplied sigmas
+  are positive, intervals are finite and increasing, collision windows are
+  separated, and active indices refer to available controls.
 
-The application runs the same semantic validation after file import, before save and before solving. Requests contain snapshot inputs; sessions contain requests and editable analysis settings, without cached results. The engine version makes the currently selected numerical implementation explicit. Import of unknown engine versions is rejected in this preview.
-
-CLI file delivery and correlated acknowledgments are implemented and tested; see [integration](../docs/integration.md). The original Tracker adapter remains a separate project. Data Tool opens as an independent application.
-
-Draft v1 extension: cubic, quartic, logarithmic and sine model identifiers and optional sinePeriod were added on 2026-09-07. Existing v1 files remain valid without migration; older applications reject these new models and fields rather than silently interpreting them. The request format is unchanged. The QR engine identifier remains qr-mgs2-1 because the factorization and inference algorithms are unchanged. Natural log uses ln(x/xref), with xref exactly one declared x-unit; selected x must be positive. Sine uses a supplied period, with coefficient order b, s, c for b+s*sin(2πx/T)+c*cos(2πx/T). Uncertainty excludes uncertainty in the supplied period.
-
-Further draft v1 extension: sine-free-period (b, s, c, T), exponential (b, a), power-law (b, a), reciprocal (b, a). Required positive ordered periodMin/periodMax specify the sine search interval; T's parameter value must be positive, and its fixed flag bypasses the search. The optional finite shape setting is the exponential rate k (default −1, inverse x-unit) or power exponent p (default 2, dimensionless). Power and reciprocal use positive x normalized by one declared x-unit. New sessions use engine qr-vp-sine-2; old qr-mgs2-1 sessions still load without migration. Fitted-period sine requires the new engine identifier. Older apps reject the new identifiers and fields. No derived outputs are serialized.
-
-Session settings may now include retainedPerRowUncertainty: the original strict supplied-per-row uncertainty object (values, correlation structure and provenance). This optional canonical input preserves per-point uncertainties when a different noise model is active. Validate it against the current request's row identities, required uncertainties and assumption consistency just as for active uncertainty. It is retained through model changes and session round trips, but never transferred to a newly loaded dataset. Existing sessions still load without migration; older readers reject the new field explicitly. This does not change the numerical engine.
-
-Draft-v1 minor-edit extension: sessions optionally contain `originalRequest`, validated with the same complete request schema. It preserves the input before the first change; current request and original snapshot can have different rows, labels, uncertainty values and IDs after edits. Missing field is valid for older sessions. Older strict readers reject the extension rather than discard the original data. Undo history and fit results remain outside the saved format. Delimited imports preserve all mapped records; invalid numeric tokens block import, while empty x/y cells receive a missing reason and remain excluded.
-
-Draft-v1 unified Data extension: sessions optionally include `dataTable` with source `cells`, parallel stable `rowIds` (including headings), `headerRows`, zero-based `x`/`y`/nullable `sigma` assignments, and per-column `units`. Unused source columns and headings remain editable. Structural validation is strict. Semantic validation requires the mapped table rows and units to match the current request, distinct mapped columns, unique row IDs, and supplied/retained per-row uncertainties to agree with the selected sigma column. Older sessions reconstruct a table from their analysis inputs; older strict readers reject the new optional field. Fit results and temporary table undo history remain derived/runtime state.
-
-Draft v1 source metadata extension (2026-09-09): request.source may include `fileName`, a nonempty string or null. It records a known source basename independently of editable dataset labels and comments; null explicitly denotes data without a source file, such as a new pasted table. Legacy omission remains valid. On opening legacy JSON/session files, the app may record the supplied basename when the field is absent; it preserves explicit null and existing names. Session round trips retain the field, including inside originalRequest. Older strict readers reject this added field. This does not change the numerical engine.
-
-## Nonlinear session v2
-
-`tracker-fit-session.v2.json` adds five model IDs and uses engine `qr-lm-3`. The v1 schema is unchanged. New builds parse both session schemas; the request and acknowledgment formats remain v1. See [migration and save behavior](../docs/integration.md#session-v2-for-nonlinear-models--2026-09-09).
-
-In addition to the existing semantic checks, enforce parameter counts and domains: exponential-decay `[b,A,tau]` requires tau > 0; power-law-free `[b,A,n]` requires positive included x; gaussian `[b,A,mu,sigma]` requires sigma > 0; damped-sine `[b,s,c,T,tau]` requires T > 0 and tau > 0; lorentzian `[b,A,mu,gamma]` requires gamma > 0. Parameter names are documented labels; the file stores parameters in that order. Fixed/free flags retain their existing meaning. No new optional settings fields or snapshot fields are introduced.
-
-`npm run schemas:fit -- --schemas-only` regenerates just the structural schema files. Omitting that flag also regenerates the historical synthetic fixtures. Generators are development-only; none are imported by production code.
-
-## Custom equation session v3
-
-`tracker-fit-session.v3.json` adds `custom` settings and engine `qr-expression-4`. Enforce the restricted expression grammar, identifier and complexity limits, exact first-occurrence parameter order, matching parameter/name/unit lengths (1–8), and valid non-reserved independent variable. `custom` metadata is required for the custom model and forbidden on built-in models. Units are case-sensitive strings, with blank meaning unknown. Built-in settings still undergo their original count/domain checks. Requests and acknowledgments remain v1. See [v3 migration](../docs/integration.md#session-v3-for-custom-equations--2026-09-10).
-
-Session v4 adds degree-5 through degree-10 polynomials, exponential growth, and logistic sigmoid. Enforce the model-specific coefficient count, positive widths/time constants, and matching engine as described in [the migration](../docs/integration.md#session-v4-for-additional-model-families--2026-09-14); v1–v3 schemas remain unchanged.
-
-Session v5 adds `gaussian-shape` with engine `qr-lm-3` and exactly six parameters
-`[b,A,mu,w,skew,tail]`. Enforce finite values, strictly positive w and tail,
-and the existing row/table/uncertainty semantics. Custom-expression metadata is
-forbidden on this built-in model. See [v5 migration](../docs/integration.md#session-v5-for-adjustable-gaussian-peaks--2026-09-14).
-The v1–v4 schemas and request/ack v1 formats remain unchanged.
-
-## Workspace session v6
-
-The v6 schema adds a required source table, a tagged active workspace and view
-preferences. Every comparison candidate embeds a fully validated single-fit
-session (v1–v5); apply all its semantic checks. Candidate indices must exist.
-For interval/collision workspaces, X/time and Y assignments must be distinct
-available columns with numeric or missing cells. There must be one sigma entry
-and one nullable Y display range per series; supplied-mode sigmas must be
-positive. All non-null ranges are finite and increasing. Collision windows must
-be separated and ordered. Each interval needs settings for every series with
-the same equation, though parameter values, flags and units may differ. Exclusion
-IDs must exist in the source rows. The displayed interval count cannot exceed
-the stored slots, and active interval/series indices must be visible and valid.
-The root engine must match its settings. No cached results or nested workspaces
-are allowed. Published older schemas and request/ack v1 are unchanged.
-See the [migration and saved-field contract](../docs/integration.md#session-v6-for-saved-workspaces--2026-09-15).
+Sessions store editable inputs, not results or undo history. Single-fit, interval,
+comparison and collision setup are restored explicitly; no fit runs on opening.
+Requests and acknowledgments remain unchanged v1. Their protocol identifiers are
+not a promise of upstream Tracker compatibility; the adapter is a separate
+project. CLI acceptance means validated and staged for review, not fitted.

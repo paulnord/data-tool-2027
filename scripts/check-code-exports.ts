@@ -30,8 +30,8 @@ import { syntheticRequest } from "../tests/support/synthetic";
 const inputs = [
   "examples/data/ball-toss.trksess",
   "examples/fit/equal-weights-comparison.trksess",
-  "examples/fit/custom-session-v3.trksess",
-  "examples/fit/nonlinear-session-v2.trksess",
+  "examples/fit/custom-session.trksess",
+  "examples/fit/nonlinear-session.trksess",
   "examples/data/published/dyfeo3-spin-wave.trksess",
 ];
 const directory = mkdtempSync(join(tmpdir(), "data-tool-code-export-"));

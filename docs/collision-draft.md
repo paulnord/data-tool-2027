@@ -13,12 +13,12 @@ Changing a column, interval or uncertainty clears the draft results and disables
 ## Persistence and compatibility
 
 **Save session** writes the complete source table and active collision setup in a
-v6 `.trksess`: all five column assignments, both windows, uncertainty mode and
+v7 `.trksess`: all five column assignments, both windows, uncertainty mode and
 values, assumption acceptance, plot limits and detail preferences. Reopen it
 through Data review, then press **Fit before and after** to recalculate results.
 Invalid column assignments, windows or uncertainties block saving. Reports are
-still copied or printed separately. See the [v6 migration](integration.md#session-v6-for-saved-workspaces--2026-09-15);
-request/ack v1 and older single-fit session schemas remain unchanged.
+still copied or printed separately. See the [current format](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15);
+request/ack v1 remains unchanged; only session v7 is supported.
 
 ## Rollback
 

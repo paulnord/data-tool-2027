@@ -3,7 +3,7 @@
 Model guides and source-code output are presentation/export choices. Model
 comparison is an in-memory workspace that refits its candidates; it does not
 cache fitted results in a `.trksess` file. These features introduce no additional
-protocol fields. Added equation families use the documented [session-v4 migration](integration.md#session-v4-for-additional-model-families--2026-09-14);
+protocol fields. Added equation families use the documented [current session format](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15);
 requests and acknowledgments remain v1.
 
 ## Model guides and oscillation quantities
@@ -73,12 +73,12 @@ before shared selection is enabled. Per-candidate diagnostics include parameter
 standard errors, local 95% intervals, correlations, derived oscillation
 quantities, and numerical rank diagnostics.
 
-**Save session** writes one v6 `.trksess` containing every candidate's data,
+**Save session** writes one v7 `.trksess` containing every candidate's data,
 settings, label and source metadata, the active candidate, and guide/residual/error-bar
 visibility. Open it through **Data… → Load file** and accept the data review to
 restore the complete comparison. Press **Refit and compare** to recalculate
-results. Candidate file controls continue loading individual v1–v5 sessions.
-See the [workspace migration](integration.md#session-v6-for-saved-workspaces--2026-09-15).
+results. Candidate file controls continue loading single-fit v7 sessions.
+See the [workspace migration](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15).
 The SciPy and ROOT exports include
 separate candidate directories, each with its CSV, metadata, and executable
 program, plus the comparison report. Python directories include requirements.txt.

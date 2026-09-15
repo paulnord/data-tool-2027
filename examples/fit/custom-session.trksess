@@ -1,6 +1,4 @@
 {
-  "format": "tracker-fit-session",
-  "version": 3,
   "request": {
     "format": "tracker-fit-request",
     "version": 1,
@@ -9,11 +7,11 @@
     "source": {
       "application": "Synthetic fixture",
       "version": "mulberry32-boxmuller-1",
-      "context": "seed=2027; y=2+10t-4.905t\u00b2; sigma=0.02 m; independent Gaussian noise"
+      "context": "seed=2027; y=2+10t-4.905t²; sigma=0.02 m; independent Gaussian noise"
     },
     "dataset": {
       "id": "ballistic-demo",
-      "label": "Ball toss \u00b7 synthetic experiment",
+      "label": "Ball toss · synthetic experiment",
       "xColumn": {
         "id": "t",
         "label": "Time",
@@ -485,10 +483,6 @@
         "fixed": false
       }
     ],
-    "excludedIds": [],
-    "conditionalInference": false,
-    "physicalTimeConfirmed": true,
-    "selectionAfterInspection": false,
     "custom": {
       "expression": "y0 + v0*t + 0.5*a*t^2",
       "variable": "t",
@@ -502,7 +496,21 @@
         "m/s",
         "m/s^2"
       ]
-    }
+    },
+    "excludedIds": [],
+    "conditionalInference": false,
+    "physicalTimeConfirmed": true,
+    "selectionAfterInspection": false
   },
-  "engine": "qr-expression-4"
+  "engine": "qr-expression-4",
+  "format": "tracker-fit-session",
+  "version": 7,
+  "workspace": {
+    "kind": "single-fit"
+  },
+  "view": {
+    "showResiduals": true,
+    "showGuides": false,
+    "showErrorBars": true
+  }
 }

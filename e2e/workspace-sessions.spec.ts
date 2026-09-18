@@ -393,8 +393,8 @@ for (const mode of ["multi-interval", "model-comparison", "collision"]) {
       "2.6",
     );
     await expect(
-      page.getByLabel("Y uncertainty model", { exact: true }),
-    ).toHaveValue("supplied-per-row");
+      page.getByLabel("Y uncertainty source", { exact: true }),
+    ).toHaveValue("column:2");
     const restored = await save(page);
     expect(restored.version).toBe(7);
     expect(restored.settings).toEqual(saved.settings);

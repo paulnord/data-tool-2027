@@ -81,19 +81,25 @@ test("comparison models survive navigation and new data refreshes every candidat
   await page
     .getByLabel("Analysis", { exact: true })
     .selectOption("model-comparison");
+  await workspace
+    .getByRole("tab", { name: "Candidate 1", exact: true })
+    .click();
   await expect(first.getByLabel("Label", { exact: true })).toHaveValue(
     "My first fit",
   );
+  await workspace
+    .getByRole("tab", { name: "Candidate 2", exact: true })
+    .click();
   await expect(
     second.getByLabel("Candidate 2 model polynomial degree"),
   ).toHaveValue("quartic");
   await expect(
     workspace.getByRole("table", { name: "Model comparison statistics" }),
   ).toHaveCount(0);
-  await expect(first.locator(".comparison-source")).toContainText("sine");
   await workspace
     .getByRole("tab", { name: "Candidate 1", exact: true })
     .click();
+  await expect(first.locator(".comparison-source")).toContainText("sine");
   await first
     .getByRole("button", { name: "Use current analysis", exact: true })
     .click();

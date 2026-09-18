@@ -79,6 +79,7 @@ test("collision uses the same assumptions control and guide on a compact screen"
     .click();
   await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
   const fit = page.getByRole("button", { name: "Fit before and after" });
+  await expect(fit).toHaveClass(/\bfit-primary\b/);
   await fit.scrollIntoViewIfNeeded();
   const check = page.getByRole("checkbox", {
     name: "Accept uncertainty assumptions",

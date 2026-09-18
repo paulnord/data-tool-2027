@@ -710,7 +710,7 @@ export default forwardRef<
           ))}
         </div>
         <button
-          className="interval-fit-button"
+          className="fit-primary interval-fit-button"
           disabled={
             busy !== null ||
             !!preview.error ||

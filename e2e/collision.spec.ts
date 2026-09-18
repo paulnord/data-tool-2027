@@ -48,13 +48,23 @@ test("integrated collision analysis retains both setups, shares report controls,
   await page
     .getByLabel("Position uncertainties", { exact: true })
     .selectOption("supplied");
+  const setup = workspace.locator(".collision-setup");
   for (const name of [
     "Object 1 · x",
     "Object 1 · y",
     "Object 2 · x",
     "Object 2 · y",
-  ])
-    await page.getByLabel(`${name} uncertainty`, { exact: true }).fill("0.003");
+  ]) {
+    await expect(
+      setup.getByLabel(`${name} uncertainty`, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      summary.getByLabel(`${name} uncertainty`, { exact: true }),
+    ).toHaveCount(0);
+    await setup
+      .getByLabel(`${name} uncertainty`, { exact: true })
+      .fill("0.003");
+  }
   await page.getByRole("button", { name: "Fit before and after" }).click();
   await expect(workspace.getByRole("status")).toHaveText(
     "8 of 8 fits complete",

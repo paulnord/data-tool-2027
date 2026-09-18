@@ -9,7 +9,11 @@ import {
   type TableAnalysis,
 } from "../core/fit/dataTable";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { parseDelimited, suggestImport } from "../core/fit/dataInput";
+import {
+  parseDelimited,
+  suggestImport,
+  suggestTableLayout,
+} from "../core/fit/dataInput";
 import {
   alignRowNameHeading,
   cellProblem,
@@ -183,6 +187,9 @@ export function ImportPanel({
   const [headerRows, setHeaderRows] = useState(
     initial?.headerRows ?? suggestion.headerRows,
   );
+  const [labelColumn, setLabelColumn] = useState<number | null>(
+    initial?.label ?? suggestion.label,
+  );
   const [selection, setSelection] = useState({
     x: initial?.x ?? suggestion.x,
     y: initial?.y ?? suggestion.y,
@@ -228,6 +235,7 @@ export function ImportPanel({
   type Snapshot = {
     grid: string[][];
     headerRows: number;
+    labelColumn: number | null;
     selection: typeof selection;
     rowIds: string[];
     base: typeof base;
@@ -248,6 +256,7 @@ export function ImportPanel({
     return {
       grid,
       headerRows,
+      labelColumn,
       selection,
       rowIds,
       base,
@@ -264,6 +273,7 @@ export function ImportPanel({
   function restore(value: Snapshot) {
     setGrid(value.grid);
     setHeaderRows(value.headerRows);
+    setLabelColumn(value.labelColumn);
     setSelection(value.selection);
     setRowIds(value.rowIds);
     setBase(value.base);
@@ -306,6 +316,7 @@ export function ImportPanel({
     cells: grid,
     rowIds,
     headerRows,
+    label: labelColumn,
     ...selection,
     units: labels.map((label, i) => columnHeading(label, columnUnits[i]).unit),
   };
@@ -375,6 +386,7 @@ export function ImportPanel({
       ) {
         setColumnUnits([]);
         setSourceFileName(null);
+        setLabelColumn(guessed.label);
         setSelection({ x: guessed.x, y: guessed.y, sigma: null });
         setHeaderRows(guessed.headerRows);
         setDelimiter(guessed.delimiter);
@@ -405,6 +417,11 @@ export function ImportPanel({
     remember(`Delete columns ${columns.map((i) => i + 1).join(", ")}`);
     setGrid(trim(grid));
     setColumnUnits(columnUnits.filter((_, i) => !removed.has(i)));
+    setLabelColumn(
+      labelColumn === null || removed.has(labelColumn)
+        ? null
+        : shifted(labelColumn),
+    );
     setSelection({
       x: shifted(selection.x),
       y: shifted(selection.y),
@@ -418,6 +435,10 @@ export function ImportPanel({
           ...prior,
           cells: trim(prior.cells),
           units: prior.units.filter((_, i) => !removed.has(i)),
+          label:
+            prior.label == null || removed.has(prior.label)
+              ? null
+              : shifted(prior.label),
           x: shifted(prior.x),
           y: shifted(prior.y),
           sigma: prior.sigma === null ? null : shifted(prior.sigma),
@@ -438,6 +459,7 @@ export function ImportPanel({
     setGrid(next.cells);
     setRowIds(next.rowIds);
     setColumnUnits(next.units);
+    setLabelColumn(next.label ?? null);
     setSelection({ x: next.x, y: next.y, sigma: next.sigma });
     if (candidate)
       setBase({
@@ -807,6 +829,7 @@ export function ImportPanel({
             setGrid([]);
             setRowIds([]);
             setHeaderRows(0);
+            setLabelColumn(null);
             setSelection({ x: 0, y: 1, sigma: null });
             setColumnUnits([]);
             setBase(undefined);
@@ -841,7 +864,8 @@ export function ImportPanel({
         </p>
       )}
       <p className="fit-data-intro">
-        Load a file, paste a table, or enter values in the cells below.
+        Load a file, paste a table, or enter values in the cells below. Choose
+        analysis columns after loading.
       </p>
       <details className="fit-editing-help">
         <summary>Editing help</summary>
@@ -858,35 +882,12 @@ export function ImportPanel({
           below each column heading and never convert values.
         </p>
       </details>
-      <div className="fit-import-choices">
-        {(["x", "y", "sigma"] as const).map((key) => (
-          <label key={key}>
-            {key === "sigma" ? "Y uncertainty (optional)" : key.toUpperCase()}
-            <select
-              aria-label={`${key} column`}
-              value={selection[key] ?? -1}
-              onChange={(e) => {
-                remember(
-                  `Assign ${key === "sigma" ? "uncertainty" : key.toUpperCase()} column`,
-                );
-                setSelection({
-                  ...selection,
-                  ...(key === "y" ? { sigma: null } : {}),
-                  [key]:
-                    Number(e.target.value) < 0 ? null : Number(e.target.value),
-                });
-              }}
-            >
-              {key === "sigma" && <option value={-1}>None</option>}
-              {labels.map((label, i) => (
-                <option key={i} value={i}>
-                  {columnHeading(label).label}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-      </div>
+      <p className="fit-import-assignment-note">
+        {labelColumn === null
+          ? "Numeric columns will receive reasonable X and Y defaults."
+          : `${columnHeading(labels[labelColumn]).label} is preserved as the row-label column.`}{" "}
+        X, Y and uncertainty assignments are available in the Analysis panel.
+      </p>
       <div className="fit-grid-toolbar">
         <label>
           Header rows{" "}
@@ -1059,13 +1060,15 @@ export function ImportPanel({
                 >
                   {columnHeading(label).label}
                   <span className="fit-column-role">
-                    {i === selection.x
-                      ? "X · number"
-                      : i === selection.y
-                        ? "Y · number"
-                        : i === selection.sigma
-                          ? "σy · positive number"
-                          : "Not used"}
+                    {i === labelColumn
+                      ? "Row labels · text"
+                      : i === selection.x
+                        ? "Suggested X · number"
+                        : i === selection.y
+                          ? "Suggested Y · number"
+                          : i === selection.sigma
+                            ? "Suggested σy · positive number"
+                            : "Available after loading"}
                   </span>
                   {columnMenu === i && (
                     <div
@@ -1114,7 +1117,7 @@ export function ImportPanel({
                             grid.some((row) => c < row.length),
                           )
                         }
-                        title="Reassign X, Y or uncertainty before deleting an assigned column"
+                        title="Reassign X, Y or uncertainty in the Analysis panel before deleting an assigned column"
                         onClick={deleteColumns}
                       >
                         {columns.length > 1
@@ -1495,12 +1498,19 @@ export function ImportPanel({
             onClick={() => {
               try {
                 const records = parseDelimited(raw, delimiter);
+                const guessed = suggestTableLayout(records);
                 remember("Replace from text");
                 setGrid(records);
                 setRowIds(records.map(() => crypto.randomUUID()));
-                setHeaderRows(0);
+                setHeaderRows(guessed.headerRows);
+                setLabelColumn(guessed.label);
+                setSelection({
+                  x: guessed.x,
+                  y: guessed.y,
+                  sigma: null,
+                });
                 setPage(0);
-                setMessage("Source replaced. Set header rows above if needed.");
+                setMessage("Source replaced. Review the detected headings.");
               } catch (e) {
                 setMessage((e as Error).message);
               }

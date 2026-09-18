@@ -100,6 +100,20 @@ it("numbers observations by original input position while preserving stable iden
   );
 });
 
+it("uses imported row labels in the observation report without exposing stable IDs", () => {
+  const request = syntheticRequest(),
+    s = settings();
+  request.dataset.rows.forEach((row, index) => {
+    row.label = `Trial ${String.fromCharCode(65 + index)}`;
+  });
+  const result = fit(request, s);
+  const table = fitReportTable(request, s, result);
+  const start = table.findIndex((row) => row[0] === "Label");
+  expect(table[start]).toEqual(["Label", "x", "y", "predicted", "residual"]);
+  expect(table[start + 1][0]).toBe("Trial A");
+  expect(JSON.stringify(table)).not.toContain(request.dataset.rows[0].id);
+});
+
 it("does not invent an input association for an unknown residual identity", () => {
   const request = syntheticRequest(),
     s = settings(),

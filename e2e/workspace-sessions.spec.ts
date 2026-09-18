@@ -98,12 +98,11 @@ test("changing columns during session review validates the resulting analysis an
 }) => {
   await load(page, cavendish);
   await review(page, "examples/data/published/ba137m-decay.trksess");
-  const panel = page.getByRole("dialog", { name: "Data", exact: true });
-  await panel.getByLabel("x column", { exact: true }).selectOption("1");
-  await panel.getByLabel("y column", { exact: true }).selectOption("0");
-  await panel
+  await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
+  await page.getByLabel("X analysis column", { exact: true }).selectOption("1");
+  await page.getByLabel("Y analysis column", { exact: true }).selectOption("0");
   await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
     "line",
   );

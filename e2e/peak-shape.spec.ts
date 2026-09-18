@@ -273,10 +273,12 @@ test("Lorentzian CSV retains original uncertainties when loaded into comparison"
     .locator('input[type="file"]')
     .first()
     .setInputFiles("examples/data/lorentzian.csv");
-  await page.getByLabel("sigma column", { exact: true }).selectOption("2");
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
+  await page
+    .getByLabel("Uncertainty analysis column", { exact: true })
+    .selectOption("2");
   const workspace = page.locator(".model-comparison");
   await expect(
     workspace.getByLabel("Comparison Y uncertainty model"),

@@ -233,6 +233,7 @@ it("suggests columns without consuming a headerless first measurement or assumin
     delimiter: "\t",
     header: true,
     headerRows: 1,
+    label: null,
     x: 0,
     y: 1,
   });
@@ -240,6 +241,7 @@ it("suggests columns without consuming a headerless first measurement or assumin
     delimiter: ",",
     header: false,
     headerRows: 0,
+    label: null,
     x: 0,
     y: 1,
   });
@@ -247,9 +249,20 @@ it("suggests columns without consuming a headerless first measurement or assumin
     delimiter: ",",
     header: true,
     headerRows: 1,
+    label: 0,
     x: 1,
     y: 2,
   });
+  expect(suggestImport("name,value\na,1\nb,2")).toMatchObject({
+    label: null,
+    x: 0,
+    y: 1,
+  });
+  expect(
+    suggestImport(
+      `id,x,y\n${Array.from({ length: 100 }, (_, i) => `row-${i},${i},${i + 1}`).join("\n")}\n101,100,101`,
+    ),
+  ).toMatchObject({ label: null, x: 0, y: 1 });
   expect(suggestImport('"Time, seconds",Height\n0,2')).toMatchObject({
     delimiter: ",",
     header: true,

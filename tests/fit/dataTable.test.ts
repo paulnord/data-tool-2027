@@ -23,6 +23,7 @@ const table: DataTable = {
   ],
   rowIds: ["header", "a", "b", "c"],
   headerRows: 1,
+  label: 0,
   x: 1,
   y: 2,
   sigma: 3,
@@ -59,6 +60,11 @@ it("retains all source columns and assignments through a validated session round
     }),
   ).toThrow();
   expect(saved.request.dataset.rows.map((r) => r.id)).toEqual(["a", "b", "c"]);
+  expect(saved.request.dataset.rows.map((r) => r.label)).toEqual([
+    "a",
+    "b",
+    "c",
+  ]);
   expect(() =>
     sessionSchema.parse({
       ...saved,

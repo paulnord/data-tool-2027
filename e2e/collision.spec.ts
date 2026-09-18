@@ -65,7 +65,8 @@ test("integrated collision analysis retains both setups, shares report controls,
   await expect(
     page.getByLabel("Object 1 · x uncertainty", { exact: true }),
   ).toHaveCount(0);
-  await expect(summary).toHaveCount(0);
+  await expect(summary).toBeVisible();
+  await expect(summary.locator("tbody tr").first()).not.toContainText("±");
   await page.getByRole("button", { name: "Fit before and after" }).click();
   await expect(workspace.getByRole("status")).toHaveText(
     "8 of 8 fits complete",
@@ -107,7 +108,10 @@ test("integrated collision analysis retains both setups, shares report controls,
     .check();
   await page.emulateMedia({ media: "print" });
   await expect(workspace.locator(".collision-details")).toBeVisible();
-  await expect(workspace.locator(".collision-workspace")).toHaveCSS("display", "block");
+  await expect(workspace.locator(".collision-workspace")).toHaveCSS(
+    "display",
+    "block",
+  );
   await expect(page.locator(".fit-app")).toHaveCSS("container-type", "normal");
   const detailedPdf = await page.pdf({
     path: "test-results/collision-report.pdf",

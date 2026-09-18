@@ -24,7 +24,7 @@ Additional synthetic sessions for logarithmic, reciprocal, cubic and quartic fit
 
 `MillikanData.csv` contains columns `t`, `mass_B`, `mass_A`, and `mass_C`, with some missing observations. It can be used to inspect multiple data series and select drift intervals for line fits. Time is in seconds and all three measurement columns are in millimeters, as confirmed by the instructor. Units are declared in the CSV headings; numerical observations and missing values are unchanged.
 
-Loading a CSV does not automatically fit, assert statistical assumptions or assign an uncertainty column. Review columns/units and explicitly choose a model and uncertainty interpretation. For the unequal-uncertainty example, assign the standard-deviation column to Y uncertainty in the data editor. Use **Export CSV…** for the table and **Save session** for a reproducible analysis with settings.
+Loading a CSV does not automatically fit, assert statistical assumptions or assign an uncertainty column. Review the source table and units, then choose X, Y and optional Y uncertainty beside the model in the Analysis panel. For the unequal-uncertainty example, assign the standard-deviation column to Y uncertainty there. Use **Export CSV…** for the table and **Save session** for a reproducible analysis with settings.
 
 Prepared sessions include a selected model, constraints and documented noise provenance. Their observations and settings remain in normal `.trksess` files; no sample is loaded implicitly on startup.
 

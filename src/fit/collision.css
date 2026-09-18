@@ -128,6 +128,19 @@
 .collision-summary {
   margin: 16px 0;
 }
+.collision-assignment-scroll {
+  overflow-x: auto;
+}
+.collision-assignments select {
+  width: 100%;
+  min-width: 120px;
+}
+.collision-assignments input {
+  width: 76px;
+}
+.collision-column-print {
+  display: none;
+}
 .collision-charts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -221,6 +234,13 @@
   }
 }
 @media print {
+  .collision-assignments select,
+  .collision-assignments input {
+    display: none;
+  }
+  .collision-column-print {
+    display: inline;
+  }
   .fit-app:has(.collision-dialog[open]) > :not(.collision-dialog) {
     display: none !important;
   }

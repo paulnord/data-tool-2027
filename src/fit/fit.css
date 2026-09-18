@@ -602,6 +602,24 @@
 .fit-controls select {
   margin-bottom: 14px;
 }
+.fit-analysis-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 12px;
+  padding: 8px;
+  border: 1px solid #c5d5df;
+  border-radius: 5px;
+}
+.fit-analysis-columns legend {
+  padding: 0 4px;
+  color: #415e70;
+  font-size: 12px;
+  font-weight: 600;
+}
+.fit-analysis-columns label:last-child {
+  grid-column: 1 / -1;
+}
 .fit-equation {
   font:
     italic 23px/1.4 Georgia,
@@ -1567,23 +1585,13 @@
 .fit-import-source {
   color: #526979;
 }
-.fit-import-choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin: 16px 0;
-}
-.fit-import-choices label {
-  flex: 1;
-  min-width: 140px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 600;
-}
-.fit-import-choices select {
-  width: 100%;
-  padding: 8px;
+.fit-import-assignment-note {
+  margin: 12px 0;
+  padding: 8px 10px;
+  border-left: 3px solid #6d9fbe;
+  background: #f2f8fc;
+  color: #35566c;
+  font-size: 12px;
 }
 .fit-column-role {
   display: block;

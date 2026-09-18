@@ -64,7 +64,7 @@ function initial(source: TableAnalysis) {
       /^(t|time)$/i.test(heading(source, i).label),
     ) ?? t.x;
   const columns = Array.from({ length: width }, (_, i) => i)
-    .filter((i) => i !== time)
+    .filter((i) => i !== time && i !== t.label)
     .slice(0, 4);
   while (columns.length < 4) columns.push(-1);
   const times = t.cells
@@ -519,7 +519,7 @@ export default forwardRef<
   const options = Array.from({ length: width }, (_, i) => ({
     i,
     ...heading(source, i),
-  }));
+  })).filter((option) => option.i !== table.label);
   const config: CollisionConfig = {
     time,
     columns,
@@ -683,7 +683,7 @@ export default forwardRef<
     >
       <aside className="collision-setup">
         {open && analysisControl}
-        <h2>Data assignments</h2>
+        <h2>Collision setup</h2>
         <div className="collision-time">
           <label>
             Time column{" "}
@@ -722,54 +722,6 @@ export default forwardRef<
             <option value="supplied">Enter position uncertainties</option>
           </select>
         </label>
-        <div className="collision-mappings">
-          {slots.map((slot, i) => (
-            <div key={slot}>
-              <label>
-                {slot}
-                <select
-                  aria-label={`${slot} column`}
-                  value={columns[i]}
-                  onChange={(e) => {
-                    invalidate();
-                    setColumns(
-                      columns.map((c, j) =>
-                        j === i ? Number(e.target.value) : c,
-                      ),
-                    );
-                    setYRanges(yRanges.map((v, j) => (j === i ? null : v)));
-                  }}
-                >
-                  <option value={-1}>Choose column</option>
-                  {options.map((o) => (
-                    <option key={o.i} value={o.i}>
-                      {o.label}
-                      {o.unit ? ` [${o.unit}]` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {noise === "supplied" && (
-                <label>
-                  σ [{heading(source, columns[i]).unit || "position unit"}]
-                  <input
-                    type="number"
-                    step="any"
-                    aria-label={`${slot} uncertainty`}
-                    value={sigmas[i]}
-                    placeholder="Required"
-                    onChange={(e) => {
-                      invalidate();
-                      setSigmas(
-                        sigmas.map((s, j) => (j === i ? e.target.value : s)),
-                      );
-                    }}
-                  />
-                </label>
-              )}
-            </div>
-          ))}
-        </div>
         <div className="collision-intervals">
           {["Before", "After"].map((phase, p) => (
             <fieldset key={phase}>
@@ -855,50 +807,116 @@ export default forwardRef<
                 ? `${channels.flatMap((c) => [c.before, c.after]).filter((s) => s.result).length} of 8 fits complete`
                 : "Choose columns and intervals, then fit.")}
         </p>
-        {channels && (
-          <section className="collision-summary">
-            <h2>Velocity components</h2>
-            <p>
-              Line slope = velocity component. Values after ± are standard
-              errors, not 95% intervals.
-            </p>
+        <section className="collision-summary collision-assignments">
+          <h2>Position columns and velocity components</h2>
+          <p>
+            Review the suggested assignments. Line slope is the corresponding
+            velocity component; values after ± are standard errors.
+          </p>
+          <div className="collision-assignment-scroll">
             <table aria-label="Collision velocity summary">
               <thead>
                 <tr>
                   <th>Component</th>
                   <th>Position column</th>
-                  <th>Unit</th>
+                  {noise === "supplied" && <th>Position σ</th>}
+                  <th>Velocity unit</th>
                   <th>Before</th>
                   <th>After</th>
                 </tr>
               </thead>
               <tbody>
-                {channels.map((c, i) => (
-                  <tr key={i}>
-                    <th>{slots[i]}</th>
-                    <td>{c.request.dataset.yColumn.label}</td>
-                    <td>
-                      {c.request.dataset.yColumn.unit ?? "position unit"}/
-                      {c.request.dataset.xColumn.unit ?? "time unit"}
-                    </td>
-                    {(["before", "after"] as const).map((phase) => (
-                      <td key={phase}>
-                        {c[phase].result ? (
-                          <>
-                            {fmt(c[phase].result!.coefficients[1])}
-                            {c[phase].result!.standardErrors[1].value !== null
-                              ? ` ± ${fmt(c[phase].result!.standardErrors[1].value)}`
-                              : " (SE unavailable)"}
-                          </>
-                        ) : (
-                          "Fit unavailable"
-                        )}
+                {slots.map((slot, i) => {
+                  const channel = channels?.[i];
+                  return (
+                    <tr key={slot}>
+                      <th>{slot}</th>
+                      <td>
+                        <select
+                          aria-label={`${slot} column`}
+                          value={columns[i]}
+                          onChange={(e) => {
+                            invalidate();
+                            setColumns(
+                              columns.map((column, j) =>
+                                j === i ? Number(e.target.value) : column,
+                              ),
+                            );
+                            setYRanges(
+                              yRanges.map((value, j) =>
+                                j === i ? null : value,
+                              ),
+                            );
+                          }}
+                        >
+                          <option value={-1}>Choose column</option>
+                          {options.map((option) => (
+                            <option key={option.i} value={option.i}>
+                              {option.label}
+                              {option.unit ? ` [${option.unit}]` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="collision-column-print">
+                          {columns[i] < 0
+                            ? "Not selected"
+                            : heading(source, columns[i]).label}
+                        </span>
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                      {noise === "supplied" && (
+                        <td>
+                          <input
+                            type="number"
+                            step="any"
+                            aria-label={`${slot} uncertainty`}
+                            value={sigmas[i]}
+                            placeholder="Required"
+                            onChange={(e) => {
+                              invalidate();
+                              setSigmas(
+                                sigmas.map((sigma, j) =>
+                                  j === i ? e.target.value : sigma,
+                                ),
+                              );
+                            }}
+                          />
+                          <span className="collision-column-print">
+                            {sigmas[i] || "—"}
+                          </span>
+                        </td>
+                      )}
+                      <td>
+                        {columns[i] < 0
+                          ? "position unit"
+                          : heading(source, columns[i]).unit || "position unit"}
+                        /{heading(source, time).unit || "time unit"}
+                      </td>
+                      {(["before", "after"] as const).map((phase) => {
+                        const result = channel?.[phase].result;
+                        return (
+                          <td key={phase}>
+                            {result ? (
+                              <>
+                                {fmt(result.coefficients[1])}
+                                {result.standardErrors[1].value !== null
+                                  ? ` ± ${fmt(result.standardErrors[1].value)}`
+                                  : " (SE unavailable)"}
+                              </>
+                            ) : channels ? (
+                              "Fit unavailable"
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+          {channels && (
             <p>
               Before: {windows[0]}–{windows[1]}; after: {windows[2]}–
               {windows[3]} [{heading(source, time).unit || "time unit"}].
@@ -907,8 +925,8 @@ export default forwardRef<
                 ? "Uncertainties are conditional on the stated assumptions; interval selection is not included."
                 : "Descriptive fits; uncertainty assumptions have not been accepted."}
             </p>
-          </section>
-        )}
+          )}
+        </section>
         <div className="collision-legend">
           <span className="before">● Before collision — solid line</span>
           <span className="after">● After collision — dashed line</span>
@@ -946,9 +964,9 @@ export default forwardRef<
           <SourceNotes text={source.request.source.context} />
           <p>
             Draft: setup is preserved while switching analyses with the same
-            source table. Collision settings are not included in .trksess files.
-            Copy or print the report to keep the results. Separate fits do not
-            estimate covariance between velocity components.
+            source table. Collision assignments and intervals are included in
+            .trksess files; reopen and fit to recalculate results. Separate fits
+            do not estimate covariance between velocity components.
           </p>
         </footer>
         {channels && (

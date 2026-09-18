@@ -290,24 +290,7 @@ export function importData(
 }
 
 /** Presentation suggestions only. The user reviews them before importing. */
-export function suggestImport(text: string) {
-  const widths = ([",", "\t"] as const).map((delimiter) => {
-    try {
-      const first = parseDelimited(text, delimiter).find(
-        (row) => !row[0]?.trimStart().startsWith("#"),
-      );
-      return { delimiter, width: first?.length ?? 0 };
-    } catch {
-      return { delimiter, width: 0 };
-    }
-  });
-  const delimiter = widths[1].width > widths[0].width ? "\t" : ",";
-  let records: string[][] = [];
-  try {
-    records = parseDelimited(text, delimiter);
-  } catch {
-    /* Review displays the parse error. */
-  }
+export function suggestTableLayout(records: string[][]) {
   const numeric = (value: string) => {
     try {
       return numericCell(value) !== null;
@@ -329,7 +312,7 @@ export function suggestImport(text: string) {
   // Only suggest skipping a preamble when it ends in a recognizable heading.
   // All records remain visible; arbitrary text in data is never skipped.
   const headerRows = header ? first + 1 : 0;
-  const data = records.slice(headerRows, headerRows + 100);
+  const data = records.slice(headerRows);
   // Only skip a leading text identifier column. A bad numeric token must not
   // silently redirect Y to an otherwise clean uncertainty column.
   const special = (value: string) =>
@@ -339,12 +322,37 @@ export function suggestImport(text: string) {
     data.every(
       (row) => !!row[0]?.trim() && !numeric(row[0]) && !special(row[0]),
     ) &&
-    data.some((row) => numeric(row[1] ?? ""));
+    data.some((row) => numeric(row[1] ?? "")) &&
+    data.some((row) => numeric(row[2] ?? ""));
   return {
-    delimiter: delimiter as "," | "\t",
     header,
     headerRows,
+    label: skipId ? 0 : null,
     x: skipId ? 1 : 0,
     y: skipId ? 2 : 1,
+  };
+}
+
+export function suggestImport(text: string) {
+  const widths = ([",", "\t"] as const).map((delimiter) => {
+    try {
+      const first = parseDelimited(text, delimiter).find(
+        (row) => !row[0]?.trimStart().startsWith("#"),
+      );
+      return { delimiter, width: first?.length ?? 0 };
+    } catch {
+      return { delimiter, width: 0 };
+    }
+  });
+  const delimiter = widths[1].width > widths[0].width ? "\t" : ",";
+  let records: string[][] = [];
+  try {
+    records = parseDelimited(text, delimiter);
+  } catch {
+    /* Review displays the parse error. */
+  }
+  return {
+    delimiter: delimiter as "," | "\t",
+    ...suggestTableLayout(records),
   };
 }

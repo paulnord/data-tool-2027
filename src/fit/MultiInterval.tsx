@@ -508,7 +508,7 @@ export default forwardRef<
     invalidate();
     setCurve(0);
     const candidates = Array.from({ length: width }, (_, i) => i).filter(
-      (i) => i !== xColumn,
+      (i) => i !== xColumn && i !== table.label,
     );
     const next = columns.slice(0, count);
     for (const i of candidates)
@@ -610,11 +610,13 @@ export default forwardRef<
               setRangeDrafts((old) => old.map(() => ["", ""]));
             }}
           >
-            {Array.from({ length: width }, (_, i) => (
-              <option key={i} value={i}>
-                {heading(i).label}
-              </option>
-            ))}
+            {Array.from({ length: width }, (_, i) => i)
+              .filter((i) => i !== table.label)
+              .map((i) => (
+                <option key={i} value={i}>
+                  {heading(i).label}
+                </option>
+              ))}
           </select>
         </label>
         {columns.map((v, i) => (
@@ -636,11 +638,13 @@ export default forwardRef<
               }}
             >
               <option value={-1}>Choose column…</option>
-              {Array.from({ length: width }, (_, j) => (
-                <option key={j} value={j}>
-                  {heading(j).label}
-                </option>
-              ))}
+              {Array.from({ length: width }, (_, j) => j)
+                .filter((j) => j !== table.label)
+                .map((j) => (
+                  <option key={j} value={j}>
+                    {heading(j).label}
+                  </option>
+                ))}
             </select>
           </label>
         ))}

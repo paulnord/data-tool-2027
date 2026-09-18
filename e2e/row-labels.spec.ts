@@ -97,3 +97,53 @@ test("imported observations use readable row numbers while exclusions and saved 
     page.getByRole("checkbox", { name: "Include row 2", exact: true }),
   ).not.toBeChecked();
 });
+
+test("a clearly textual leading column becomes persistent row labels while analysis owns column assignments", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator("input[type=file]").setInputFiles({
+    name: "labeled-data.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "Trial,Time (s),Position (m),Position uncertainty (m)\nA,0,1,.1\nB,1,3,.1\nC,2,5,.1\n",
+    ),
+  });
+  const data = page.getByRole("dialog", { name: "Data", exact: true });
+  await expect(data.getByLabel("x column", { exact: true })).toHaveCount(0);
+  await expect(data).toContainText(
+    "Trial is preserved as the row-label column",
+  );
+  await data
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("X analysis column", { exact: true }),
+  ).toHaveValue("1");
+  await expect(
+    page.getByLabel("Y analysis column", { exact: true }),
+  ).toHaveValue("2");
+  await page
+    .getByLabel("Uncertainty analysis column", { exact: true })
+    .selectOption("3");
+  await page
+    .getByRole("button", { name: "Fit selected observations", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toHaveText("Fit complete");
+  await expect(page.locator(".fit-chart .point title").first()).toContainText(
+    "A: 0, 1",
+  );
+  await page
+    .getByRole("button", { name: "Observations & exclusions", exact: true })
+    .click();
+  await expect(
+    page.locator(".fit-table-wrap > table tbody tr td:nth-child(2)"),
+  ).toHaveText(["A", "B", "C"]);
+  const saved = await saveSession(page);
+  expect(saved.session.dataTable?.label).toBe(0);
+  expect(saved.session.request.dataset.rows.map((row) => row.label)).toEqual([
+    "A",
+    "B",
+    "C",
+  ]);
+});

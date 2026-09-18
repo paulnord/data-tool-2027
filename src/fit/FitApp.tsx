@@ -2476,7 +2476,10 @@ export default function FitApp() {
       </p>
     </div>
   );
-  const columnAssignments = (extra?: ReactNode) => (
+  const columnAssignments = (
+    extra?: ReactNode,
+    includeUncertaintyColumn = true,
+  ) => (
     <fieldset className="fit-analysis-columns">
       <legend>{extra ? "Columns and uncertainty" : "Columns"}</legend>
       {(["x", "y"] as const).map((axis) => (
@@ -2498,13 +2501,47 @@ export default function FitApp() {
           </select>
         </label>
       ))}
+      {includeUncertaintyColumn && (
+        <label className="fit-analysis-uncertainty-column">
+          Y uncertainty column
+          <select
+            aria-label="Uncertainty analysis column"
+            value={analysisTable.sigma ?? -1}
+            onChange={(event) =>
+              assignAnalysisColumns({
+                sigma:
+                  Number(event.target.value) < 0
+                    ? null
+                    : Number(event.target.value),
+              })
+            }
+          >
+            <option value={-1}>None</option>
+            {analysisColumns
+              .filter(
+                (column) =>
+                  column.index !== analysisTable.x &&
+                  column.index !== analysisTable.y,
+              )
+              .map((column) => (
+                <option key={column.index} value={column.index}>
+                  {column.label.label}
+                  {column.label.unit ? ` [${column.label.unit}]` : ""}
+                </option>
+              ))}
+          </select>
+        </label>
+      )}
       {extra}
     </fieldset>
   );
-  const analysisControl = (extra?: ReactNode) => (
+  const analysisControl = (
+    extra?: ReactNode,
+    includeUncertaintyColumn = true,
+  ) => (
     <>
       {modelSelector}
-      {columnAssignments(extra)}
+      {columnAssignments(extra, includeUncertaintyColumn)}
     </>
   );
   const names = parameterNames(state.settings.model, state.settings.custom);
@@ -3520,7 +3557,7 @@ export default function FitApp() {
                 {!collisionOpen &&
                   !multiOpen &&
                   !comparisonOpen &&
-                  analysisControl(uncertaintyAssignment)}
+                  analysisControl(uncertaintyAssignment, false)}
                 {state.settings.model !== "custom" && (
                   <button
                     className="edit-custom-equation"

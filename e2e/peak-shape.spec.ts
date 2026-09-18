@@ -277,8 +277,8 @@ test("Lorentzian CSV retains original uncertainties when loaded into comparison"
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
   await page
-    .getByLabel("Y uncertainty source", { exact: true })
-    .selectOption("column:2");
+    .getByLabel("Uncertainty analysis column", { exact: true })
+    .selectOption("2");
   const workspace = page.locator(".model-comparison");
   await expect(
     workspace.getByLabel("Comparison Y uncertainty model"),

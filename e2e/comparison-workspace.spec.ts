@@ -76,6 +76,18 @@ test("comparison opens directly with data, uses chosen uncertainties, and preser
   await expect(
     workspace.getByLabel("Comparison Y uncertainty model"),
   ).toHaveValue("supplied-per-row");
+  const columns = workspace.getByRole("group", {
+    name: "Columns and uncertainty",
+    exact: true,
+  });
+  await expect(
+    columns.getByLabel("Comparison Y uncertainty model"),
+  ).toBeVisible();
+  await expect(
+    workspace
+      .locator(".comparison-shared-controls")
+      .getByLabel("Comparison Y uncertainty model"),
+  ).toHaveCount(0);
   await expect(workspace.locator(".comparison-weighting")).toContainText(
     "used in the fit",
   );

@@ -109,9 +109,15 @@ test("comparison models survive navigation and new data refreshes every candidat
   await second
     .getByRole("button", { name: "Use current analysis", exact: true })
     .click();
+  await workspace
+    .getByRole("tab", { name: "Candidate 1", exact: true })
+    .click();
   await expect(
     first.getByLabel("Candidate 1 model", { exact: true }),
   ).toHaveValue("line");
+  await workspace
+    .getByRole("tab", { name: "Candidate 2", exact: true })
+    .click();
   await expect(
     second.getByLabel("Candidate 2 model", { exact: true }),
   ).toHaveValue("line");

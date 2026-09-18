@@ -722,6 +722,35 @@ export default forwardRef<
             <option value="supplied">Enter position uncertainties</option>
           </select>
         </label>
+        {noise === "supplied" && (
+          <fieldset className="collision-uncertainties">
+            <legend>Position σ values</legend>
+            {slots.map((slot, i) => (
+              <label key={slot}>
+                {`${slot} σ [${
+                  columns[i] < 0
+                    ? "position unit"
+                    : heading(source, columns[i]).unit || "position unit"
+                }]`}
+                <input
+                  type="number"
+                  step="any"
+                  aria-label={`${slot} uncertainty`}
+                  value={sigmas[i]}
+                  placeholder="Required"
+                  onChange={(e) => {
+                    invalidate();
+                    setSigmas(
+                      sigmas.map((sigma, j) =>
+                        j === i ? e.target.value : sigma,
+                      ),
+                    );
+                  }}
+                />
+              </label>
+            ))}
+          </fieldset>
+        )}
         <div className="collision-intervals">
           {["Before", "After"].map((phase, p) => (
             <fieldset key={phase}>
@@ -863,28 +892,7 @@ export default forwardRef<
                             : heading(source, columns[i]).label}
                         </span>
                       </td>
-                      {noise === "supplied" && (
-                        <td>
-                          <input
-                            type="number"
-                            step="any"
-                            aria-label={`${slot} uncertainty`}
-                            value={sigmas[i]}
-                            placeholder="Required"
-                            onChange={(e) => {
-                              invalidate();
-                              setSigmas(
-                                sigmas.map((sigma, j) =>
-                                  j === i ? e.target.value : sigma,
-                                ),
-                              );
-                            }}
-                          />
-                          <span className="collision-column-print">
-                            {sigmas[i] || "—"}
-                          </span>
-                        </td>
-                      )}
+                      {noise === "supplied" && <td>{sigmas[i] || "—"}</td>}
                       <td>
                         {columns[i] < 0
                           ? "position unit"

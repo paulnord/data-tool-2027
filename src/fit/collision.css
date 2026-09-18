@@ -363,6 +363,27 @@
   width: 100%;
   max-width: 100%;
 }
+.collision-setup .collision-uncertainties {
+  margin: 10px 0;
+  padding: 8px;
+  border: 1px solid #b9cbd8;
+  border-radius: 5px;
+}
+.collision-setup .collision-uncertainties legend {
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.collision-dialog .collision-setup .collision-uncertainties label {
+  display: block;
+  margin: 8px 0;
+}
+.collision-setup .collision-uncertainties input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  box-sizing: border-box;
+}
 .collision-time {
   display: block;
 }

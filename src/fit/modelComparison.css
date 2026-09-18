@@ -404,6 +404,26 @@
   padding: 0;
   margin: 10px 0;
 }
+.comparison-controls .fit-analysis-columns {
+  padding: 8px;
+  border: 1px solid #c5d5df;
+}
+.comparison-controls .fit-analysis-columns legend {
+  color: #415e70;
+  font-size: 12px;
+}
+.fit-analysis-columns > .fit-analysis-uncertainty-column,
+.comparison-column-uncertainty {
+  grid-column: 1 / -1;
+}
+.comparison-column-uncertainty {
+  margin-top: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.comparison-column-uncertainty p {
+  margin: 6px 0 0;
+}
 .comparison-controls legend {
   font-size: 14px;
   font-weight: 600;

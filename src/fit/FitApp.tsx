@@ -93,6 +93,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { isTauri, invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
@@ -2338,9 +2339,9 @@ export default function FitApp() {
       );
     }
   }
-  const columnAssignments = (
+  const columnAssignments = (extra?: ReactNode) => (
     <fieldset className="fit-analysis-columns">
-      <legend>Columns</legend>
+      <legend>{extra ? "Columns and uncertainty" : "Columns"}</legend>
       {(["x", "y"] as const).map((axis) => (
         <label key={axis}>
           {axis.toUpperCase()}
@@ -2360,8 +2361,8 @@ export default function FitApp() {
           </select>
         </label>
       ))}
-      <label>
-        Y uncertainty
+      <label className="fit-analysis-uncertainty-column">
+        Y uncertainty column
         <select
           aria-label="Uncertainty analysis column"
           value={analysisTable.sigma ?? -1}
@@ -2389,12 +2390,13 @@ export default function FitApp() {
             ))}
         </select>
       </label>
+      {extra}
     </fieldset>
   );
-  const analysisControl = (
+  const analysisControl = (extra?: ReactNode) => (
     <>
       {modelSelector}
-      {columnAssignments}
+      {columnAssignments(extra)}
     </>
   );
   const names = parameterNames(state.settings.model, state.settings.custom),
@@ -3411,7 +3413,7 @@ export default function FitApp() {
                 {!collisionOpen &&
                   !multiOpen &&
                   !comparisonOpen &&
-                  analysisControl}
+                  analysisControl()}
                 {state.settings.model !== "custom" && (
                   <button
                     className="edit-custom-equation"

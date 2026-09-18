@@ -973,7 +973,7 @@ export default function ModelComparison({
   source: Analysis;
   sourceResult: FitResult | null;
   initialWorkspace?: ComparisonWorkspace;
-  analysisControl: ReactNode;
+  analysisControl: ((uncertaintyControl: ReactNode) => ReactNode) | null;
   showResiduals: boolean;
   showErrorBars: boolean;
   showGuides: boolean;
@@ -1392,10 +1392,85 @@ export default function ModelComparison({
       setError("Clipboard unavailable.");
     }
   }
+  const uncertaintyControl = (
+    <div className="comparison-column-uncertainty">
+      <label>
+        Y uncertainty model
+        <select
+          aria-label="Comparison Y uncertainty model"
+          value={drafts[0].request.uncertainty.kind}
+          disabled={busy}
+          onChange={(event) => {
+            try {
+              changeAll(
+                drafts.map((draft) => ({
+                  ...draft,
+                  ...switchNoiseModel(
+                    draft.request,
+                    draft.settings,
+                    event.target.value as FitRequest["uncertainty"]["kind"],
+                  ),
+                })),
+              );
+            } catch (cause) {
+              setError(String(cause));
+            }
+          }}
+        >
+          <option value="unknown-equal">
+            Unknown · estimate equal scatter
+          </option>
+          <option value="supplied-common">Supplied common σ</option>
+          {drafts.every(
+            (d) =>
+              d.request.uncertainty.kind === "supplied-per-row" ||
+              d.settings.retainedPerRowUncertainty,
+          ) && (
+            <option value="supplied-per-row">Supplied per observation</option>
+          )}
+        </select>
+      </label>
+      {drafts[0].request.uncertainty.kind === "supplied-common" && (
+        <label>
+          {`Uniform σᵧ [${drafts[0].request.dataset.yColumn.unit ?? "unspecified"}]`}
+          <EditableNumber
+            aria-label="Comparison Y uncertainty"
+            value={drafts[0].request.uncertainty.sigmaY}
+            isValid={(value) => value > 0}
+            onInvalidChange={(value) =>
+              setInvalid((previous) => ({ ...previous, sigma: value }))
+            }
+            onRestoreInvalid={() => {}}
+            onChange={(sigmaY) =>
+              changeAll(
+                drafts.map((draft) => ({
+                  ...draft,
+                  request: {
+                    ...draft.request,
+                    uncertainty: {
+                      kind: "supplied-common",
+                      sigmaY,
+                      errorStructure: draft.request.uncertainty.errorStructure,
+                      provenance: {
+                        kind: "user-asserted",
+                        description: "Common sigma edited in model comparison",
+                      },
+                    },
+                  },
+                })),
+              )
+            }
+          />
+        </label>
+      )}
+      <p className="comparison-weighting">{weightingText(drafts[0].request)}</p>
+      <p>Showing or hiding error bars does not change these fitting weights.</p>
+    </div>
+  );
   return (
     <section className="model-comparison">
       <aside className="comparison-controls">
-        {analysisControl}
+        {analysisControl?.(uncertaintyControl)}
         <h2>Models</h2>
         <div
           className="comparison-candidate-tabs"
@@ -1503,7 +1578,7 @@ export default function ModelComparison({
           Add model
         </button>
         <section className="comparison-shared-controls">
-          <h2>Shared data and uncertainties</h2>
+          <h2>Shared data and assumptions</h2>
           <p>
             {drafts[0].request.dataset.label} · {usedCount} of{" "}
             {observations.length} observations included
@@ -1516,85 +1591,6 @@ export default function ModelComparison({
               Use candidate 1 data for all models
             </button>
           )}
-          <label>
-            Y uncertainty model
-            <select
-              aria-label="Comparison Y uncertainty model"
-              value={drafts[0].request.uncertainty.kind}
-              disabled={busy}
-              onChange={(event) => {
-                try {
-                  changeAll(
-                    drafts.map((draft) => ({
-                      ...draft,
-                      ...switchNoiseModel(
-                        draft.request,
-                        draft.settings,
-                        event.target.value as FitRequest["uncertainty"]["kind"],
-                      ),
-                    })),
-                  );
-                } catch (cause) {
-                  setError(String(cause));
-                }
-              }}
-            >
-              <option value="unknown-equal">
-                Unknown · estimate equal scatter
-              </option>
-              <option value="supplied-common">Supplied common σ</option>
-              {drafts.every(
-                (d) =>
-                  d.request.uncertainty.kind === "supplied-per-row" ||
-                  d.settings.retainedPerRowUncertainty,
-              ) && (
-                <option value="supplied-per-row">
-                  Supplied per observation
-                </option>
-              )}
-            </select>
-          </label>
-          {drafts[0].request.uncertainty.kind === "supplied-common" && (
-            <label>
-              σ y [{drafts[0].request.dataset.yColumn.unit ?? "unspecified"}]
-              <EditableNumber
-                aria-label="Comparison Y uncertainty"
-                value={drafts[0].request.uncertainty.sigmaY}
-                isValid={(value) => value > 0}
-                onInvalidChange={(value) =>
-                  setInvalid((previous) => ({ ...previous, sigma: value }))
-                }
-                onRestoreInvalid={() => {}}
-                onChange={(sigmaY) =>
-                  changeAll(
-                    drafts.map((draft) => ({
-                      ...draft,
-                      request: {
-                        ...draft.request,
-                        uncertainty: {
-                          kind: "supplied-common",
-                          sigmaY,
-                          errorStructure:
-                            draft.request.uncertainty.errorStructure,
-                          provenance: {
-                            kind: "user-asserted",
-                            description:
-                              "Common sigma edited in model comparison",
-                          },
-                        },
-                      },
-                    })),
-                  )
-                }
-              />
-            </label>
-          )}
-          <p className="comparison-weighting">
-            {weightingText(drafts[0].request)}
-          </p>
-          <p>
-            Showing or hiding error bars does not change these fitting weights.
-          </p>
           <Assumptions
             checked={drafts.every((d) => d.settings.conditionalInference)}
             onChange={(checked) =>

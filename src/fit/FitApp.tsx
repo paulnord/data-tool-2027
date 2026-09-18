@@ -110,7 +110,11 @@ import {
   type DataTable,
   type FitWorkspace,
 } from "../core/fit/schema";
-import { tableForAnalysis } from "../core/fit/dataTable";
+import {
+  analysisFromTable,
+  columnHeading,
+  tableForAnalysis,
+} from "../core/fit/dataTable";
 import { emptyRequest } from "../core/fit/empty";
 import { listen } from "@tauri-apps/api/event";
 import "./fit.css";
@@ -303,8 +307,11 @@ function Plot({
   onLogY?: (log: boolean) => void;
 }) {
   const appearance = usePlotAppearance();
-  const rowNumbers = new Map(
-    state.request.dataset.rows.map((row, index) => [row.id, index + 1]),
+  const rowNames = new Map(
+    state.request.dataset.rows.map((row, index) => [
+      row.id,
+      row.label ?? `Row ${index + 1}`,
+    ]),
   );
   const logX = mode === "log-x" || mode === "log-log";
   const logY = !residual && (mode === "log-y" || mode === "log-log");
@@ -982,7 +989,7 @@ function Plot({
                 if (!onSelect && !suppressClick.current) onToggle(r.id);
               }}
             >
-              <title>{`Row ${rowNumbers.get(r.id)}: ${r.x}, ${ys[i]} (${excluded.has(r.id) || !r.included ? "excluded from fit" : "included in fit"})`}</title>
+              <title>{`${rowNames.get(r.id)}: ${r.x}, ${ys[i]} (${excluded.has(r.id) || !r.included ? "excluded from fit" : "included in fit"})`}</title>
             </PlotMarker>
           ))}
           {rubberBand && (
@@ -2220,7 +2227,7 @@ export default function FitApp() {
       setUnsavedDraftWork(dirtyWorkspaces.current.size > 0);
     }
   }, [collisionOpen, multiOpen, state, collisionSource]);
-  const analysisControl = (
+  const modelSelector = (
     <ModelSelector
       label="Analysis"
       workspaces
@@ -2290,6 +2297,106 @@ export default function FitApp() {
       }}
     />
   );
+  const analysisTable = tableForAnalysis(state);
+  const analysisWidth = Math.max(
+    0,
+    ...analysisTable.cells.map((row) => row.length),
+  );
+  const analysisColumns = Array.from({ length: analysisWidth }, (_, index) => ({
+    index,
+    label: columnHeading(
+      analysisTable.headerRows
+        ? analysisTable.cells[analysisTable.headerRows - 1]?.[index] ||
+            `Column ${index + 1}`
+        : `Column ${index + 1}`,
+      analysisTable.units[index],
+    ),
+  })).filter(({ index }) => index !== analysisTable.label);
+  function assignAnalysisColumns(
+    update: Partial<Pick<DataTable, "x" | "y" | "sigma">>,
+  ) {
+    let next = { ...analysisTable, ...update };
+    if (update.x !== undefined && update.x === analysisTable.y)
+      next = { ...next, y: analysisTable.x };
+    if (update.y !== undefined && update.y === analysisTable.x)
+      next = { ...next, x: analysisTable.y };
+    if (update.y !== undefined) next = { ...next, sigma: null };
+    if (next.sigma === next.x || next.sigma === next.y)
+      next = { ...next, sigma: null };
+    try {
+      const remapped = analysisFromTable(
+        next,
+        state.request.dataset.label,
+        state,
+        state.request.source.fileName,
+      );
+      change({ ...state, ...remapped });
+      bounds();
+    } catch (cause) {
+      setError(
+        `That column assignment cannot be analyzed: ${cause instanceof Error ? cause.message : String(cause)}`,
+      );
+    }
+  }
+  const columnAssignments = (
+    <fieldset className="fit-analysis-columns">
+      <legend>Columns</legend>
+      {(["x", "y"] as const).map((axis) => (
+        <label key={axis}>
+          {axis.toUpperCase()}
+          <select
+            aria-label={`${axis.toUpperCase()} analysis column`}
+            value={analysisTable[axis]}
+            onChange={(event) =>
+              assignAnalysisColumns({ [axis]: Number(event.target.value) })
+            }
+          >
+            {analysisColumns.map((column) => (
+              <option key={column.index} value={column.index}>
+                {column.label.label}
+                {column.label.unit ? ` [${column.label.unit}]` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      ))}
+      <label>
+        Y uncertainty
+        <select
+          aria-label="Uncertainty analysis column"
+          value={analysisTable.sigma ?? -1}
+          onChange={(event) =>
+            assignAnalysisColumns({
+              sigma:
+                Number(event.target.value) < 0
+                  ? null
+                  : Number(event.target.value),
+            })
+          }
+        >
+          <option value={-1}>None</option>
+          {analysisColumns
+            .filter(
+              (column) =>
+                column.index !== analysisTable.x &&
+                column.index !== analysisTable.y,
+            )
+            .map((column) => (
+              <option key={column.index} value={column.index}>
+                {column.label.label}
+                {column.label.unit ? ` [${column.label.unit}]` : ""}
+              </option>
+            ))}
+        </select>
+      </label>
+    </fieldset>
+  );
+  const analysisControl = (
+    <>
+      {modelSelector}
+      {columnAssignments}
+    </>
+  );
   const names = parameterNames(state.settings.model, state.settings.custom),
     u = state.request.uncertainty;
   const derived = current
@@ -2298,6 +2405,9 @@ export default function FitApp() {
   const included = state.request.dataset.rows.filter(
     (r) => r.included && !state.settings.excludedIds.includes(r.id),
   ).length;
+  const hasRowLabels = state.request.dataset.rows.some(
+    (row) => row.label !== undefined,
+  );
   return (
     <InterfaceScaleContext.Provider value={displayScale}>
       <PlotAppearanceContext.Provider value={appearance}>
@@ -2736,7 +2846,7 @@ export default function FitApp() {
               showResiduals={showResiduals}
               exportSizes={collisionOpen ? exportRender?.sizes : undefined}
               ref={collisionActions}
-              analysisControl={analysisControl}
+              analysisControl={modelSelector}
               onReady={setCollisionReady}
               onDirty={() => draftChanged("collision")}
             />
@@ -2755,7 +2865,7 @@ export default function FitApp() {
               showResiduals={showResiduals}
               exportSizes={multiOpen ? exportRender?.sizes : undefined}
               ref={multiActions}
-              analysisControl={analysisControl}
+              analysisControl={modelSelector}
               onReady={setMultiReady}
               onDirty={() => draftChanged("multi-interval")}
             />
@@ -3228,7 +3338,13 @@ export default function FitApp() {
                       <table>
                         <thead>
                           <tr>
-                            <th>Original row</th>
+                            <th>
+                              {state.originalRequest.dataset.rows.some(
+                                (row) => row.label !== undefined,
+                              )
+                                ? "Original label"
+                                : "Original row"}
+                            </th>
                             <th>
                               {state.originalRequest.dataset.xColumn.label}
                             </th>
@@ -3241,7 +3357,7 @@ export default function FitApp() {
                           {state.originalRequest.dataset.rows.map(
                             (row, index) => (
                               <tr key={row.id}>
-                                <td>{index + 1}</td>
+                                <td>{row.label ?? index + 1}</td>
                                 <td>
                                   {row.x === null ? "Missing" : String(row.x)}
                                 </td>
@@ -3259,7 +3375,7 @@ export default function FitApp() {
                     <thead>
                       <tr>
                         <th>Use</th>
-                        <th>Row</th>
+                        <th>{hasRowLabels ? "Label" : "Row"}</th>
                         <th>{state.request.dataset.xColumn.label}</th>
                         <th>{state.request.dataset.yColumn.label}</th>
                       </tr>
@@ -3279,7 +3395,7 @@ export default function FitApp() {
                               onChange={() => toggle(r.id)}
                             />
                           </td>
-                          <td>{index + 1}</td>
+                          <td>{r.label ?? index + 1}</td>
                           <td>{number(r.x)}</td>
                           <td>{number(r.y)}</td>
                         </tr>

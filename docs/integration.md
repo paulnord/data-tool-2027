@@ -55,8 +55,9 @@ remain v1. The file extension stays `.trksess`.
 The root contains a validated analysis: `request`, `settings`, matching `engine`,
 optional `originalRequest`, and optional `dataTable`. The source table is required
 for multi-fit workspaces, and preserves exact cell text, unused columns, row IDs,
-headings, column assignments and case-sensitive units. Numeric-only single fits
-can reconstruct their displayed table from the preserved request.
+optional row-label assignment, headings, analysis-column assignments and
+case-sensitive units. Numeric-only single fits can reconstruct their displayed
+table from the preserved request.
 
 Every session requires `workspace` and `view`. `workspace.kind` identifies what to
 open:

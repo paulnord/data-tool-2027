@@ -32,6 +32,7 @@ export interface CodeExportDescription {
   assumptions: FitRequest["dataset"]["assumptions"];
   uncertainty: FitRequest["uncertainty"];
   rowIds: string[];
+  rowLabels: (string | null)[];
   x: (number | null)[];
   y: (number | null)[];
   included: boolean[];
@@ -87,6 +88,7 @@ export function buildCodeExportDescription(
     assumptions: request.dataset.assumptions,
     uncertainty: request.uncertainty,
     rowIds: request.dataset.rows.map((row) => row.id),
+    rowLabels: request.dataset.rows.map((row) => row.label ?? null),
     x: request.dataset.rows.map((row) => row.x),
     y: request.dataset.rows.map((row) => row.y),
     included: request.dataset.rows.map(
@@ -132,6 +134,7 @@ export function generateObservationArchiveCsv(
   const rows = description.rowIds.map((rowId, index) =>
     [
       rowId,
+      description.rowLabels[index] ?? "",
       description.x[index] === null
         ? ""
         : Object.is(description.x[index], -0)
@@ -154,9 +157,11 @@ export function generateObservationArchiveCsv(
       ?.split(/\r\n|\r|\n/)
       .map((line) => `# ${line}`) ?? [];
   return (
-    [...comments, "row_id,x,y,sigma,included,missing_reason", ...rows].join(
-      "\r\n",
-    ) + "\r\n"
+    [
+      ...comments,
+      "row_id,row_label,x,y,sigma,included,missing_reason",
+      ...rows,
+    ].join("\r\n") + "\r\n"
   );
 }
 
@@ -699,8 +704,8 @@ For another compatible file: \`root -l 'fit_root.C("another-run.csv")'\`.
 
 - data.csv contains only the selected, finite observations, in original order.
   Its numeric columns are ${description.knownSigma ? "x, y, sigma_y" : "x, y"}. Every numeric row is fitted.
-- observations.csv preserves the complete original table, row identities,
-  inclusion flags, supplied uncertainties and missing-value reasons.
+- observations.csv preserves row labels, stable identities, inclusion flags,
+  supplied uncertainties and missing-value reasons for the complete record.
 - Both CSVs preserve source comments as leading # lines. Units are in the
   data.csv comments and analysis.json.
 - analysis.json records the original model, starts, fixed flags, selected row IDs,

@@ -28,14 +28,18 @@ export function tableForAnalysis(analysis: TableAnalysis): DataTable {
   const { request: r, settings: s } = analysis;
   const sigma =
     r.uncertainty.kind === "supplied-per-row" || !!s.retainedPerRowUncertainty;
+  const labels = r.dataset.rows.some((row) => row.label !== undefined);
+  const rowLabels = new Map(r.dataset.rows.map((row) => [row.id, row.label]));
   return {
     cells: [
       [
+        ...(labels ? ["Label"] : []),
         r.dataset.xColumn.label,
         r.dataset.yColumn.label,
         ...(sigma ? ["Y uncertainty"] : []),
       ],
       ...draftRows(r, s).map((row) => [
+        ...(labels ? [rowLabels.get(row.id) ?? ""] : []),
         row.x,
         row.y,
         ...(sigma ? [row.sigma] : []),
@@ -43,13 +47,15 @@ export function tableForAnalysis(analysis: TableAnalysis): DataTable {
     ],
     rowIds: [`heading-${r.requestId}`, ...r.dataset.rows.map((row) => row.id)],
     headerRows: 1,
-    x: 0,
-    y: 1,
-    sigma: sigma ? 2 : null,
+    label: labels ? 0 : null,
+    x: labels ? 1 : 0,
+    y: labels ? 2 : 1,
+    sigma: sigma ? (labels ? 3 : 2) : null,
     units: [
+      ...(labels ? [""] : []),
       r.dataset.xColumn.unit ?? "",
       r.dataset.yColumn.unit ?? "",
-      r.dataset.yColumn.unit ?? "",
+      ...(sigma ? [r.dataset.yColumn.unit ?? ""] : []),
     ],
   };
 }
@@ -94,10 +100,15 @@ export function analysisFromTable(
   const oldRows = new Map(base?.request.dataset.rows.map((r) => [r.id, r]));
   const rows = parsed.dataset.rows.map((r, i) => {
     const id = t.rowIds[t.headerRows + i],
-      old = oldRows.get(id);
+      old = oldRows.get(id),
+      rowLabel =
+        t.label == null
+          ? undefined
+          : t.cells[t.headerRows + i]?.[t.label]?.trim() || undefined;
     return {
       ...r,
       id,
+      ...(rowLabel === undefined ? {} : { label: rowLabel }),
       included:
         r.included &&
         (old?.missingReason != null || old === undefined || old.included),
@@ -226,6 +237,7 @@ export function insertTableColumn(table: DataTable, index: number): DataTable {
       return next;
     }),
     units,
+    label: table.label == null ? table.label : shift(table.label),
     x: shift(table.x),
     y: shift(table.y),
     sigma: table.sigma === null ? null : shift(table.sigma),

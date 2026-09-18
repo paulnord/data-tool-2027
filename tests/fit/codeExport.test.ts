@@ -35,6 +35,7 @@ it("exports selected numeric observations and separately preserves the complete 
   request.source.context =
     'Imported notes: "copper", mH\r\n# second line\n\nlast line';
   request.dataset.rows[0].id = 'row,"quoted"\nnext';
+  request.dataset.rows[0].label = 'Trial "A"';
   request.dataset.rows[0].included = false;
   settings.excludedIds = [request.dataset.rows[2].id];
   settings.parameters[0] = { value: 1.2345678901234567, fixed: true };
@@ -64,8 +65,18 @@ it("exports selected numeric observations and separately preserves the complete 
   );
   expect(records).toHaveLength(request.dataset.rows.length + 1);
   expect(records[1][0]).toBe('row,"quoted"\nnext');
-  expect(records[1][4]).toBe("false");
-  expect(records[3][4]).toBe("false");
+  expect(records[1][1]).toBe('Trial "A"');
+  expect(records[0]).toEqual([
+    "row_id",
+    "row_label",
+    "x",
+    "y",
+    "sigma",
+    "included",
+    "missing_reason",
+  ]);
+  expect(records[1][5]).toBe("false");
+  expect(records[3][5]).toBe("false");
   const metadata = JSON.parse(generateCodeExportMetadata(description));
   expect(metadata).toMatchObject({
     format: "data-tool-analysis-bundle",

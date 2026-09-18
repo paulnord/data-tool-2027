@@ -95,6 +95,12 @@ export function fitReportTable(
   const rowNumbers = new Map(
     request.dataset.rows.map((row, index) => [row.id, index + 1]),
   );
+  const rowLabels = new Map(
+    request.dataset.rows.map((row) => [row.id, row.label]),
+  );
+  const hasRowLabels = request.dataset.rows.some(
+    (row) => row.label !== undefined,
+  );
   const derived = fitDerivedQuantities(request, settings, result);
   const equations = {
     ...(Object.fromEntries(
@@ -238,9 +244,9 @@ export function fitReportTable(
     ["Statistic", "Value"],
     ...fitReportRows(request, settings, result).map((row) => [...row]),
     [],
-    ["Row", "x", "y", "predicted", "residual"],
+    [hasRowLabels ? "Label" : "Row", "x", "y", "predicted", "residual"],
     ...result.residuals.map((row) => [
-      rowNumbers.get(row.id) ?? null,
+      rowLabels.get(row.id) ?? rowNumbers.get(row.id) ?? null,
       row.x,
       row.y,
       row.predicted,
@@ -266,7 +272,7 @@ export function fitReportTable(
   };
   if (sections.statistics === false) remove("Statistic");
   if (sections.correlation === false) remove("Parameter correlation matrix");
-  if (sections.observations === false) remove("Row");
+  if (sections.observations === false) remove(hasRowLabels ? "Label" : "Row");
   if (sections.provenance === false) remove("Source file");
   return rows;
 }

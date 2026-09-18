@@ -293,11 +293,11 @@ test("synthetic time intervals fit independently and keep distinct monochrome gu
   await page
     .locator("input[type=file]")
     .setInputFiles(syntheticDampedIntervalsFile);
-  await page.getByLabel("x column", { exact: true }).selectOption("2");
-  await page.getByLabel("y column", { exact: true }).selectOption("1");
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
+  await page.getByLabel("X analysis column", { exact: true }).selectOption("2");
+  await page.getByLabel("Y analysis column", { exact: true }).selectOption("1");
   await page
     .getByLabel("Analysis", { exact: true })
     .selectOption("multi-interval");

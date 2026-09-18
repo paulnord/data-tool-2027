@@ -864,10 +864,12 @@ test("CSV preview, corrections, pasted cells, undo and original snapshot round t
   });
   const panel = page.getByRole("dialog", { name: "Data" });
   await expect(panel).toBeVisible();
-  await panel.getByLabel("sigma column", { exact: true }).selectOption("2");
   await panel.getByText("Import options", { exact: true }).click();
   await panel.getByLabel("x unit", { exact: true }).fill("s");
   await panel.getByRole("button", { name: "Use these data" }).click();
+  await page
+    .getByLabel("Uncertainty analysis column", { exact: true })
+    .selectOption("2");
   await expect(page.locator(".fit-source")).toContainText("3 / 3");
   await page.getByRole("button", { name: "Observations & exclusions" }).click();
   await page.getByRole("button", { name: "Edit data", exact: true }).click();
@@ -1020,8 +1022,12 @@ test("paste grid flags inf, keeps column assignments, repairs R heading and past
       }),
     );
   });
-  await expect(panel.getByLabel("x column", { exact: true })).toHaveValue("1");
-  await expect(panel.getByLabel("y column", { exact: true })).toHaveValue("2");
+  await expect(
+    panel.getByText("Suggested X · number", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText("Suggested Y · number", { exact: true }),
+  ).toBeVisible();
   await panel
     .getByRole("button", { name: "Add blank row-name heading" })
     .click();
@@ -1033,7 +1039,6 @@ test("paste grid flags inf, keeps column assignments, repairs R heading and past
   ).toBeDisabled();
   await expect(panel).toContainText("not a finite number");
   await panel.getByLabel("Row 3 column 3", { exact: true }).fill("3");
-  await expect(panel.getByLabel("y column", { exact: true })).toHaveValue("2");
   await panel.getByLabel("Row 4 column 2", { exact: true }).click();
   await panel.getByLabel("Row 4 column 2", { exact: true }).evaluate((el) => {
     const clipboardData = new DataTransfer();
@@ -1123,25 +1128,20 @@ test("Data reopens the same source table, loads files in place, swaps axes and s
     buffer: Buffer.from("id,time,height,sigma\na,0,2,.1\nb,1,3,.2\nc,2,4,.3"),
   });
   panel = page.getByRole("dialog", { name: "Data", exact: true });
-  await panel.getByLabel("sigma column", { exact: true }).selectOption("3");
   await panel.getByRole("button", { name: "Use these data" }).click();
+  await page
+    .getByLabel("Uncertainty analysis column", { exact: true })
+    .selectOption("3");
   await page.getByRole("button", { name: "Data…", exact: true }).click();
   await expect(panel.getByLabel("Row 2 column 1", { exact: true })).toHaveValue(
     "a",
   );
-  await expect(panel.getByLabel("sigma column", { exact: true })).toHaveValue(
-    "3",
-  );
-  await panel.getByLabel("x column", { exact: true }).selectOption("2");
-  await panel.getByLabel("y column", { exact: true }).selectOption("1");
-  await expect(panel.getByLabel("sigma column", { exact: true })).toHaveValue(
-    "-1",
-  );
-  await panel.getByRole("button", { name: "Use these data" }).click();
-  await page.getByRole("button", { name: "Data…", exact: true }).click();
-  await expect(panel.getByLabel("x column", { exact: true })).toHaveValue("2");
-  await expect(panel.getByLabel("y column", { exact: true })).toHaveValue("1");
   await panel.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByLabel("X analysis column", { exact: true }).selectOption("2");
+  await page.getByLabel("Y analysis column", { exact: true }).selectOption("1");
+  await expect(
+    page.getByLabel("Uncertainty analysis column", { exact: true }),
+  ).toHaveValue("-1");
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save session" }).click();
   const bytes = await readFile((await (await download).path())!);
@@ -1157,8 +1157,10 @@ test("Data reopens the same source table, loads files in place, swaps axes and s
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
+  await expect(
+    page.getByLabel("X analysis column", { exact: true }),
+  ).toHaveValue("2");
   await page.getByRole("button", { name: "Data…", exact: true }).click();
-  await expect(panel.getByLabel("x column", { exact: true })).toHaveValue("2");
   await expect(panel.getByLabel("Row 2 column 4", { exact: true })).toHaveValue(
     ".1",
   );
@@ -1338,8 +1340,10 @@ test("deleting an unused column preserves assignments, values and undo", async (
     buffer: Buffer.from("id,time,height,sigma\na,0,2,.1\nb,1,3,.2\nc,2,4,.3"),
   });
   const panel = page.getByRole("dialog", { name: "Data", exact: true });
-  await panel.getByLabel("sigma column", { exact: true }).selectOption("3");
   await panel.getByRole("button", { name: "Use these data" }).click();
+  await page
+    .getByLabel("Uncertainty analysis column", { exact: true })
+    .selectOption("3");
   await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
   await page.getByRole("button", { name: "Data…", exact: true }).click();
   await panel
@@ -1352,10 +1356,12 @@ test("deleting an unused column preserves assignments, values and undo", async (
     .getByLabel("Select column 1", { exact: true })
     .click({ button: "right" });
   await panel.getByLabel("Delete column 1", { exact: true }).click();
-  await expect(panel.getByLabel("x column", { exact: true })).toHaveValue("0");
-  await expect(panel.getByLabel("sigma column", { exact: true })).toHaveValue(
-    "2",
-  );
+  await expect(
+    panel.getByLabel("Select column 1", { exact: true }),
+  ).toContainText("Suggested X");
+  await expect(
+    panel.getByLabel("Select column 3", { exact: true }),
+  ).toContainText("Suggested σy");
   await expect(panel.getByLabel("Row 2 column 1", { exact: true })).toHaveValue(
     "0",
   );
@@ -1363,9 +1369,9 @@ test("deleting an unused column preserves assignments, values and undo", async (
   await expect(panel.getByLabel("Row 2 column 1", { exact: true })).toHaveValue(
     "a",
   );
-  await expect(panel.getByLabel("sigma column", { exact: true })).toHaveValue(
-    "3",
-  );
+  await expect(
+    panel.getByLabel("Select column 4", { exact: true }),
+  ).toContainText("Suggested σy");
   await panel.getByLabel("Redo table change").click();
   await panel.getByRole("button", { name: "Use these data" }).click();
   await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
@@ -1390,8 +1396,6 @@ test("leading comments can be declared headings and middle text must be correcte
   });
   const panel = page.getByRole("dialog", { name: "Data", exact: true });
   await panel.getByLabel("Header rows", { exact: true }).fill("3");
-  await panel.getByLabel("x column", { exact: true }).selectOption("0");
-  await panel.getByLabel("y column", { exact: true }).selectOption("1");
   await expect(
     panel.getByRole("button", { name: "Use these data" }),
   ).toBeDisabled();
@@ -1415,8 +1419,6 @@ test("imported preamble and edited source notes survive session save", async ({
   });
   const panel = page.getByRole("dialog", { name: "Data", exact: true });
   await panel.getByLabel("Header rows", { exact: true }).fill("2");
-  await panel.getByLabel("x column", { exact: true }).selectOption("0");
-  await panel.getByLabel("y column", { exact: true }).selectOption("1");
   await panel.getByRole("button", { name: "Use these data" }).click();
   await expect(page.getByLabel("Source notes", { exact: true })).toHaveValue(
     "notes.csv\n# My experiment",
@@ -1485,8 +1487,12 @@ test("column headings select contents; Delete clears and context menu removes co
   await expect(panel.getByLabel("Header rows", { exact: true })).toHaveValue(
     "4",
   );
-  await expect(panel.getByLabel("x column", { exact: true })).toHaveValue("1");
-  await expect(panel.getByLabel("y column", { exact: true })).toHaveValue("2");
+  await expect(
+    panel.getByLabel("Select column 2", { exact: true }),
+  ).toContainText("Suggested X");
+  await expect(
+    panel.getByLabel("Select column 3", { exact: true }),
+  ).toContainText("Suggested Y");
   await expect(
     panel.getByLabel("Row 4 column 2", { exact: true }),
   ).not.toHaveAttribute("aria-invalid", "true");
@@ -1827,8 +1833,12 @@ test("plain column headings support dragging, modifier sets and batch menu actio
   await panel
     .getByRole("menuitem", { name: "Delete selected columns", exact: true })
     .click();
-  await expect(panel.getByLabel("x column", { exact: true })).toHaveValue("0");
-  await expect(panel.getByLabel("y column", { exact: true })).toHaveValue("1");
+  await expect(
+    panel.getByLabel("Select column 1", { exact: true }),
+  ).toContainText("Suggested X");
+  await expect(
+    panel.getByLabel("Select column 2", { exact: true }),
+  ).toContainText("Suggested Y");
   await expect(panel.getByLabel("Row 2 column 3", { exact: true })).toHaveValue(
     "C0",
   );
@@ -2064,8 +2074,12 @@ test("tables have no phantom third column and can insert, paste wider blocks, de
   await panel
     .getByRole("menuitem", { name: "Insert column left", exact: true })
     .click();
-  await expect(panel.getByLabel("x column", { exact: true })).toHaveValue("1");
-  await expect(panel.getByLabel("y column", { exact: true })).toHaveValue("2");
+  await expect(
+    panel.getByLabel("Select column 2", { exact: true }),
+  ).toContainText("Suggested X");
+  await expect(
+    panel.getByLabel("Select column 3", { exact: true }),
+  ).toContainText("Suggested Y");
   await expect(panel.getByLabel("x unit", { exact: true })).toHaveValue("s");
 });
 
@@ -2104,7 +2118,9 @@ test("Millikan source columns survive noise changes, exclusions and fitting", as
   await expect(panel.getByLabel("Row 1 column 3", { exact: true })).toHaveValue(
     "mass_A (mm)",
   );
+  await expect(panel.locator(".fit-column-heading")).toHaveCount(4);
+  await panel.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
-    panel.getByLabel("y column", { exact: true }).locator("option"),
+    page.getByLabel("Y analysis column", { exact: true }).locator("option"),
   ).toHaveCount(4);
 });

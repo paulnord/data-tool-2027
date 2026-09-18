@@ -43,6 +43,7 @@ it("preserves irregular R-style headings until explicitly aligned", () => {
   expect(rows[0]).toEqual(["x", "y"]);
   expect(missingCornerHeading(pasteGrid(rows, 1, 2, [["3"]]), 1)).toBe(true);
   expect(suggestImport("x\ty\none\t0\t2\ntwo\t1\t3")).toMatchObject({
+    label: 0,
     x: 1,
     y: 2,
     header: true,

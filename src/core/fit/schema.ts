@@ -44,6 +44,7 @@ export const uncertaintySchema = z.discriminatedUnion("kind", [
 export const rowSchema = z
   .object({
     id: text,
+    label: text.optional(),
     x: finite.nullable(),
     y: finite.nullable(),
     included: z.boolean(),
@@ -224,6 +225,7 @@ export const dataTableSchema = z
     cells: z.array(z.array(z.string()).max(1000)).max(100001),
     rowIds: z.array(text).max(100001),
     headerRows: z.number().int().nonnegative(),
+    label: z.number().int().nonnegative().nullable().optional(),
     x: z.number().int().nonnegative(),
     y: z.number().int().nonnegative(),
     sigma: z.number().int().nonnegative().nullable(),
@@ -270,6 +272,8 @@ function checkAnalysis(
       t.rowIds.length === t.cells.length &&
       new Set(t.rowIds).size === t.rowIds.length &&
       rows.length === s.request.dataset.rows.length &&
+      (t.label == null ||
+        (t.label !== t.x && t.label !== t.y && t.label !== t.sigma)) &&
       t.x !== t.y &&
       t.sigma !== t.x &&
       t.sigma !== t.y;
@@ -288,11 +292,17 @@ function checkAnalysis(
         if (
           !r ||
           r.id !== t.rowIds[i + t.headerRows] ||
+          (t.label != null && t.label >= row.length) ||
           t.x >= row.length ||
           t.y >= row.length ||
           numericCell(row[t.x]) !== r.x ||
           numericCell(row[t.y]) !== r.y ||
           (t.sigma !== null && t.sigma >= row.length)
+        )
+          valid = false;
+        if (
+          (t.label == null ? undefined : row[t.label]?.trim() || undefined) !==
+          r?.label
         )
           valid = false;
         if (t.sigma !== null) {

@@ -21,9 +21,12 @@ test("student chooses three ranges, fits one at a time and preserves the other r
   page,
 }) => {
   const workspace = await open(page);
-  await expect(
-    workspace.getByRole("button", { name: "Fit Interval 1", exact: true }),
-  ).toBeDisabled();
+  const fit = workspace.getByRole("button", {
+    name: "Fit Interval 1",
+    exact: true,
+  });
+  await expect(fit).toHaveClass(/\bfit-primary\b/);
+  await expect(fit).toBeDisabled();
   await page.getByLabel("Number of intervals").selectOption("3");
   await range(page, "0.2", "2.8");
   await page

@@ -1608,7 +1608,7 @@ export default function ModelComparison({
           />
         </section>
         <button
-          className="comparison-run"
+          className="fit-primary"
           disabled={
             busy || invalidDraft || !usedCount || incompatibilities.length > 0
           }

@@ -42,7 +42,9 @@ test("compares refitted candidates and safely stages two session files", async (
   await page
     .getByLabel("Candidate 2 model", { exact: true })
     .selectOption("line");
-  await page.getByRole("button", { name: "Refit and compare" }).click();
+  const compare = page.getByRole("button", { name: "Refit and compare" });
+  await expect(compare).toHaveClass(/\bfit-primary\b/);
+  await compare.click();
   await expect(page.getByRole("status")).toHaveText("Comparison complete");
   const table = page.getByRole("table", {
     name: "Model comparison statistics",

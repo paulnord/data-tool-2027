@@ -798,7 +798,7 @@ export default forwardRef<
             </fieldset>
           ))}
           <button
-            className="collision-fit-button"
+            className="fit-primary"
             disabled={busy || !!preview.error}
             onClick={run}
           >

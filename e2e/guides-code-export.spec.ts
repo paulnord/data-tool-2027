@@ -136,7 +136,7 @@ for (const target of ["scipy", "root"] as const) {
       expect(root).toContain("auto result=fit_data(data, model)");
       expect(root).toContain("canvas->SaveAs");
       expect(files["observations.csv"]).toContain(
-        "row_id,x,y,sigma,included,missing_reason",
+        "row_id,row_label,x,y,sigma,included,missing_reason",
       );
     }
     expect(files["README.md"]).toContain("another-run.csv");

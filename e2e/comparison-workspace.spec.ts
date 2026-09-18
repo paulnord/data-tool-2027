@@ -80,7 +80,9 @@ test("comparison opens directly with data, uses chosen uncertainties, and preser
     "used in the fit",
   );
   await expect(
-    workspace.locator("fieldset").first().getByLabel("Model equation"),
+    workspace
+      .getByRole("group", { name: "Candidate 1", exact: true })
+      .getByLabel("Model equation"),
   ).toContainText("y = b + m x");
   await compare(page);
   const expected = fit(request, initialSettings("line"));
@@ -120,7 +122,10 @@ test("comparison opens directly with data, uses chosen uncertainties, and preser
   await workspace
     .getByLabel("Candidate 2 model", { exact: true })
     .selectOption("custom");
-  const editor = workspace.locator("fieldset").nth(1);
+  const editor = workspace.getByRole("group", {
+    name: "Candidate 2",
+    exact: true,
+  });
   await editor.getByLabel("Custom equation", { exact: true }).fill("b+m*x");
   await expect(
     page.getByRole("button", { name: "Refit and compare", exact: true }),

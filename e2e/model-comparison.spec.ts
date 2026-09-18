@@ -64,7 +64,7 @@ test("compares refitted candidates and safely stages two session files", async (
   ).toBeVisible();
   await expect(page.locator(".comparison-tick")).not.toHaveCount(0);
   await expect(
-    page.locator(".comparison-controls fieldset").first(),
+    page.getByRole("group", { name: "Candidate 2", exact: true }),
   ).toContainText("Fitted parameters");
   await expect(
     page.getByRole("img", { name: "Compared residuals" }),

@@ -2339,6 +2339,143 @@ export default function FitApp() {
       );
     }
   }
+  const u = state.request.uncertainty;
+  const uncertaintyChoice =
+    u.kind === "supplied-per-row" && analysisTable.sigma !== null
+      ? `column:${analysisTable.sigma}`
+      : u.kind;
+  function chooseUncertainty(value: string) {
+    if (value.startsWith("column:")) {
+      const sigma = Number(value.slice("column:".length));
+      if (sigma !== analysisTable.sigma) {
+        assignAnalysisColumns({ sigma });
+        return;
+      }
+      change({
+        ...state,
+        ...switchNoiseModel(state.request, state.settings, "supplied-per-row"),
+      });
+      return;
+    }
+    change({
+      ...state,
+      ...switchNoiseModel(
+        state.request,
+        state.settings,
+        value as FitRequest["uncertainty"]["kind"],
+      ),
+    });
+  }
+  const uncertaintyAssignment = (
+    <div className="fit-analysis-uncertainty">
+      <label>
+        Y uncertainty
+        <select
+          aria-label="Y uncertainty source"
+          value={uncertaintyChoice}
+          onChange={(event) => chooseUncertainty(event.target.value)}
+        >
+          <option value="unknown-equal">
+            Unknown · estimate equal scatter
+          </option>
+          <option value="supplied-common">Enter common σ</option>
+          {analysisColumns
+            .filter(
+              (column) =>
+                column.index !== analysisTable.x &&
+                column.index !== analysisTable.y,
+            )
+            .map((column) => (
+              <option key={column.index} value={`column:${column.index}`}>
+                Use {column.label.label}
+                {column.label.unit ? ` [${column.label.unit}]` : ""}
+              </option>
+            ))}
+          {u.kind === "supplied-per-row" && analysisTable.sigma === null && (
+            <option value="supplied-per-row">Supplied per observation</option>
+          )}
+        </select>
+      </label>
+      {u.kind === "supplied-common" && (
+        <label>
+          Common σ y [{state.request.dataset.yColumn.unit ?? "unspecified"}]
+          <input
+            type="text"
+            inputMode="decimal"
+            aria-label="Y uncertainty"
+            aria-invalid={sigmaTouched && sigmaInvalid}
+            aria-describedby={
+              sigmaTouched && sigmaInvalid ? "sigma-error" : undefined
+            }
+            value={sigmaDraft ?? String(u.sigmaY)}
+            onChange={(event) => {
+              cancel();
+              setSigmaDraft(event.target.value);
+              setSigmaTouched(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setSigmaDraft(null);
+                setSigmaTouched(false);
+              }
+            }}
+            onBlur={() => {
+              if (sigmaDraft === null) return;
+              if (sigmaInvalid) {
+                setSigmaTouched(true);
+                return;
+              }
+              const sigmaY = Number(sigmaDraft);
+              if (sigmaY === u.sigmaY) {
+                setSigmaDraft(null);
+                setSigmaTouched(false);
+                return;
+              }
+              change({
+                ...state,
+                request: {
+                  ...state.request,
+                  uncertainty: {
+                    ...u,
+                    sigmaY,
+                    provenance: {
+                      kind: "user-asserted",
+                      description: "Common sigma edited in fit window",
+                    },
+                  },
+                },
+              });
+            }}
+          />
+        </label>
+      )}
+      {sigmaTouched && sigmaInvalid && (
+        <p id="sigma-error" className="fit-help" role="alert">
+          Enter an uncertainty greater than zero, or press Escape to restore the
+          previous value.
+        </p>
+      )}
+      <p className="fit-help">
+        {u.kind === "unknown-equal"
+          ? "Equal weights. Scatter is estimated from residuals; Q is unavailable."
+          : u.kind === "supplied-common"
+            ? "The common σ is applied to every included observation and is not rescaled."
+            : "The selected column supplies σ for each observation; values are not rescaled."}
+      </p>
+      <p className="fit-help">
+        Error structure: {errorStructureText(u.errorStructure)}. x is{" "}
+        {state.request.dataset.assumptions.exactX === "asserted"
+          ? "asserted exact"
+          : "not established as exact"}
+        .
+      </p>
+    </div>
+  );
   const columnAssignments = (extra?: ReactNode) => (
     <fieldset className="fit-analysis-columns">
       <legend>{extra ? "Columns and uncertainty" : "Columns"}</legend>
@@ -2361,35 +2498,6 @@ export default function FitApp() {
           </select>
         </label>
       ))}
-      <label className="fit-analysis-uncertainty-column">
-        Y uncertainty column
-        <select
-          aria-label="Uncertainty analysis column"
-          value={analysisTable.sigma ?? -1}
-          onChange={(event) =>
-            assignAnalysisColumns({
-              sigma:
-                Number(event.target.value) < 0
-                  ? null
-                  : Number(event.target.value),
-            })
-          }
-        >
-          <option value={-1}>None</option>
-          {analysisColumns
-            .filter(
-              (column) =>
-                column.index !== analysisTable.x &&
-                column.index !== analysisTable.y,
-            )
-            .map((column) => (
-              <option key={column.index} value={column.index}>
-                {column.label.label}
-                {column.label.unit ? ` [${column.label.unit}]` : ""}
-              </option>
-            ))}
-        </select>
-      </label>
       {extra}
     </fieldset>
   );
@@ -2399,8 +2507,7 @@ export default function FitApp() {
       {columnAssignments(extra)}
     </>
   );
-  const names = parameterNames(state.settings.model, state.settings.custom),
-    u = state.request.uncertainty;
+  const names = parameterNames(state.settings.model, state.settings.custom);
   const derived = current
     ? fitDerivedQuantities(state.request, state.settings, current)
     : [];
@@ -3413,7 +3520,7 @@ export default function FitApp() {
                 {!collisionOpen &&
                   !multiOpen &&
                   !comparisonOpen &&
-                  analysisControl()}
+                  analysisControl(uncertaintyAssignment)}
                 {state.settings.model !== "custom" && (
                   <button
                     className="edit-custom-equation"
@@ -3877,114 +3984,6 @@ export default function FitApp() {
                     </table>
                   </details>
                 )}
-              </section>
-              <section>
-                <div className="section-eyebrow">02 / UNCERTAINTY</div>
-                <label>
-                  Y uncertainty model
-                  <select
-                    aria-label="Y uncertainty model"
-                    value={u.kind}
-                    onChange={(e) => {
-                      change({
-                        ...state,
-                        ...switchNoiseModel(
-                          state.request,
-                          state.settings,
-                          e.target.value as FitRequest["uncertainty"]["kind"],
-                        ),
-                      });
-                    }}
-                  >
-                    <option value="unknown-equal">
-                      Unknown · estimate equal scatter
-                    </option>
-                    <option value="supplied-common">Supplied common σ</option>
-                    {(u.kind === "supplied-per-row" ||
-                      state.settings.retainedPerRowUncertainty) && (
-                      <option value="supplied-per-row">
-                        Supplied per observation
-                      </option>
-                    )}
-                  </select>
-                </label>
-                {u.kind === "supplied-common" && (
-                  <label>
-                    σ y [{state.request.dataset.yColumn.unit ?? "unspecified"}]
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      aria-label="Y uncertainty"
-                      aria-invalid={sigmaTouched && sigmaInvalid}
-                      aria-describedby={
-                        sigmaTouched && sigmaInvalid ? "sigma-error" : undefined
-                      }
-                      value={sigmaDraft ?? String(u.sigmaY)}
-                      onChange={(e) => {
-                        cancel();
-                        setSigmaDraft(e.target.value);
-                        setSigmaTouched(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          e.currentTarget.blur();
-                        }
-                        if (e.key === "Escape") {
-                          e.preventDefault();
-                          setSigmaDraft(null);
-                          setSigmaTouched(false);
-                        }
-                      }}
-                      onBlur={() => {
-                        if (sigmaDraft === null) return;
-                        if (sigmaInvalid) {
-                          setSigmaTouched(true);
-                          return;
-                        }
-                        const sigmaY = Number(sigmaDraft);
-                        if (sigmaY === u.sigmaY) {
-                          setSigmaDraft(null);
-                          setSigmaTouched(false);
-                          return;
-                        }
-                        change({
-                          ...state,
-                          request: {
-                            ...state.request,
-                            uncertainty: {
-                              ...u,
-                              sigmaY,
-                              provenance: {
-                                kind: "user-asserted",
-                                description:
-                                  "Common sigma edited in fit window",
-                              },
-                            },
-                          },
-                        });
-                      }}
-                    />
-                  </label>
-                )}
-                {sigmaTouched && sigmaInvalid && (
-                  <p id="sigma-error" className="fit-help" role="alert">
-                    Enter an uncertainty greater than zero, or press Escape to
-                    restore the previous value.
-                  </p>
-                )}
-                <p className="fit-help">
-                  {u.kind === "unknown-equal"
-                    ? "Equal weights. Scatter is estimated from residuals; Q is unavailable."
-                    : "Absolute supplied uncertainties are never rescaled to force reduced χ² to one."}
-                </p>
-                <p className="fit-help">
-                  Error structure: {errorStructureText(u.errorStructure)}. x is{" "}
-                  {state.request.dataset.assumptions.exactX === "asserted"
-                    ? "asserted exact"
-                    : "not established as exact"}
-                  .
-                </p>
               </section>
               <section>
                 <div className="fit-history">

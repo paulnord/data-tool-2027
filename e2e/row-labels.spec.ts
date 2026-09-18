@@ -124,8 +124,8 @@ test("a clearly textual leading column becomes persistent row labels while analy
     page.getByLabel("Y analysis column", { exact: true }),
   ).toHaveValue("2");
   await page
-    .getByLabel("Uncertainty analysis column", { exact: true })
-    .selectOption("3");
+    .getByLabel("Y uncertainty source", { exact: true })
+    .selectOption("column:3");
   await page
     .getByRole("button", { name: "Fit selected observations", exact: true })
     .click();

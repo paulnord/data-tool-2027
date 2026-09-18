@@ -16,6 +16,27 @@ async function openDemo(page: Page) {
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
 }
+test("single fit groups the uncertainty menu and common value with the data columns", async ({
+  page,
+}) => {
+  await openDemo(page);
+  const setup = page.getByRole("group", {
+    name: "Columns and uncertainty",
+    exact: true,
+  });
+  const source = setup.getByLabel("Y uncertainty source", { exact: true });
+  await expect(source).toBeVisible();
+  await expect(page.getByText("02 / UNCERTAINTY", { exact: true })).toHaveCount(
+    0,
+  );
+  await source.selectOption("supplied-common");
+  await expect(
+    setup.getByLabel("Y uncertainty", { exact: true }),
+  ).toBeVisible();
+  await expect(source.locator('option[value="supplied-common"]')).toHaveText(
+    "Enter common σ",
+  );
+});
 test("fit window: known-scatter data, constraints, exclusions, save/reopen and invalid import", async ({
   page,
 }) => {
@@ -48,7 +69,7 @@ test("fit window: known-scatter data, constraints, exclusions, save/reopen and i
     .click();
   await expect(page.getByLabel("Include row 3", { exact: true })).toBeChecked();
   await page
-    .getByLabel("Y uncertainty model", { exact: true })
+    .getByLabel("Y uncertainty source", { exact: true })
     .selectOption("unknown-equal");
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await page.getByRole("button", { name: "Fit diagnostics" }).click();
@@ -756,7 +777,7 @@ test("supplied error bars follow uncertainty values, selection, visibility and u
   await data.locator("circle").nth(20).click();
   await expect(bars.nth(20)).toHaveClass(/excluded/);
   await page
-    .getByLabel("Y uncertainty model", { exact: true })
+    .getByLabel("Y uncertainty source", { exact: true })
     .selectOption("unknown-equal");
   await expect(bars).toHaveCount(0);
   await expect(
@@ -802,7 +823,7 @@ test("per-row uncertainties remain available after noise/model changes and sessi
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  const noise = page.getByLabel("Y uncertainty model", { exact: true });
+  const noise = page.getByLabel("Y uncertainty source", { exact: true });
   const bars = page
     .getByRole("img", { name: "Data and fitted curve" })
     .locator(".fit-error-bar");
@@ -811,9 +832,7 @@ test("per-row uncertainties remain available after noise/model changes and sessi
   );
   expect(sigmas).toHaveLength(31);
   await noise.selectOption("unknown-equal");
-  await expect(noise.locator('option[value="supplied-per-row"]')).toHaveCount(
-    1,
-  );
+  await expect(noise.locator('option[value="column:2"]')).toHaveCount(1);
   await expect(bars).toHaveCount(0);
   await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
   await page.getByLabel("Analysis", { exact: true }).selectOption("line");
@@ -831,7 +850,7 @@ test("per-row uncertainties remain available after noise/model changes and sessi
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await noise.selectOption("supplied-per-row");
+  await noise.selectOption("column:2");
   expect(
     await bars.evaluateAll((nodes) =>
       nodes.map((n) => n.getAttribute("data-sigma")),
@@ -848,9 +867,7 @@ test("per-row uncertainties remain available after noise/model changes and sessi
   await page
     .getByRole("button", { name: "Discard changes", exact: true })
     .click();
-  await expect(noise.locator('option[value="supplied-per-row"]')).toHaveCount(
-    0,
-  );
+  await expect(noise.locator('option[value^="column:"]')).toHaveCount(0);
 });
 
 test("CSV preview, corrections, pasted cells, undo and original snapshot round trip", async ({
@@ -868,8 +885,8 @@ test("CSV preview, corrections, pasted cells, undo and original snapshot round t
   await panel.getByLabel("x unit", { exact: true }).fill("s");
   await panel.getByRole("button", { name: "Use these data" }).click();
   await page
-    .getByLabel("Uncertainty analysis column", { exact: true })
-    .selectOption("2");
+    .getByLabel("Y uncertainty source", { exact: true })
+    .selectOption("column:2");
   await expect(page.locator(".fit-source")).toContainText("3 / 3");
   await page.getByRole("button", { name: "Observations & exclusions" }).click();
   await page.getByRole("button", { name: "Edit data", exact: true }).click();
@@ -1130,8 +1147,8 @@ test("Data reopens the same source table, loads files in place, swaps axes and s
   panel = page.getByRole("dialog", { name: "Data", exact: true });
   await panel.getByRole("button", { name: "Use these data" }).click();
   await page
-    .getByLabel("Uncertainty analysis column", { exact: true })
-    .selectOption("3");
+    .getByLabel("Y uncertainty source", { exact: true })
+    .selectOption("column:3");
   await page.getByRole("button", { name: "Data…", exact: true }).click();
   await expect(panel.getByLabel("Row 2 column 1", { exact: true })).toHaveValue(
     "a",
@@ -1140,8 +1157,8 @@ test("Data reopens the same source table, loads files in place, swaps axes and s
   await page.getByLabel("X analysis column", { exact: true }).selectOption("2");
   await page.getByLabel("Y analysis column", { exact: true }).selectOption("1");
   await expect(
-    page.getByLabel("Uncertainty analysis column", { exact: true }),
-  ).toHaveValue("-1");
+    page.getByLabel("Y uncertainty source", { exact: true }),
+  ).toHaveValue("unknown-equal");
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save session" }).click();
   const bytes = await readFile((await (await download).path())!);
@@ -1342,8 +1359,8 @@ test("deleting an unused column preserves assignments, values and undo", async (
   const panel = page.getByRole("dialog", { name: "Data", exact: true });
   await panel.getByRole("button", { name: "Use these data" }).click();
   await page
-    .getByLabel("Uncertainty analysis column", { exact: true })
-    .selectOption("3");
+    .getByLabel("Y uncertainty source", { exact: true })
+    .selectOption("column:3");
   await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
   await page.getByRole("button", { name: "Data…", exact: true }).click();
   await panel
@@ -2094,12 +2111,12 @@ test("Millikan source columns survive noise changes, exclusions and fitting", as
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
   await page
-    .getByLabel("Y uncertainty model", { exact: true })
+    .getByLabel("Y uncertainty source", { exact: true })
     .selectOption("supplied-common");
   await page.getByLabel("Y uncertainty", { exact: true }).fill("0.01");
   await page.getByLabel("Y uncertainty", { exact: true }).press("Enter");
   await page
-    .getByLabel("Y uncertainty model", { exact: true })
+    .getByLabel("Y uncertainty source", { exact: true })
     .selectOption("unknown-equal");
   await page
     .getByRole("button", { name: "Observations & exclusions", exact: true })

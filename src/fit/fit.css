@@ -617,8 +617,11 @@
   font-size: 12px;
   font-weight: 600;
 }
-.fit-analysis-columns label:last-child {
+.fit-analysis-columns > .fit-analysis-uncertainty {
   grid-column: 1 / -1;
+}
+.fit-analysis-uncertainty .fit-help {
+  margin: 4px 0 0;
 }
 .fit-equation {
   font:

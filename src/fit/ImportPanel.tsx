@@ -316,7 +316,9 @@ export function ImportPanel({
     cells: grid,
     rowIds,
     headerRows,
-    label: labelColumn,
+    ...(labelColumn !== null || initial?.label !== undefined
+      ? { label: labelColumn }
+      : {}),
     ...selection,
     units: labels.map((label, i) => columnHeading(label, columnUnits[i]).unit),
   };

@@ -31,8 +31,14 @@ test("comparison models survive navigation and new data refreshes every candidat
 }) => {
   await load(page);
   const workspace = page.locator(".model-comparison");
-  const first = workspace.locator("fieldset").nth(0);
-  const second = workspace.locator("fieldset").nth(1);
+  const first = workspace.getByRole("group", {
+    name: "Candidate 1",
+    exact: true,
+  });
+  const second = workspace.getByRole("group", {
+    name: "Candidate 2",
+    exact: true,
+  });
   await first.getByLabel("Label", { exact: true }).fill("My first fit");
   await workspace
     .getByRole("tab", { name: "Candidate 2", exact: true })

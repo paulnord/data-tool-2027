@@ -156,9 +156,7 @@ test("the damped mean-position guide uses fitted b and disappears with stale res
   page,
 }) => {
   await useData(page, "examples/data/damped-sine.csv");
-  await page
-    .getByLabel("Analysis", { exact: true })
-    .selectOption("damped-sine");
+  await page.getByLabel("Model", { exact: true }).selectOption("damped-sine");
   const plot = page.getByRole("img", {
     name: "Data and fitted curve",
     exact: true,
@@ -224,9 +222,7 @@ test("physical SVG exports retain mean guides and dashed extensions without extr
   page,
 }, testInfo) => {
   await useData(page, "examples/data/damped-sine.csv");
-  await page
-    .getByLabel("Analysis", { exact: true })
-    .selectOption("damped-sine");
+  await page.getByLabel("Model", { exact: true }).selectOption("damped-sine");
   await fit(page);
   await enableMeanGuides(page);
   await xRange(page, -2, 12);
@@ -299,7 +295,7 @@ test("synthetic time intervals fit independently and keep distinct monochrome gu
   await page.getByLabel("X analysis column", { exact: true }).selectOption("2");
   await page.getByLabel("Y analysis column", { exact: true }).selectOption("1");
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   const workspace = page.getByRole("region", {
     name: "Multi-interval analysis",

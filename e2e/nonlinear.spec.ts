@@ -18,7 +18,7 @@ for (const [model, parameter, truth] of cases)
     await page
       .getByRole("button", { name: "Use these data", exact: true })
       .click();
-    await page.getByLabel("Analysis", { exact: true }).selectOption(model);
+    await page.getByLabel("Model", { exact: true }).selectOption(model);
     await page
       .getByRole("button", { name: "Fit selected observations" })
       .click();

@@ -1,6 +1,6 @@
 # Multi-interval fit draft
 
-Choose **Analysis → Multi-interval fit…**. The existing collision option and single-fit tools remain available.
+Choose **Analysis tools → Multi-interval fit**. Collision and Single fit remain available in the same selector.
 
 Select one to four Y columns against one X column. Choose up to five intervals. Ranges start empty: select an interval tab, drag across a data graph to mark its range, then adjust its draggable boundary lines or the exact From/To fields. Keyboard arrows move a focused boundary by one percent of the displayed X span. Names are editable. Ranges use inclusive endpoints and may overlap. Shared observations can correlate fitted results; cross-fit covariance is not calculated. There is no automatic event detection or fit on import, range selection or equation changes.
 

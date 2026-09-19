@@ -264,7 +264,7 @@ test("header graph export uses the active multi-interval overview without hidden
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   const workspace = page.getByRole("region", {
     name: "Multi-interval analysis",
@@ -329,7 +329,9 @@ test("header graph export uses collision graphs and includes residuals only when
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   const workspace = page.getByRole("region", {
     name: "Collision analysis",
     exact: true,

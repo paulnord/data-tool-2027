@@ -11,7 +11,7 @@ async function useImportedData(page: Page) {
 
 async function openIntervals(page: Page) {
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   return page.getByRole("region", {
     name: "Multi-interval analysis",
@@ -229,7 +229,9 @@ test("each nonlinear data series starts from its selected observations and prese
     .getByLabel("Parameter data series", { exact: true })
     .selectOption("0");
   expect(await starts(page)).toEqual(manual);
-  await page.getByLabel("Analysis", { exact: true }).selectOption("line");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("single-fit");
   const after = await save(page);
   expect(after.request.dataset.rows).toEqual(before.request.dataset.rows);
   expect(after.dataTable).toEqual(before.dataTable);

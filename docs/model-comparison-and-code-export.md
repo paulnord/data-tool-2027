@@ -46,10 +46,11 @@ decomposition also changes when the X origin changes.
 
 ## Comparing fitted models
 
-Choose **Analysis → Model comparison…** before or after fitting. The opened data
+Choose **Analysis tools → Model comparison** before or after fitting. The opened data
 appear immediately above the observations table. Opening or editing the main
 source data refreshes every comparison candidate while retaining the selected
-models. Switching analysis views alone preserves candidate settings and results.
+models. Switching between Single fit and the comparison tool alone preserves
+candidate settings and results.
 
 Start with two candidates and use **Add model** for up to six. Select a candidate
 tab to display its equation, parameter values, fixed flags, and model-specific

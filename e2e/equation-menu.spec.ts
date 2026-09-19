@@ -21,7 +21,7 @@ test("polynomial family and degree selector are shared by main, comparison and i
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  const main = page.getByLabel("Analysis", { exact: true });
+  const main = page.getByLabel("Model", { exact: true });
   await expect(main.locator('option[value="exponential"]')).toHaveCount(0);
   await expect(main.locator('option[value="sine"]')).toHaveCount(0);
   expect(
@@ -32,7 +32,7 @@ test("polynomial family and degree selector are shared by main, comparison and i
       ),
   ).toEqual(["line", "polynomial", "custom"]);
   await main.selectOption("polynomial");
-  const degree = page.getByLabel("Analysis polynomial degree", { exact: true });
+  const degree = page.getByLabel("Model polynomial degree", { exact: true });
   await expect(degree.locator("option")).toHaveCount(9);
   await degree.selectOption("polynomial-10");
   await expect(page.getByLabel("c10 value", { exact: true })).toBeVisible();
@@ -43,13 +43,26 @@ test("polynomial family and degree selector are shared by main, comparison and i
     .getByRole("button", { name: "Fit selected observations", exact: true })
     .click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
-  await main.selectOption("model-comparison");
+  const tools = page.getByLabel("Analysis tools", { exact: true });
+  await expect(main.locator('option[value="model-comparison"]')).toHaveCount(0);
+  await expect(main.locator('option[value="multi-interval"]')).toHaveCount(0);
+  await expect(main.locator('option[value="collision"]')).toHaveCount(0);
+  expect(
+    await tools
+      .locator("option")
+      .evaluateAll((options) =>
+        options.map((option) => (option as HTMLOptionElement).value),
+      ),
+  ).toEqual(["single-fit", "model-comparison", "multi-interval", "collision"]);
+  await tools.selectOption("model-comparison");
+  await expect(tools).toBeFocused();
   const candidate = page.getByLabel("Candidate 1 model", { exact: true });
   await expect(candidate).toHaveValue("polynomial");
   await expect(
     page.getByLabel("Candidate 1 model polynomial degree", { exact: true }),
   ).toHaveValue("polynomial-10");
-  await main.selectOption("multi-interval");
+  await tools.selectOption("multi-interval");
+  await expect(tools).toBeFocused();
   await page
     .getByLabel("Interval equation", { exact: true })
     .selectOption("polynomial");
@@ -59,6 +72,12 @@ test("polynomial family and degree selector are shared by main, comparison and i
   await expect(page.locator(".interval-equation-preview")).toContainText(
     "c₁₀ x¹⁰",
   );
+  await tools.selectOption("collision");
+  await expect(tools).toBeFocused();
+  await tools.selectOption("single-fit");
+  await expect(tools).toBeFocused();
+  await expect(main).toHaveValue("polynomial");
+  await expect(degree).toHaveValue("polynomial-10");
 });
 
 for (const model of ["exponential-growth", "sigmoid"] as const)
@@ -120,9 +139,7 @@ for (const model of ["exponential-growth", "sigmoid"] as const)
     await page
       .getByRole("button", { name: "Use these data", exact: true })
       .click();
-    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-      model,
-    );
+    await expect(page.getByLabel("Model", { exact: true })).toHaveValue(model);
     await expect(
       page.getByLabel(`Fix ${shape}`, { exact: true }),
     ).toBeChecked();
@@ -145,10 +162,10 @@ test("reference symbols are absent from built-in equations and reports; old fixe
     "power-law",
     "power-law-free",
   ] as const) {
-    await page.getByLabel("Analysis", { exact: true }).selectOption(model);
+    await page.getByLabel("Model", { exact: true }).selectOption(model);
     await expect(page.locator("body")).not.toContainText("xref");
   }
-  await page.getByLabel("Analysis", { exact: true }).selectOption("reciprocal");
+  await page.getByLabel("Model", { exact: true }).selectOption("reciprocal");
   await expect(page.locator(".fit-equation")).toHaveText("y = b + a/x");
   await expect(page.locator('label[for="parameter-a"]')).toContainText("·");
   const settings: FitSettings = initialSettings("exponential"),
@@ -183,7 +200,7 @@ test("reference symbols are absent from built-in equations and reports; old fixe
   await expect(page.getByLabel("Supplied shape", { exact: true })).toHaveValue(
     "0.4",
   );
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
     "exponential",
   );
 });

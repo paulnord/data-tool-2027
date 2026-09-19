@@ -8,7 +8,7 @@ import { initialSettings, requestSchema } from "../src/core/fit/schema";
 async function openComparison(page: Page) {
   await page.goto("/");
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   const session = JSON.parse(
     readFileSync("examples/data/ball-toss.trksess", "utf8"),

@@ -661,6 +661,22 @@
 .fit-analysis-uncertainty .fit-help {
   margin: 4px 0 0;
 }
+.fit-analysis-tools {
+  display: block;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.fit-analysis-tools select {
+  margin-bottom: 0;
+}
+.comparison-controls > .fit-analysis-tools:first-child,
+.interval-controls > .fit-analysis-tools:first-child,
+.collision-setup > .fit-analysis-tools:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
 .fit-equation {
   font:
     italic 23px/1.4 Georgia,

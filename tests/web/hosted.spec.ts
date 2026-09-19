@@ -78,7 +78,9 @@ test("both multi-fit workers load correctly from the hosted subdirectory", async
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   await page.getByRole("button", { name: "Fit before and after" }).click();
   await expect(
     page
@@ -86,7 +88,7 @@ test("both multi-fit workers load correctly from the hosted subdirectory", async
       .getByRole("status"),
   ).toHaveText("8 of 8 fits complete");
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   await page.getByLabel("Interval from", { exact: true }).fill("0");
   await page.getByLabel("Interval to", { exact: true }).fill("1.6");

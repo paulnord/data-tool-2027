@@ -177,7 +177,7 @@ test("interval X menus match Y controls and share display limits without changin
 }) => {
   await openData(page, "oil-drop-intervals.csv");
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   const workspace = page.getByRole("region", {
     name: "Multi-interval analysis",
@@ -246,7 +246,9 @@ test("collision X limits are shared by every graph and residual while raw collis
   page,
 }) => {
   await openData(page, "collision.csv");
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   const workspace = page.getByRole("region", {
     name: "Collision analysis",
     exact: true,

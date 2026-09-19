@@ -5,6 +5,7 @@ import {
   modelNotationNote,
 } from "../core/fit/modelNotation";
 import { ModelSelector } from "./ModelSelector";
+import { AnalysisTools, type AnalysisTool } from "./AnalysisTools";
 import { equations } from "./modelEquations";
 import SourceNotes from "./SourceNotes";
 import { useModalDialog } from "./useModalDialog";
@@ -1383,6 +1384,8 @@ export default function FitApp() {
   const [comparisonRevision, setComparisonRevision] = useState(0);
   const workspaceRevision = useRef(0);
   const dirtyWorkspaces = useRef(new Set<FitWorkspace["kind"]>());
+  const analysisToolsSelect = useRef<HTMLSelectElement>(null);
+  const restoreAnalysisToolsFocus = useRef(false);
   function draftChanged(kind: FitWorkspace["kind"]) {
     workspaceRevision.current += 1;
     dirtyWorkspaces.current.add(kind);
@@ -2193,39 +2196,37 @@ export default function FitApp() {
       setUnsavedDraftWork(dirtyWorkspaces.current.size > 0);
     }
   }, [collisionOpen, multiOpen, state, collisionSource]);
+  const analysisTool: AnalysisTool = comparisonOpen
+    ? "model-comparison"
+    : multiOpen
+      ? "multi-interval"
+      : collisionOpen
+        ? "collision"
+        : "single-fit";
+  function selectAnalysisTool(value: AnalysisTool) {
+    restoreAnalysisToolsFocus.current = true;
+    setMultiOpen(value === "multi-interval");
+    setCollisionOpen(value === "collision");
+    setComparisonOpen(value === "model-comparison");
+    if (value === "model-comparison") setComparisonVisited(true);
+  }
+  useEffect(() => {
+    if (!restoreAnalysisToolsFocus.current) return;
+    restoreAnalysisToolsFocus.current = false;
+    analysisToolsSelect.current?.focus();
+  }, [analysisTool]);
+  const analysisTools = (
+    <AnalysisTools
+      value={analysisTool}
+      onChange={selectAnalysisTool}
+      selectRef={analysisToolsSelect}
+    />
+  );
   const modelSelector = (
     <ModelSelector
-      label="Analysis"
-      workspaces
-      value={
-        comparisonOpen
-          ? "model-comparison"
-          : multiOpen
-            ? "multi-interval"
-            : collisionOpen
-              ? "collision"
-              : state.settings.model
-      }
+      label="Model"
+      value={state.settings.model}
       onChange={(value) => {
-        if (value === "multi-interval") {
-          setMultiOpen(true);
-          setCollisionOpen(false);
-          setComparisonOpen(false);
-          return;
-        }
-        setMultiOpen(false);
-        if (value === "collision") {
-          setCollisionOpen(true);
-          setComparisonOpen(false);
-          return;
-        }
-        setCollisionOpen(false);
-        if (value === "model-comparison") {
-          setComparisonVisited(true);
-          setComparisonOpen(true);
-          return;
-        }
-        setComparisonOpen(false);
         if (
           value === state.settings.model ||
           (value === "gaussian" && state.settings.model === "gaussian-shape")
@@ -2507,6 +2508,13 @@ export default function FitApp() {
     <>
       {modelSelector}
       {columnAssignments(extra, includeUncertaintyColumn)}
+      {analysisTools}
+    </>
+  );
+  const comparisonAnalysisControl = (uncertaintyControl: ReactNode) => (
+    <>
+      {analysisTools}
+      {columnAssignments(uncertaintyControl)}
     </>
   );
   const names = parameterNames(state.settings.model, state.settings.custom);
@@ -2957,7 +2965,7 @@ export default function FitApp() {
               showResiduals={showResiduals}
               exportSizes={collisionOpen ? exportRender?.sizes : undefined}
               ref={collisionActions}
-              analysisControl={modelSelector}
+              analysisControl={analysisTools}
               onReady={setCollisionReady}
               onDirty={() => draftChanged("collision")}
             />
@@ -2976,7 +2984,7 @@ export default function FitApp() {
               showResiduals={showResiduals}
               exportSizes={multiOpen ? exportRender?.sizes : undefined}
               ref={multiActions}
-              analysisControl={modelSelector}
+              analysisControl={analysisTools}
               onReady={setMultiReady}
               onDirty={() => draftChanged("multi-interval")}
             />
@@ -2992,7 +3000,9 @@ export default function FitApp() {
                 }
                 source={state}
                 sourceResult={current}
-                analysisControl={comparisonOpen ? analysisControl : null}
+                analysisControl={
+                  comparisonOpen ? comparisonAnalysisControl : null
+                }
                 showResiduals={showResiduals}
                 showErrorBars={showErrorBars}
                 showGuides={showGuides}

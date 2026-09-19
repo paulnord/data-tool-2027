@@ -106,7 +106,7 @@ test("Settings stays inside a scaled viewport, dismisses naturally, and identifi
     await expect(panel).toBeHidden();
   }
   for (const mode of ["multi-interval", "collision"]) {
-    await page.getByLabel("Analysis", { exact: true }).selectOption(mode);
+    await page.getByLabel("Analysis tools", { exact: true }).selectOption(mode);
     await menu.locator("summary").click();
     const reports = menu.getByRole("group", {
       name: "Copy report sections",
@@ -231,7 +231,7 @@ test("the global preference omits residuals from interval diagnostics while pres
 }) => {
   await openData(page, "oil-drop-intervals.csv");
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   const workspace = page.getByRole("region", {
     name: "Multi-interval analysis",
@@ -302,7 +302,9 @@ test("hidden residuals stay hidden when switching to collision analysis and prin
 }) => {
   await openData(page, "collision.csv");
   await showResiduals(page, false);
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   const workspace = page.getByRole("region", {
     name: "Collision analysis",
     exact: true,

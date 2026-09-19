@@ -71,7 +71,7 @@ test("pending custom equation clearly suspends reports and figure exports", asyn
   page,
 }) => {
   await openData(page);
-  await page.getByLabel("Analysis", { exact: true }).selectOption("custom");
+  await page.getByLabel("Model", { exact: true }).selectOption("custom");
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
   await page.getByLabel("Custom equation", { exact: true }).fill("y0 + v0*t");

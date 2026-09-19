@@ -238,7 +238,7 @@ test("all display controls remain reachable on a small laptop at enlarged interf
 for (const mode of ["collision", "multi-interval"]) {
   test(`the same appearance menu styles ${mode} graphs`, async ({ page }) => {
     await openData(page, "collision.csv");
-    await page.getByLabel("Analysis", { exact: true }).selectOption(mode);
+    await page.getByLabel("Analysis tools", { exact: true }).selectOption(mode);
     const workspace = page.getByRole("region", {
       name:
         mode === "collision" ? "Collision analysis" : "Multi-interval analysis",

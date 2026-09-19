@@ -564,12 +564,12 @@ test("new example sessions open with their models, fit and preserve sine period"
       exact: true,
     });
     if (await discard.isVisible()) await discard.click();
-    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+    await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
       ["cubic", "quartic"].includes(model) ? "polynomial" : model,
     );
     if (["cubic", "quartic"].includes(model))
       await expect(
-        page.getByLabel("Analysis polynomial degree", { exact: true }),
+        page.getByLabel("Model polynomial degree", { exact: true }),
       ).toHaveValue(model);
     await page
       .getByRole("button", { name: "Fit selected observations" })
@@ -717,7 +717,7 @@ test("fit-period sine recovers T, fixes it, and saves its search settings", asyn
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
     "sine-free-period",
   );
   await page.getByRole("button", { name: "Fit selected observations" }).click();
@@ -834,8 +834,8 @@ test("per-row uncertainties remain available after noise/model changes and sessi
   await noise.selectOption("unknown-equal");
   await expect(noise.locator('option[value="column:2"]')).toHaveCount(1);
   await expect(bars).toHaveCount(0);
-  await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
-  await page.getByLabel("Analysis", { exact: true }).selectOption("line");
+  await page.getByLabel("Model", { exact: true }).selectOption("polynomial");
+  await page.getByLabel("Model", { exact: true }).selectOption("line");
   await noise.selectOption("supplied-common");
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save session" }).click();
@@ -1361,7 +1361,7 @@ test("deleting an unused column preserves assignments, values and undo", async (
   await page
     .getByLabel("Y uncertainty source", { exact: true })
     .selectOption("column:3");
-  await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
+  await page.getByLabel("Model", { exact: true }).selectOption("polynomial");
   await page.getByRole("button", { name: "Data…", exact: true }).click();
   await panel
     .getByLabel("Select column 2", { exact: true })
@@ -1391,7 +1391,7 @@ test("deleting an unused column preserves assignments, values and undo", async (
   ).toContainText("Suggested σy");
   await panel.getByLabel("Redo table change").click();
   await panel.getByRole("button", { name: "Use these data" }).click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
     "polynomial",
   );
   await page.getByRole("button", { name: "Data…", exact: true }).click();
@@ -1481,14 +1481,14 @@ test("sessions open for review and Cancel preserves the current analysis", async
     .boundingBox();
   expect(accept!.y + accept!.height).toBeLessThan(grid!.y);
   await panel.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
     "constant-acceleration",
   );
   await page
     .locator("input[type=file]")
     .setInputFiles("examples/fit/cubic-demo.trksess");
   await panel.getByRole("button", { name: "Use these data" }).click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
     "polynomial",
   );
 });

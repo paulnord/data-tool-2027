@@ -11,7 +11,7 @@ async function compare(page: Page) {
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   await expect(
     page.getByRole("button", { name: "Copy report", exact: true }),

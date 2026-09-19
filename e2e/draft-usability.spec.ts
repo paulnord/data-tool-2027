@@ -12,7 +12,7 @@ async function openDraft(page: Page, mode = "multi-interval") {
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption(mode);
+  await page.getByLabel("Analysis tools", { exact: true }).selectOption(mode);
 }
 
 async function range(page: Page, from: string, to: string) {
@@ -181,7 +181,9 @@ test("applying table edits requires a choice before discarding interval work", a
   await page.getByRole("button", { name: "Data…", exact: true }).click();
   await expect(cell).toHaveValue("0.5");
   await panel.getByRole("button", { name: "Cancel", exact: true }).click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("line");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("single-fit");
   const downloaded = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save session", exact: true }).click();
   await downloaded;
@@ -217,14 +219,16 @@ for (const mode of ["multi-interval", "collision"]) {
         .click();
     }
     expect(await protectedFromClose()).toBe(true);
-    await page.getByLabel("Analysis", { exact: true }).selectOption("line");
+    await page
+      .getByLabel("Analysis tools", { exact: true })
+      .selectOption("single-fit");
     const downloaded = page.waitForEvent("download");
     await page
       .getByRole("button", { name: "Save session", exact: true })
       .click();
     await downloaded;
     expect(await protectedFromClose()).toBe(true);
-    await page.getByLabel("Analysis", { exact: true }).selectOption(mode);
+    await page.getByLabel("Analysis tools", { exact: true }).selectOption(mode);
     expect(await protectedFromClose()).toBe(true);
   });
 

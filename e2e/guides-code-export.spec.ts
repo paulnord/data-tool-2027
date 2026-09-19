@@ -11,9 +11,7 @@ async function openDamped(page: Page) {
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page
-    .getByLabel("Analysis", { exact: true })
-    .selectOption("damped-sine");
+  await page.getByLabel("Model", { exact: true }).selectOption("damped-sine");
   await page
     .getByRole("button", { name: "Fit selected observations", exact: true })
     .click();

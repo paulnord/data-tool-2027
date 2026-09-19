@@ -52,9 +52,9 @@ test("retired session versions are rejected without replacing the current interv
     await expect(
       page.getByRole("button", { name: "Use these data", exact: true }),
     ).toHaveCount(0);
-    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-      "multi-interval",
-    );
+    await expect(
+      page.getByLabel("Analysis tools", { exact: true }),
+    ).toHaveValue("multi-interval");
     await expect(page.getByLabel("Interval from", { exact: true })).toHaveValue(
       "100",
     );
@@ -88,8 +88,11 @@ test("single-fit sessions preserve view preferences and protect unsaved view cha
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
     saved.settings.model,
+  );
+  await expect(page.getByLabel("Analysis tools", { exact: true })).toHaveValue(
+    "single-fit",
   );
   expect(await save(page)).toEqual(saved);
 });
@@ -103,8 +106,9 @@ test("changing columns during session review validates the resulting analysis an
     .click();
   await page.getByLabel("X analysis column", { exact: true }).selectOption("1");
   await page.getByLabel("Y analysis column", { exact: true }).selectOption("0");
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-    "line",
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue("line");
+  await expect(page.getByLabel("Analysis tools", { exact: true })).toHaveValue(
+    "single-fit",
   );
   const saved = await save(page);
   expect(saved.version).toBe(7);
@@ -270,7 +274,7 @@ test("comparison saves all candidates, custom units, shared uncertainty and the 
 }) => {
   await load(page, "examples/data/ball-toss.trksess");
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   await page
     .getByLabel("Candidate 1 model", { exact: true })
@@ -314,6 +318,9 @@ test("comparison saves all candidates, custom units, shared uncertainty and the 
     reopened.getByRole("heading", { name: "Model comparison", exact: true }),
   ).toBeVisible();
   await expect(
+    reopened.getByLabel("Analysis tools", { exact: true }),
+  ).toHaveValue("model-comparison");
+  await expect(
     reopened.getByRole("tab", { name: "Candidate 3", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(
@@ -334,7 +341,9 @@ test("collision setup reopens with four channels, windows and supplied uncertain
   context,
 }) => {
   await load(page, "examples/data/collision.csv");
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   const workspace = page.getByRole("region", {
     name: "Collision analysis",
     exact: true,
@@ -363,6 +372,9 @@ test("collision setup reopens with four channels, windows and supplied uncertain
   await expect(
     reopened.getByRole("region", { name: "Collision analysis", exact: true }),
   ).toBeVisible();
+  await expect(
+    reopened.getByLabel("Analysis tools", { exact: true }),
+  ).toHaveValue("collision");
   expect(await save(reopened)).toEqual(saved);
   await reopened.close();
 });
@@ -372,20 +384,23 @@ for (const mode of ["multi-interval", "model-comparison", "collision"]) {
     page,
   }) => {
     await load(page, "examples/data/collision.csv");
-    await page.getByLabel("Analysis", { exact: true }).selectOption(mode);
+    await page.getByLabel("Analysis tools", { exact: true }).selectOption(mode);
     const saved = JSON.parse(
       readFileSync("examples/data/published/ba137m-decay.trksess", "utf8"),
     );
     await review(page, saved);
-    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-      mode,
-    );
+    await expect(
+      page.getByLabel("Analysis tools", { exact: true }),
+    ).toHaveValue(mode);
     await page
       .getByRole("button", { name: "Use these data", exact: true })
       .click();
-    await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+    await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
       "custom",
     );
+    await expect(
+      page.getByLabel("Analysis tools", { exact: true }),
+    ).toHaveValue("single-fit");
     await expect(
       page.getByLabel("Custom equation", { exact: true }),
     ).toHaveValue(saved.settings.custom.expression);
@@ -402,7 +417,7 @@ for (const mode of ["multi-interval", "model-comparison", "collision"]) {
     expect(restored.workspace).toEqual({ kind: "single-fit" });
     // Previously visited candidate controls must not survive the new session.
     await page
-      .getByLabel("Analysis", { exact: true })
+      .getByLabel("Analysis tools", { exact: true })
       .selectOption("model-comparison");
     await expect(
       page.getByLabel("Candidate 1 model", { exact: true }),
@@ -435,7 +450,7 @@ test("canceling session review or keeping unsaved intervals preserves their setu
   await confirm
     .getByRole("button", { name: "Keep working", exact: true })
     .click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Analysis tools", { exact: true })).toHaveValue(
     "multi-interval",
   );
   await expect(page.getByLabel("Interval from", { exact: true })).toHaveValue(
@@ -448,8 +463,9 @@ test("canceling session review or keeping unsaved intervals preserves their setu
   await confirm
     .getByRole("button", { name: "Discard changes", exact: true })
     .click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
-    "custom",
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue("custom");
+  await expect(page.getByLabel("Analysis tools", { exact: true })).toHaveValue(
+    "single-fit",
   );
   await expect(page.getByLabel("T12 value", { exact: true })).toHaveValue(
     "2.6",

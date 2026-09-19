@@ -6,7 +6,7 @@ async function open(page: Page, file = "oil-drop-intervals.csv") {
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   return page.getByRole("region", {
     name: "Multi-interval analysis",
@@ -79,9 +79,11 @@ test("student chooses three ranges, fits one at a time and preserves the other r
   await expect(workspace.getByRole("status")).toHaveText(
     "Interval 3: 1 of 1 data series fitted",
   );
-  await page.getByLabel("Analysis", { exact: true }).selectOption("line");
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("single-fit");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   await expect(
     workspace.getByRole("table", { name: /parameters$/ }),

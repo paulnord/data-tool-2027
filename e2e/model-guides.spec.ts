@@ -175,7 +175,7 @@ for (const model of [
       ).toEqual(valuesBefore);
     }
     await page
-      .getByLabel("Analysis", { exact: true })
+      .getByLabel("Analysis tools", { exact: true })
       .selectOption("multi-interval");
     await page
       .getByLabel("Number of intervals", { exact: true })
@@ -217,7 +217,7 @@ for (const model of [
       sine ? 0 : 1,
     );
     await page
-      .getByLabel("Analysis", { exact: true })
+      .getByLabel("Analysis tools", { exact: true })
       .selectOption("model-comparison");
     const workspace = page.locator(".model-comparison");
     const comparedPlot = workspace.getByRole("img", {

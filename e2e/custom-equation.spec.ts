@@ -10,7 +10,7 @@ test("custom equation fits, preserves units, prints and round trips", async ({
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("custom");
+  await page.getByLabel("Model", { exact: true }).selectOption("custom");
   await page.getByLabel("Equation variable", { exact: true }).fill("t");
   await page.getByLabel("Custom equation", { exact: true }).fill("y0 + v0*t");
   const fit = page.getByRole("button", { name: "Fit selected observations" });
@@ -83,7 +83,7 @@ test("convert an existing fit and report invalid equation domains", async ({
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("line");
+  await page.getByLabel("Model", { exact: true }).selectOption("line");
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
   const slope = await page.getByLabel("m value", { exact: true }).inputValue();
@@ -110,7 +110,7 @@ test("dependent parameters show student guidance with collapsed technical detail
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("custom");
+  await page.getByLabel("Model", { exact: true }).selectOption("custom");
   await page
     .getByLabel("Custom equation", { exact: true })
     .fill("a + b*x + c*x^2 + d*x^2");

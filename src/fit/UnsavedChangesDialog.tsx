@@ -13,7 +13,11 @@ export function UnsavedChangesDialog({
   onApply: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  useModalDialog(dialog, '.fit-app select[aria-label="Analysis"]', "button");
+  useModalDialog(
+    dialog,
+    '.fit-app select[aria-label="Analysis tools"], .fit-app select[aria-label="Model"]',
+    "button",
+  );
   return (
     <dialog
       ref={dialog}

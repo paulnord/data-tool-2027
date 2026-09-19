@@ -14,7 +14,7 @@ test("compares refitted candidates and safely stages two session files", async (
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   await expect(
     page.getByRole("heading", { name: "Model comparison" }),
@@ -88,8 +88,11 @@ test("compares refitted candidates and safely stages two session files", async (
     ),
   ).toBeLessThanOrEqual(1);
 
-  await page.getByLabel("Analysis", { exact: true }).selectOption("polynomial");
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("single-fit");
+  await page.getByLabel("Model", { exact: true }).selectOption("polynomial");
+  await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
     "polynomial",
   );
   await expect(page.getByLabel("m value", { exact: true })).toHaveCount(0);

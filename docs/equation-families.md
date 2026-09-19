@@ -1,6 +1,6 @@
 # Equation families and notation
 
-The main analysis, model comparison, and multi-interval views use one equation chooser. The first choices are Straight line, Polynomial, and Custom equation, in that order. Polynomial opens a separate degree selector for 2–10; degrees 2–5 also show quadratic, cubic, quartic, and quintic. Other groups are exponentials, powers and logarithms, oscillations, and peaks and transitions. Constant acceleration is omitted from new choices: a quadratic supplies the same curve family. Saved constant-acceleration analyses retain their original equation and parameters.
+The main analysis, model comparison, and multi-interval views use one model chooser. The first choices are Straight line, Polynomial, and Custom equation, in that order. Polynomial opens a separate degree selector for 2–10; degrees 2–5 also show quadratic, cubic, quartic, and quintic. Other groups are exponentials, powers and logarithms, oscillations, and peaks and transitions. Constant acceleration is omitted from new choices: a quadratic supplies the same curve family. Saved constant-acceleration analyses retain their original equation and parameters.
 
 There is no universal shorthand across fitting libraries: [MATLAB](https://www.mathworks.com/help/curvefit/polynomial.html) uses `polyN`, [ROOT](https://root.cern.ch/manual/fitting/) uses `polN`, and [NumPy](https://numpy.org/doc/stable/reference/routines.polynomials.html) accepts a degree argument. The interface uses the explicit term degree (highest power), with coefficients in ascending order: `c0 + c1*x + … + cN*x^N`. The line model retains `b + m*x`.
 
@@ -13,7 +13,7 @@ There is no universal shorthand across fitting libraries: [MATLAB](https://www.m
 
 Time constants and widths are positive. Fix tau to specify the exponential rate (tau = 1/abs(k)), or fix b when an offset is known. With negative A the decay model can describe approach to an upper asymptote. In the sigmoid, b and b+A are the two asymptotes, x0 is the midpoint, and w is the transition scale. Negative A gives a falling transition. Growth and sigmoid use analytic Jacobians and the existing local QR-based nonlinear optimizer. Sigmoid evaluation avoids exponential overflow on either tail. When all nonlinear shape parameters are fixed, the remaining fit is linear in its coefficients.
 
-The new-analysis chooser has one **Sinusoid** entry. It fits T, or uses a supplied period when **Fix T** is checked. The sine/cosine parameterization is retained internally; amplitude and phase are derived with covariance propagation. Old supplied-period sine sessions remain readable and editable, without automatic parameter conversion.
+The model chooser has one **Sinusoid** entry. It fits T, or uses a supplied period when **Fix T** is checked. The sine/cosine parameterization is retained internally; amplitude and phase are derived with covariance propagation. Old supplied-period sine sessions remain readable and editable, without automatic parameter conversion.
 
 ## Units and familiar notation
 

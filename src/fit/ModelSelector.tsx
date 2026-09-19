@@ -59,13 +59,11 @@ export function ModelSelector({
   ariaLabel = label,
   value,
   onChange,
-  workspaces = false,
 }: {
   label: string;
   ariaLabel?: string;
   value: string;
   onChange: (value: string) => void;
-  workspaces?: boolean;
 }) {
   const degree = polynomialDegree(value);
   return (
@@ -111,13 +109,6 @@ export function ModelSelector({
             <option value="constant-acceleration">
               Constant acceleration · saved model
             </option>
-          )}
-          {workspaces && (
-            <optgroup label="Analysis workspaces">
-              <option value="multi-interval">Multi-interval fit…</option>
-              <option value="collision">Collision · before and after</option>
-              <option value="model-comparison">Model comparison…</option>
-            </optgroup>
           )}
         </select>
       </label>

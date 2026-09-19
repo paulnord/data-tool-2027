@@ -540,7 +540,7 @@ for (const mode of ["multi-interval", "collision"] as const) {
     page,
   }) => {
     await openData(page, "collision.csv");
-    await page.getByLabel("Analysis", { exact: true }).selectOption(mode);
+    await page.getByLabel("Analysis tools", { exact: true }).selectOption(mode);
     const workspace = page.getByRole("region", {
       name:
         mode === "collision" ? "Collision analysis" : "Multi-interval analysis",

@@ -1,6 +1,6 @@
 # Custom equations
 
-Choose **Analysis → Custom equation…**, or **Edit as custom equation** beneath an existing analysis. Conversion preserves the current coefficients and fixed values; supplied shape or period values become named fixed parameters. The equation uses the numerical values in the declared axis units. Logarithmic and power-law references are one declared x-unit.
+Choose **Model → Custom equation…**, or **Edit as custom equation** beneath an existing analysis. Conversion preserves the current coefficients and fixed values; supplied shape or period values become named fixed parameters. The equation uses the numerical values in the declared axis units. Logarithmic and power-law references are one declared x-unit.
 
 Enter the independent variable name (usually `x` or `t`) and the right-hand side only, for example `y0 + v0*t + 0.5*a*t^2`. The parameter list appears in order of first occurrence. Check the names for typos, then **Apply equation**. Names retained from the previous equation retain their values, fixed flags and units; new parameters start at 1 with unknown units. Applying changes clears acceptance of uncertainty assumptions and the old fit. Discard equation edits restores the applied equation. Fit and Save are disabled while equation edits are pending.
 

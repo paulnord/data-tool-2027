@@ -76,7 +76,7 @@ The current interchange request limit is 100,000 rows. Ordinary text file import
 
 ### 3.2 Fit and inspect
 
-Select the analysis/model, inspect its equation and parameter table, enter or fix values, choose the uncertainty treatment, select observations, and explicitly press **Fit selected observations**. Selecting a nonlinear model can suggest starting values; that is not an optimization or evidence of convergence.
+Select a model, inspect its equation and parameter table, enter or fix values, choose the uncertainty treatment, select observations, and explicitly press **Fit selected observations**. Selecting a nonlinear model can suggest starting values; that is not an optimization or evidence of convergence.
 
 Parameter values and the supplied sine period accept incremental decimal/scientific notation, including an incomplete minus sign or exponent while typing. Only finite valid values reach the analysis state. Fit, save, copy, and print are disabled during an incomplete entry; Escape restores the last valid value, and leaving an invalid field restores that value with an explanation.
 
@@ -245,7 +245,7 @@ Custom equations are emitted from the validated syntax tree, with real-valued nu
 
 ## 7. Multiple fits and intervals
 
-The **Analysis** selector also offers model-comparison, collision and multi-interval workspaces. They use the same scientific core. Session v7 preserves the active workspace setup and observations; results are recalculated explicitly after reopening.
+A separate **Analysis tools** selector switches among **Single fit**, model comparison, collision and multi-interval workspaces. The ordinary **Model** selector contains equation families rather than workspace choices. The workspaces use the same scientific core. Session v7 preserves the active workspace setup and observations; results are recalculated explicitly after reopening.
 
 ### 7.1 Model comparison
 
@@ -275,7 +275,7 @@ Per-column unknown scatter or supplied common sigma is supported; single-fit per
 
 ### 7.4 Workspace persistence
 
-Switching analyses preserves collision/interval setups and results while the source table is unchanged; editing/replacing source observations resets dependent interval work. Newly loaded main data are applied to comparison candidates after confirmation, retaining their equations and settings and clearing fitted results. **Save session** writes the active multi-interval, collision or model-comparison workspace in v7, with source data, per-fit settings, uncertainties, ranges and view preferences as specified in [the migration](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15). Reopening restores the active workspace and requires explicit refitting; results and undo history are not stored. Saving one workspace does not clear unsaved protection for other hidden workspaces. Only session v7 is supported; request/ack v1 remains unchanged. Independent fits remain independent; saving does not imply a joint fit.
+Switching analysis tools preserves collision/interval setups and results while the source table is unchanged; editing/replacing source observations resets dependent interval work. Newly loaded main data are applied to comparison candidates after confirmation, retaining their equations and settings and clearing fitted results. **Save session** writes the active multi-interval, collision or model-comparison workspace in v7, with source data, per-fit settings, uncertainties, ranges and view preferences as specified in [the migration](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15). Reopening restores the active workspace and requires explicit refitting; results and undo history are not stored. Saving one workspace does not clear unsaved protection for other hidden workspaces. Only session v7 is supported; request/ack v1 remains unchanged. Independent fits remain independent; saving does not imply a joint fit.
 
 Single-fit and model-comparison reports use measured paper previews. Collision and multi-interval workspaces retain separate print layouts and native pagination that require their own validation.
 
@@ -374,4 +374,4 @@ The next implementation is successful when a user can confidently move from exac
 
 The [September 2026 usability audit](usability-audit-2026-09-12.md) records reproducible findings, local corrections, verification, and remaining design decisions, including the distinction between saved fit provenance and later source-note edits in draft workspaces.
 
-The shared equation chooser groups related functions and supports polynomial degrees 2–10. See [equation families](equation-families.md) for the additional growth/sigmoid models, numerical limits, and the current session format.
+The shared model chooser groups related functions and supports polynomial degrees 2–10. See [equation families](equation-families.md) for the additional growth/sigmoid models, numerical limits, and the current session format.

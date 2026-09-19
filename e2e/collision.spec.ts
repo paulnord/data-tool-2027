@@ -7,7 +7,9 @@ async function openCollision(page: Page) {
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   return page.getByRole("region", { name: "Collision analysis", exact: true });
 }
 test("integrated collision analysis retains both setups, shares report controls, and offers explicit noise modes", async ({
@@ -38,12 +40,16 @@ test("integrated collision analysis retains both setups, shares report controls,
     path: "test-results/collision-workflow.png",
     fullPage: true,
   });
-  await page.getByLabel("Analysis", { exact: true }).selectOption("line");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("single-fit");
   await expect(workspace).toBeHidden();
   await page.getByRole("button", { name: "Fit selected observations" }).click();
   await expect(page.getByRole("status")).toHaveText("Fit complete");
   const slope = await page.getByLabel("m value", { exact: true }).inputValue();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   await expect(summary).toBeVisible();
   await page
     .getByLabel("Position uncertainties", { exact: true })
@@ -132,7 +138,9 @@ test("integrated collision analysis retains both setups, shares report controls,
     detailedPdf.toString("latin1").match(/\/Type\s*\/Page\b/g),
   ).toHaveLength(5);
   await page.emulateMedia({ media: "screen" });
-  await page.getByLabel("Analysis", { exact: true }).selectOption("line");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("single-fit");
   expect(await page.getByLabel("m value", { exact: true }).inputValue()).toBe(
     slope,
   );
@@ -194,7 +202,9 @@ test("collision is reachable with missing columns and at compact sizes", async (
     .getByRole("dialog", { name: "Data", exact: true })
     .getByRole("button", { name: "Cancel", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   await expect(page.getByRole("alert")).toContainText("Choose one time column");
   await expect(
     page.getByRole("button", { name: "Data…", exact: true }),

@@ -77,7 +77,9 @@ test("collision uses the same assumptions control and guide on a compact screen"
   await page
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("collision");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("collision");
   const fit = page.getByRole("button", { name: "Fit before and after" });
   await expect(fit).toHaveClass(/\bfit-primary\b/);
   await fit.scrollIntoViewIfNeeded();

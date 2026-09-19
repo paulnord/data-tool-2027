@@ -100,12 +100,15 @@ test("Gaussian shape controls fit, save v7, reopen, and return to ordinary Gauss
   await expect(page.getByLabel("Allow skew", { exact: true })).toBeChecked();
   await run(page);
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   await expect(
     page.getByLabel("Candidate 1 Allow skew", { exact: true }),
   ).toBeChecked();
-  await page.getByLabel("Analysis", { exact: true }).selectOption("gaussian");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("single-fit");
+  await page.getByLabel("Model", { exact: true }).selectOption("gaussian");
   await expect(page.getByLabel("Allow skew", { exact: true })).toBeChecked();
   await page.getByLabel("Allow skew", { exact: true }).uncheck();
   await page
@@ -121,7 +124,7 @@ test("comparison retains peak controls, guides, moments and candidate session ex
   await page.goto("/");
   await load(page);
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   await page.getByLabel("Candidate 1 Allow skew", { exact: true }).check();
   await page
@@ -175,7 +178,7 @@ test("new data confirmation is visible over comparison and updates every candida
   await page.goto("/");
   await load(page);
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   await page.getByLabel("Candidate 1 Allow skew", { exact: true }).check();
   await page
@@ -202,7 +205,7 @@ test("new data confirmation is visible over comparison and updates every candida
   ).toBeVisible();
   await load(page, next, true);
   await confirm.getByRole("button", { name: "Discard changes" }).click();
-  await expect(page.getByLabel("Analysis", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Analysis tools", { exact: true })).toHaveValue(
     "model-comparison",
   );
   await expect(workspace.locator(".comparison-point")).toHaveCount(90);
@@ -234,7 +237,7 @@ test("interval peaks share shape controls and report derived moments", async ({
   await page.goto("/");
   await load(page);
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("multi-interval");
   await page
     .getByLabel("Interval equation", { exact: true })
@@ -267,7 +270,7 @@ test("Lorentzian CSV retains original uncertainties when loaded into comparison"
 }) => {
   await page.goto("/");
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   await page
     .locator('input[type="file"]')

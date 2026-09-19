@@ -1,6 +1,6 @@
 # Collision analysis draft
 
-This is an optional review prototype. The normal single-fit analysis remains the default. **Analysis → Collision · before and after** opens an integrated workspace with assignments and fit controls on the right. If columns are missing, use the usual **Data…** button to load or edit them. Load the ordinary `examples/data/collision.csv` file to try it.
+This is an optional review prototype. The normal single-fit analysis remains the default. **Analysis tools → Collision · before and after** opens an integrated workspace with assignments and fit controls on the right. If columns are missing, use the usual **Data…** button to load or edit them. Load the ordinary `examples/data/collision.csv` file to try it.
 
 Choose one time column and four position columns, assigned to the x and y components of two objects. Starting intervals cover the outer 40% of the time span; they are only suggestions, not collision detection. Adjust both intervals to exclude the impact. Drag a dashed boundary on any position graph to update all four panels, use Left/Right arrow keys on a focused boundary, or enter exact times in the sidebar. All panels share the same time range, including when a position column has missing values. Endpoints are included and intervals must be disjoint. **Fit before and after** runs independent line fits with the existing QR scientific core in a worker. Missing values affect only the corresponding channel; a failed fit is reported without hiding successful fits.
 

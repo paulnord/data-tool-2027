@@ -22,7 +22,7 @@ async function load(page: Page, scale = 1) {
     .getByRole("button", { name: "Use these data", exact: true })
     .click();
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
 }
 
@@ -54,7 +54,9 @@ test("comparison models survive navigation and new data refreshes every candidat
     .getByRole("button", { name: "Refit and compare", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText("Comparison complete");
-  await page.getByLabel("Analysis", { exact: true }).selectOption("line");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("single-fit");
   await expect(workspace).not.toBeVisible();
   // New observations keep the staged candidate equations and labels.
   await page
@@ -79,7 +81,7 @@ test("comparison models survive navigation and new data refreshes every candidat
   });
   if (await discard.isVisible()) await discard.click();
   await page
-    .getByLabel("Analysis", { exact: true })
+    .getByLabel("Analysis tools", { exact: true })
     .selectOption("model-comparison");
   await workspace
     .getByRole("tab", { name: "Candidate 1", exact: true })

@@ -134,7 +134,7 @@ import collisionExample from "../../examples/data/collision.csv?raw";
 import cartTrackExample from "../../examples/data/cart-track.csv?raw";
 import bounceIntervalsExample from "../../examples/data/bounce-intervals.csv?raw";
 import oilDropIntervalsExample from "../../examples/data/oil-drop-intervals.csv?raw";
-import pulsarPhotonIndexTemperatureExample from "../../examples/data/published-pulsar-photon-index-vs-temperature.csv?raw";
+import pulsarPhotonIndexTemperatureExample from "../../examples/data/published/pulsar-photon-index-vs-temperature.csv?raw";
 import asassnRadioExample from "../../examples/data/published/asassn14li-radio.trksess?raw";
 import asassnXrayExample from "../../examples/data/published/asassn14li-xray.trksess?raw";
 import ba137mExample from "../../examples/data/published/ba137m-decay.trksess?raw";
@@ -149,6 +149,7 @@ import pwnEdotExample from "../../examples/data/published/pwn-luminosity-vs-edot
 import supercooledWaterExample from "../../examples/data/published/supercooled-water-viscosity.trksess?raw";
 import ymno3Example from "../../examples/data/published/ymno3-spin-precession.trksess?raw";
 import dyfeo3Example from "../../examples/data/published/dyfeo3-spin-wave.trksess?raw";
+import { publishedStudyCatalog } from "./publishedCatalog";
 
 const examples = [
   ["Constant speed", "constant-speed.csv", constantSpeedExample],
@@ -170,71 +171,35 @@ const examples = [
   ["Bounce intervals", "bounce-intervals.csv", bounceIntervalsExample],
   ["Oil-drop intervals", "oil-drop-intervals.csv", oilDropIntervalsExample],
 ] as const;
-const publishedExamples = [
-  [
-    "YMnO₃ Z-mode spin precession",
-    "published/ymno3-spin-precession.trksess",
-    ymno3Example,
-  ],
-  [
-    "DyFeO₃ coherent spin wave",
-    "published/dyfeo3-spin-wave.trksess",
-    dyfeo3Example,
-  ],
-  [
-    "Pulsar / photon index vs temperature",
-    "published-pulsar-photon-index-vs-temperature.csv",
-    pulsarPhotonIndexTemperatureExample,
-  ],
-  [
-    "ASASSN-14li radio",
-    "published/asassn14li-radio.trksess",
-    asassnRadioExample,
-  ],
-  ["ASASSN-14li X-ray", "published/asassn14li-xray.trksess", asassnXrayExample],
-  ["Ba-137m decay", "published/ba137m-decay.trksess", ba137mExample],
-  [
-    "BESIII continuum",
-    "published/besiii-ppbarpi0-continuum.trksess",
-    besiiiExample,
-  ],
-  ["Chromium Rydberg series", "published/cri-rydberg.trksess", chromiumExample],
-  [
-    "Ion chamber, thick walls",
-    "published/ion-chamber-wall-thick.trksess",
-    ionChamberThickExample,
-  ],
-  [
-    "Ion chamber, thin walls",
-    "published/ion-chamber-wall-thin.trksess",
-    ionChamberThinExample,
-  ],
-  [
-    "Pulsar / light-cylinder field",
-    "published/pulsar-luminosity-vs-blc.trksess",
-    pulsarBlcExample,
-  ],
-  [
-    "Pulsar / spin-down power",
-    "published/pulsar-luminosity-vs-edot.trksess",
-    pulsarEdotExample,
-  ],
-  [
-    "PWN / light-cylinder field",
-    "published/pwn-luminosity-vs-blc.trksess",
-    pwnBlcExample,
-  ],
-  [
-    "PWN / spin-down power",
-    "published/pwn-luminosity-vs-edot.trksess",
-    pwnEdotExample,
-  ],
-  [
-    "Supercooled water",
-    "published/supercooled-water-viscosity.trksess",
-    supercooledWaterExample,
-  ],
-] as const;
+const publishedExampleContents: Record<
+  (typeof publishedStudyCatalog)[number]["fileName"],
+  string
+> = {
+  "asassn14li-radio.trksess": asassnRadioExample,
+  "asassn14li-xray.trksess": asassnXrayExample,
+  "ba137m-decay.trksess": ba137mExample,
+  "besiii-ppbarpi0-continuum.trksess": besiiiExample,
+  "cri-rydberg.trksess": chromiumExample,
+  "dyfeo3-spin-wave.trksess": dyfeo3Example,
+  "ion-chamber-wall-thick.trksess": ionChamberThickExample,
+  "ion-chamber-wall-thin.trksess": ionChamberThinExample,
+  "pulsar-luminosity-vs-blc.trksess": pulsarBlcExample,
+  "pulsar-luminosity-vs-edot.trksess": pulsarEdotExample,
+  "pulsar-photon-index-vs-temperature.csv": pulsarPhotonIndexTemperatureExample,
+  "pwn-luminosity-vs-blc.trksess": pwnBlcExample,
+  "pwn-luminosity-vs-edot.trksess": pwnEdotExample,
+  "supercooled-water-viscosity.trksess": supercooledWaterExample,
+  "ymno3-spin-precession.trksess": ymno3Example,
+};
+const publishedExamples = publishedStudyCatalog.map(
+  ({ label, fileName, status }) =>
+    [
+      label,
+      `published/${fileName}`,
+      publishedExampleContents[fileName],
+      status,
+    ] as const,
+);
 type State = {
   request: FitRequest;
   settings: FitSettings;
@@ -3114,7 +3079,7 @@ export default function FitApp() {
                 { id: "synthetic", label: "Synthetic data", items: examples },
                 {
                   id: "published",
-                  label: "Published data",
+                  label: "Published studies",
                   items: publishedExamples,
                 },
               ]}

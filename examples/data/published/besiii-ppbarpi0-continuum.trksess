@@ -7,7 +7,7 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.1103/PhysRevD.106.054014. BESIII e+e- -> p pbar pi0 dressed cross sections from 3.65 to 4.60 GeV. Continuum-only fit in the paper: C=(3.07 +/- 0.58)e5 GeV^(2lambda) pb, lambda=3.96 +/- 0.07, chi2/NDF=13.0/20. Companion CSV: besiii-ppbarpi0-continuum.csv. Only statistical uncertainties are used in the fit because the roughly 6.5% systematic uncertainty is correlated across points.",
+      "context": "Reproduction status: reproduced within published precision. DOI 10.1103/PhysRevD.106.054014. BESIII e+e- -> p pbar pi0 dressed cross sections from 3.65 to 4.60 GeV. Continuum-only fit in the paper: C=(3.07 +/- 0.58)e5 GeV^(2lambda) pb, lambda=3.96 +/- 0.07, chi2/NDF=13.0/20. Companion CSV: besiii-ppbarpi0-continuum.csv. Only statistical uncertainties are used in the fit because the roughly 6.5% systematic uncertainty is correlated across points.",
       "fileName": "besiii-ppbarpi0-continuum.csv"
     },
     "dataset": {

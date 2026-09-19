@@ -2,6 +2,8 @@
 
 [Data file](asassn14li-xray.csv) · [Example documentation index](README.md) · [Publication](https://doi.org/10.1093/mnras/sty077)
 
+**Reproduction status: not reproduced from the printed table.** Data Tool and independent SciPy calculations agree for the documented inputs, but none of the publication's three fitted X-ray results is recovered. Three early observations omitted from the printed table are the likely explanation.
+
 ## Data and interpretation
 
 95 flux observations, with time in days relative to MJD 56983.6. Flux and its standard deviation are in 10⁻¹² erg s⁻¹ cm⁻². Every CSV row was checked against the published table.
@@ -13,7 +15,15 @@
 | Free power index, shift fixed at −132.35 d | −1.78129 ± 0.01452 | −1.60 ± 0.05 |
 | Reduced χ², respective models | 7.9313; 10.5684; 9.9432 | 8.54; 13.99; 14.95 |
 
-Data Tool and independent SciPy optimization agree using these rows and settings. Trying the published count rates instead of flux also did not reproduce the cited numbers. The cause remains unresolved. Numerical precision, weighting, selection or other analysis details could contribute; we have not established that the publication is incorrect. No rounding-sensitivity study has yet determined whether tabulation precision explains the difference.
+Data Tool and independent SciPy optimization agree using these rows and settings. Trying the tabulated count rates instead of flux also does not reproduce the cited numbers.
+
+## Likely explanation: an incomplete fit table
+
+The [paper](https://arxiv.org/abs/1801.03094) says Swift monitoring began at MJD 56991.5, but its 95-row Appendix Table A2—and this CSV—begin at MJD 56998.259. The [Swift archive](https://heasarc.gsfc.nasa.gov/W3Browse/catalog/swiftmastr.html) identifies three earlier photon-counting observations between those dates. A modern [2SXPS reduction of the source](https://www.swift.ac.uk/2SXPS/2SXPS%20J124815.1%2B174627) includes those epochs.
+
+As a diagnostic only, mapping the modern reduction to the Table A2 scale on their shared epochs and adding the three early points gives `tau = 185.28 d`, shifted-power `t0 = -153.44 d`, and free index `p = -1.60496`; residual-scaled errors and reduced chi-square values also lie close to the paper's Table 1. This strongly suggests that the authors fit early observations omitted from Appendix Table A2.
+
+That diagnostic is not an exact reproduction: 2SXPS uses a different reduction, and the exact 2017 fluxes and errors for the missing epochs are unavailable. They must not be silently spliced into this CSV. Keep the 95 published rows unchanged and treat this as a provenance and replication exercise rather than a Data Tool validation failure.
 
 Large residuals relative to supplied errors remain with all three models. Successful optimization does not establish that a simple decay describes all the variability.
 

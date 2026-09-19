@@ -7,8 +7,8 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.1093/mnras/stab025. Published slope m=1.83 +/- 0.19; reduced chi^2=4.59. Companion CSV: published-pwn-luminosity-vs-blc.csv. Starting values are chosen near the published solution for robust reproduction. Per-row log-space sigma is a helper symmetrized from published asymmetric luminosity errors.",
-      "fileName": "published-pwn-luminosity-vs-blc.csv"
+      "context": "Reproduction status: close. DOI 10.1093/mnras/stab025. Published slope m=1.83 +/- 0.19; reduced chi^2=4.59. Companion CSV: pwn-luminosity-vs-blc.csv. Starting values support reliable convergence of this documented calculation. Per-row log-space sigma is a helper symmetrized from published asymmetric luminosity errors.",
+      "fileName": "pwn-luminosity-vs-blc.csv"
     },
     "dataset": {
       "id": "published-pwn-luminosity-vs-blc",

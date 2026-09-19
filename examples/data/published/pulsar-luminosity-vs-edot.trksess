@@ -7,8 +7,8 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.1093/mnras/stab025. Published slope m=1.15 +/- 0.11; reduced chi^2=3.43. Companion CSV: published-pulsar-luminosity-vs-edot.csv. Starting values are chosen near the published solution for robust reproduction. Per-row log-space sigma is a helper symmetrized from published asymmetric luminosity errors.",
-      "fileName": "published-pulsar-luminosity-vs-edot.csv"
+      "context": "Reproduction status: not reproduced. DOI 10.1093/mnras/stab025. Published slope m=1.15 +/- 0.11; reduced chi^2=3.43. The documented helper-error fit differs; a 40% distance-error floor moves it closer but is not established as the authors' exact procedure. Companion CSV: pulsar-luminosity-vs-edot.csv. Per-row log-space sigma is a helper symmetrized from published asymmetric luminosity errors.",
+      "fileName": "pulsar-luminosity-vs-edot.csv"
     },
     "dataset": {
       "id": "published-pulsar-luminosity-vs-edot",

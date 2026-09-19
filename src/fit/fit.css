@@ -340,6 +340,13 @@
   border-color: #6f96b2;
   color: #19394b;
 }
+.fit-example-status-note {
+  margin: 0;
+  padding: 6px 8px 1px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
 .fit-example-count {
   font-weight: normal;
 }
@@ -355,11 +362,42 @@
   padding-top: 5px;
 }
 .fit-examples-list button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 5px 8px;
   border: 0;
   border-radius: 4px;
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+.fit-example-status {
+  border: 1px solid #9aada8;
+  border-radius: 999px;
+  background: #f2f6f5;
+  color: #344b47;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.fit-example-status[data-status="Reproduced"] {
+  border-color: #67a47a;
+  background: #e7f4eb;
+  color: #1f6034;
+}
+.fit-example-status[data-status="Close"] {
+  border-color: #7198b5;
+  background: #e7f0f7;
+  color: #28536d;
+}
+.fit-example-status[data-status="Not reproduced"],
+.fit-example-status[data-status="Unsupported"] {
+  border-color: #bd8f57;
+  background: #fff2df;
+  color: #704716;
 }
 .fit-example-scroll-hint {
   flex: 0 0 auto;

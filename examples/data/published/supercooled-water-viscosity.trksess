@@ -7,8 +7,8 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.1073/pnas.1508996112. Published description: eta0=0.13069 mPa*s, Ts=224.80 K, gamma=1.7044, reduced chi^2=0.79. Parameter errors for this 55-point smoothed table are not tabulated. Companion CSV: published-supercooled-water-viscosity.csv. Starting values are chosen near the published solution for robust reproduction. Per-row sigma derived from the paper's stated uncertainty prescription, as documented in the companion CSV.",
-      "fileName": "published-supercooled-water-viscosity.csv"
+      "context": "Reproduction status: comparison. DOI 10.1073/pnas.1508996112. Published smoothing parameters: eta0=0.13069 mPa*s, Ts=224.80 K, gamma=1.7044. This session refits 55 rounded, smoothed table values and gives reduced chi^2 about 4.50e-5. The paper's reduced chi^2=0.79 describes 369 original measurements about the smoothing function and is not comparable to this refit. Parameter errors for the 55-point smoothed table are not published and Data Tool's are conditional calculations. Companion CSV: supercooled-water-viscosity.csv. Per-row sigma is derived from the paper's stated uncertainty prescription, as documented in the companion CSV.",
+      "fileName": "supercooled-water-viscosity.csv"
     },
     "dataset": {
       "id": "published-supercooled-water-viscosity",

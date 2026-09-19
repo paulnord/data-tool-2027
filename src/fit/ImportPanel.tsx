@@ -32,7 +32,7 @@ import { FitErrorMessage } from "./FitErrorMessage";
 export type ExampleGroup = {
   id: string;
   label: string;
-  items: readonly (readonly [string, string, string])[];
+  items: readonly (readonly [string, string, string, string?])[];
 };
 
 export function ImportPanel({
@@ -789,6 +789,12 @@ export function ImportPanel({
                   </button>
                 ))}
               </div>
+              {activeExamples?.items.some((item) => item[3]) && (
+                <p className="fit-example-status-note">
+                  Badges compare the documented calculation with the
+                  publication.
+                </p>
+              )}
               <div
                 ref={examplesList}
                 id="example-category-items"
@@ -798,20 +804,30 @@ export function ImportPanel({
                 onScroll={updateExampleOverflow}
                 onKeyDown={moveMenuFocus}
               >
-                {activeExamples?.items.map(([label, fileName, text]) => (
-                  <button
-                    key={fileName}
-                    role="menuitem"
-                    onClick={() => {
-                      examplesMenu.current?.removeAttribute("open");
-                      const load = () => onOpenExample(fileName, text);
-                      if (past.length) setPendingLoad(() => load);
-                      else load();
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
+                {activeExamples?.items.map(
+                  ([label, fileName, text, status]) => (
+                    <button
+                      key={fileName}
+                      role="menuitem"
+                      onClick={() => {
+                        examplesMenu.current?.removeAttribute("open");
+                        const load = () => onOpenExample(fileName, text);
+                        if (past.length) setPendingLoad(() => load);
+                        else load();
+                      }}
+                    >
+                      <span>{label}</span>
+                      {status && (
+                        <span
+                          className="fit-example-status"
+                          data-status={status}
+                        >
+                          {status}
+                        </span>
+                      )}
+                    </button>
+                  ),
+                )}
               </div>
               <p
                 className="fit-example-scroll-hint"

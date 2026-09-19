@@ -7,8 +7,8 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.1088/0031-9155/47/10/308. Published nonlinear fit: a0=1.0128 +/- 0.0018, a1=(-5.41 +/- 0.18)e-3 mm^-1, reduced chi^2=0.17. Paper fit only thicknesses 3.73, 3.97, 4.85, 9.56 mm. Companion CSV: published-ion-chamber-wall-thin.csv. Starting values are chosen near the published solution for robust reproduction. Published combined standard uncertainty. x uses the paper's tabulated t*f(alpha) transformation.",
-      "fileName": "published-ion-chamber-wall-thin.csv"
+      "context": "Reproduction status: close. DOI 10.1088/0031-9155/47/10/308. Published nonlinear fit: a0=1.0128 +/- 0.0018, a1=(-5.41 +/- 0.18)e-3 mm^-1, reduced chi^2=0.17. The paper fit only thicknesses 3.73, 3.97, 4.85, and 9.56 mm, then evaluated its quoted statistic over all nine rows. This session reports reduced chi^2=0.2726 on the four selected fit rows; evaluating its fitted curve over all rows gives 0.1861. Companion CSV: ion-chamber-wall-thin.csv. Published combined standard uncertainty. x uses the paper's tabulated t*f(alpha) transformation.",
+      "fileName": "ion-chamber-wall-thin.csv"
     },
     "dataset": {
       "id": "published-ion-chamber-wall-thin",

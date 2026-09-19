@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { expect, it } from "vitest";
 import { sessionSchema } from "../../src/core/fit/schema";
 import { fit } from "../../src/core/fit/solve";
@@ -11,10 +11,14 @@ it.each(files)(
     const session = sessionSchema.parse(
       JSON.parse(readFileSync(`${dir}/${file}`, "utf8")),
     );
-    const text = readFileSync(
-      `${dir}/${file.replace(/\.trksess$/, ".csv")}`,
-      "utf8",
+    const companion = file.replace(/\.trksess$/, ".csv");
+    const companionPath = `${dir}/${companion}`;
+    expect(session.request.source.fileName).toBe(companion);
+    expect(existsSync(companionPath)).toBe(true);
+    expect(session.request.source.context).toContain(
+      `Companion CSV: ${companion}`,
     );
+    const text = readFileSync(companionPath, "utf8");
     const suggestion = suggestImport(text);
     const rows = parseDelimited(text, suggestion.delimiter).slice(
       suggestion.headerRows,

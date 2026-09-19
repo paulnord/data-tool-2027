@@ -7,8 +7,8 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.1093/mnras/sty077. Published fit: tau=187 +/- 6 d, reduced chi^2=8.54; A not tabulated. Companion CSV: published-asassn14li-xray.csv. Starting values are chosen near the published solution for robust reproduction. Published 1-sigma X-ray flux uncertainties.",
-      "fileName": "published-asassn14li-xray.csv"
+      "context": "Reproduction status: not reproduced from the printed table. DOI 10.1093/mnras/sty077. Published fit: tau=187 +/- 6 d, reduced chi^2=8.54; A not tabulated. With the 95 tabulated rows and supplied uncertainties, this session gives tau=178.58 d and reduced chi^2=7.93. Data Tool and independent SciPy agree. The paper says monitoring began about seven days before its table, and Swift records identify three earlier observations; adding values from a different modern reduction moves all three fits close to the paper. Do not mix those reductions into this CSV. Companion CSV: asassn14li-xray.csv. Published 1-sigma X-ray flux uncertainties.",
+      "fileName": "asassn14li-xray.csv"
     },
     "dataset": {
       "id": "published-asassn14li-xray",

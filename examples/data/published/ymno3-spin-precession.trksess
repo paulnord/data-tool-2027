@@ -7,7 +7,7 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed damped-oscillation example. DOI 10.1038/s41467-020-19749-y. YMnO3 Z-mode Faraday-rotation trace near 30 K from the authors' Source Data Fig. 2 workbook. The paper fits Phi=A0+A1 exp(-t/t1)+A2 exp(-t/tau) sin(omega t+phi0). This session excludes t<5 ps, where the pump/probe overlap and short thermal transient matter, then uses Data Tool's damped-sine model. Paper text gives period about 18.2 ps and phase about 0.1 rad; near-30 K source tables give tau about 145-150 ps with about 4 ps fit standard errors. No pointwise sigma is supplied, so equal scatter is estimated from residuals.",
+      "context": "Reproduction status: comparison. DOI 10.1038/s41467-020-19749-y. YMnO3 Z-mode Faraday-rotation trace near 30 K from the authors' Source Data Fig. 2 workbook. The paper fits Phi=A0+A1 exp(-t/t1)+A2 exp(-t/tau) sin(omega t+phi0). This session excludes t<5 ps, where the pump/probe overlap and short thermal transient matter, then uses Data Tool's damped-sine model. Paper text gives period about 18.2 ps and phase about 0.1 rad; near-30 K source tables give tau about 145-150 ps with about 4 ps fit standard errors. No pointwise sigma is supplied, so equal scatter is estimated from residuals. Companion CSV: ymno3-spin-precession.csv.",
       "fileName": "ymno3-spin-precession.csv"
     },
     "dataset": {

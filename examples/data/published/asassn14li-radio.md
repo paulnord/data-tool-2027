@@ -6,9 +6,9 @@
 
 104 flux-density observations, with time in days relative to MJD 56983.6, flux density in μJy, and supplied Y standard deviations. All CSV rows were checked against the published table during review.
 
-The all-data exponential gives decay time 66.0572 ± 2.7753 d and background 239.8819 ± 8.1384 μJy; the publication reports 66 ± 3 d and 244 ± 8 μJy. The shifted power model fixes the exponent at −5/3. For the early exponential, select only times at or below 200 d (29 observations) and omit the background.
+The all-data exponential gives decay time 66.0572 ± 2.7753 d and background 239.8819 ± 8.1384 μJy; the publication reports 66 ± 3 d and 244 ± 8 μJy. The shifted power model fixes the exponent at −5/3. For either early-time fit, select only times at or below 200 d (29 observations) and omit the background.
 
-The early decay time is 87.2955 ± 3.2840 d, compared with the reported 87 ± 6 d. Rescaling our standard error by the square root of reduced χ² gives about 5.83 d. This illustrates the importance of uncertainty conventions; it does not establish the authors' exact procedure. Radio results are close, but the published statistics are not exact regression targets.
+The early exponential decay time is 87.2955 ± 3.2840 d, compared with the reported 87 ± 6 d. The early fixed −5/3 power fit gives t0 = −70.5157 ± 4.9701 d and reduced χ² = 2.3931, compared with −71 ± 8 d and 2.48. Rescaling the respective Data Tool standard errors by the square root of reduced χ² gives about 5.83 d and 7.69 d. This illustrates the importance of uncertainty conventions; it does not establish the authors' exact procedure. Radio results are close, but the published statistics are not exact regression targets.
 
 In the power equations, dividing time by 100 d changes only the amplitude convention. Compare the shift and exponent directly; compare amplitudes only after accounting for that normalization.
 
@@ -62,5 +62,20 @@ Select X ≤ 200 d.
 | tau | 87.29554157 | 3.2840247 |
 
 Reduced weighted objective on selected rows: **3.14952006**.
+
+### radio-early-power
+
+Equation: `A*((x-t0)/100)^(-5/3)`. X: column 1; Y: column 2; Y standard deviation: column 3.
+
+Starting values: `A = 1800`, `t0 = -71`.
+
+Select X ≤ 200 d.
+
+| Parameter | Reproduced value | Standard error |
+| --- | ---: | ---: |
+| A | 2079.683037 | 141.62171 |
+| t0 | -70.51573577 | 4.9700559 |
+
+Reduced weighted objective on selected rows: **2.39310923**.
 
 These numerical results were independently checked with SciPy 1.18.1. See the [shared conventions and review scope](README.md) before comparing standard errors or goodness-of-fit statistics.

@@ -7,7 +7,7 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed damped-oscillation example. DOI 10.1038/s41567-021-01290-4; source-data DOI 10.5281/zenodo.4716539. DyFeO3 Figure 1 reflection-geometry time-resolved Kerr/polarization rotation after 3.1 eV pumping. The paper states that the Figure 1 trace is fit by an exponentially damped sine. This session selects t>=25 ps to isolate the late propagating-magnon oscillation. An independent equal-scatter fit gives T about 4.521 ps (221.2 GHz) and tau about 85.4 ps, consistent with the paper's separate Extended Data Fig. 5 statement of a lifetime about 85 ps. The paper does not establish that the Extended Data fit used this exact source series/window. No pointwise sigma is supplied.",
+      "context": "Reproduction status: comparison. DOI 10.1038/s41567-021-01290-4; source-data DOI 10.5281/zenodo.4716539. DyFeO3 Figure 1 reflection-geometry time-resolved Kerr/polarization rotation after 3.1 eV pumping. The paper states that the Figure 1 trace is fit by an exponentially damped sine. This session selects t>=25 ps to isolate the late propagating-magnon oscillation. An independent equal-scatter fit gives T about 4.521 ps (221.2 GHz) and tau about 85.4 ps, consistent with the paper's separate Extended Data Fig. 5 statement of a lifetime about 85 ps. The paper does not establish that the Extended Data fit used this exact source series/window. No pointwise sigma is supplied. Companion CSV: dyfeo3-spin-wave.csv.",
       "fileName": "dyfeo3-spin-wave.csv"
     },
     "dataset": {

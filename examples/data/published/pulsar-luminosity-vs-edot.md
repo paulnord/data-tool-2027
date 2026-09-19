@@ -10,7 +10,9 @@ Published exponent: 1.15 ± 0.11; reduced χ² = 3.43. Our statistic differs mat
 
 The supplied symmetric log-space helper is [log10(L+upper) − log10(L−lower)]/2. This choice is explicit in the CSV, but is not established as the authors' exact weighting convention. Distance-related uncertainty and substantial intrinsic scatter limit interpretation; see the [shared discussion](README.md). Our standard errors below use the helper errors without rescaling by residual scatter.
 
-The raw luminosity entries for the especially influential J1016−5857 and J1048−5832 rows were checked against the published table. This review did not complete a full transcription audit of every pulsar row. The reason for any remaining difference in the published fit is unresolved; rounding alone has not been demonstrated as the explanation.
+All 35 source rows were checked against the published tables; the raw values and asymmetric errors match. The logarithmic coordinates and symmetric helper errors are derived quantities, so no remaining difference has been traced to a transcription error.
+
+The paper adopts ±40% distance uncertainty. Propagating d(1 ± 0.4) through L ∝ d² and taking half the resulting logarithmic span gives about 0.368 dex. As a diagnostic, imposing that as a minimum Y uncertainty on the three rows with smaller helper values gives slope m = 1.14582 and reduced χ² = 3.70277, much closer to the published 1.15 and 3.43. This is evidence that treatment of the stated distance uncertainty contributes to the discrepancy, but it remains a hypothesis: the paper does not specify this floor or the exact symmetrization and covariance scaling used for the fit.
 
 ## Reproduce the CSV calculation
 
@@ -18,16 +20,16 @@ Choose the custom equation and independent variable `x` shown below. All paramet
 
 ### pulsar-edot
 
-Equation: `a+b*x`. X: column 1; Y: column 2; Y standard deviation: column 3.
+Equation: `b+m*x`. X: column 1; Y: column 2; Y standard deviation: column 3.
 
-Starting values: `a = 0`, `b = 1`.
+Starting values: `b = -11`, `m = 1.2`.
 
 Use all rows.
 
 | Parameter | Reproduced value | Standard error |
 | --- | ---: | ---: |
-| a | -10.88749543 | 2.2163325 |
-| b | 1.181074634 | 0.060970056 |
+| b | -10.88749543 | 2.2163325 |
+| m | 1.181074634 | 0.060970056 |
 
 Reduced weighted objective on selected rows: **8.7327442**.
 

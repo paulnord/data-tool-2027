@@ -91,7 +91,7 @@ test("Data actions remain visible while editing at 200 percent and Examples need
     data.getByRole("tab", { name: "Synthetic data (14)", exact: true }),
   ).toBeVisible();
   await expect(
-    data.getByRole("tab", { name: "Published data (15)", exact: true }),
+    data.getByRole("tab", { name: "Published studies (15)", exact: true }),
   ).toBeVisible();
   await expect(
     data.getByText("Scroll for more examples ↓", { exact: true }),
@@ -114,22 +114,38 @@ test("Data actions remain visible while editing at 200 percent and Examples need
     data.getByText("Scroll for more examples ↓", { exact: true }),
   ).toBeHidden();
   await data
-    .getByRole("tab", { name: "Published data (15)", exact: true })
+    .getByRole("tab", { name: "Published studies (15)", exact: true })
     .click();
+  await expect(
+    data.getByText(
+      "Badges compare the documented calculation with the publication.",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await page.keyboard.press("ArrowLeft");
   await expect(
     data.getByRole("tab", { name: "Synthetic data (14)", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(
-    data.getByRole("tab", { name: "Published data (15)", exact: true }),
+    data.getByRole("tab", { name: "Published studies (15)", exact: true }),
   ).toBeFocused();
-  await expect(popover.getByRole("menuitem").first()).toHaveText(
-    "YMnO₃ Z-mode spin precession",
+  await expect(popover.getByRole("menuitem").first()).toContainText(
+    "BESIII continuum",
   );
-  await expect(popover.getByRole("menuitem").nth(1)).toHaveText(
-    "DyFeO₃ coherent spin wave",
+  await expect(popover.getByRole("menuitem").first()).toContainText(
+    "Reproduced",
   );
+  await expect(popover.getByRole("menuitem").nth(1)).toContainText(
+    "ASASSN-14li radio",
+  );
+  await expect(popover.getByRole("menuitem").nth(1)).toContainText("Close");
+  await expect(
+    popover.getByRole("menuitem", { name: /ASASSN-14li X-ray/ }),
+  ).toContainText("Not reproduced");
+  await expect(
+    popover.getByRole("menuitem", { name: /Photon index \/ temperature/ }),
+  ).toContainText("Unsupported");
   await popover.getByRole("menuitem").first().focus();
   await page.keyboard.press("ArrowDown");
   await expect(popover.getByRole("menuitem").nth(1)).toBeFocused();

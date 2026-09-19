@@ -7,8 +7,8 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.3938/jkps.65.532. Published five-run ensemble: T1/2=2.577 +/- 0.009 min. This representative trace is not the ensemble fit; accepted value quoted by paper is 2.552 +/- 0.001 min. Companion CSV: published-ba137m-decay.csv. Starting values are chosen near the published solution for robust reproduction. Published standard deviation for each 60-s net counting-rate point.",
-      "fileName": "published-ba137m-decay.csv"
+      "context": "Reproduction status: comparison. DOI 10.3938/jkps.65.532. This is the paper's complete 10-row Table 3 representative trace. It gives T1/2=2.7518 +/- 0.2538 min with reduced chi^2=0.1829. The published 2.577 +/- 0.009 min result combines five runs, but the other four run-level datasets and exact combination details are not published, so that ensemble cannot be reproduced from this trace. Accepted value quoted by the paper: 2.552 +/- 0.001 min. Companion CSV: ba137m-decay.csv. The tabulated row errors are used as standard deviations for the 60-s net counting-rate points.",
+      "fileName": "ba137m-decay.csv"
     },
     "dataset": {
       "id": "published-ba137m-decay",

@@ -5,6 +5,7 @@
 # Published all-data fit: F(t)=A*exp(-t/tau)+C, tau=66 +/- 3 d, C=244 +/- 8 uJy, reduced chi^2=0.99. The fitted amplitude A was not tabulated.
 # Published alternative all-data fit: fixed -5/3 power law + offset, t0=-47 +/- 5 d, C=180 +/- 10 uJy, reduced chi^2=0.94.
 # Published early-decay exponential (t<=200 d): tau=87 +/- 6 d, reduced chi^2=3.24.
+# Published early-decay fixed -5/3 power law (t<=200 d): t0=-71 +/- 8 d, reduced chi^2=2.48.
 Time since reference (d),Flux density (uJy),Y standard deviation (uJy)
 30.478,1865,83
 31.570,1871,141

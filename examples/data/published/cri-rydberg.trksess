@@ -7,8 +7,8 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.1016/j.rinp.2025.108368. Published fit: IP=54575.49 +/- 0.02(stat) +/- 0.03(sys) cm^-1, delta0=2.552 +/- 0.004, a=-9.9 +/- 1.3, reduced chi^2=0.6315. RM is fixed. Companion CSV: published-cri-rydberg.csv. Starting values are chosen near the published solution for robust reproduction. Published statistical standard errors; common 0.03 cm^-1 systematic is not folded into pointwise sigma.",
-      "fileName": "published-cri-rydberg.csv"
+      "context": "Reproduction status: close. DOI 10.1016/j.rinp.2025.108368. Published fit: IP=54575.49 +/- 0.02(stat) +/- 0.03(sys) cm^-1, delta0=2.552 +/- 0.004, a=-9.9 +/- 1.3, reduced chi^2=0.6315. RM=109736.157 cm^-1 is fixed. Companion CSV: cri-rydberg.csv. Starting values support reliable convergence of this documented calculation. Published statistical standard errors; common 0.03 cm^-1 systematic is not folded into pointwise sigma.",
+      "fileName": "cri-rydberg.csv"
     },
     "dataset": {
       "id": "published-cri-rydberg",
@@ -298,7 +298,7 @@
         "fixed": false
       },
       {
-        "value": 109736.16,
+        "value": 109736.157,
         "fixed": true
       },
       {

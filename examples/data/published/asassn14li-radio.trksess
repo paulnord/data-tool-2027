@@ -7,8 +7,8 @@
     "source": {
       "application": "Published literature example",
       "version": "Data Tool 2027 corpus 2026-09-11",
-      "context": "Publication-backed fitting example. DOI 10.1093/mnras/sty077. Published all-data fit: tau=66 +/- 3 d, C=244 +/- 8 uJy, reduced chi^2=0.99; A not tabulated. Companion CSV: published-asassn14li-radio.csv. Starting values are chosen near the published solution for robust reproduction. Published 1-sigma flux-density uncertainties.",
-      "fileName": "published-asassn14li-radio.csv"
+      "context": "Reproduction status: close. DOI 10.1093/mnras/sty077. Published all-data fit: tau=66 +/- 3 d, C=244 +/- 8 uJy, reduced chi^2=0.99; A not tabulated. Companion CSV: asassn14li-radio.csv. Starting values support reliable convergence of this documented calculation. Published 1-sigma flux-density uncertainties.",
+      "fileName": "asassn14li-radio.csv"
     },
     "dataset": {
       "id": "published-asassn14li-radio",

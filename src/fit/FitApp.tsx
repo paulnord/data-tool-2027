@@ -2213,7 +2213,10 @@ export default function FitApp() {
   useEffect(() => {
     if (!restoreAnalysisToolsFocus.current) return;
     restoreAnalysisToolsFocus.current = false;
-    analysisToolsSelect.current?.focus();
+    const frame = requestAnimationFrame(() =>
+      analysisToolsSelect.current?.focus({ preventScroll: true }),
+    );
+    return () => cancelAnimationFrame(frame);
   }, [analysisTool]);
   const analysisTools = (
     <AnalysisTools

@@ -2234,7 +2234,7 @@ export default function FitApp() {
         ? "collision"
         : "single-fit";
   function selectAnalysisTool(value: AnalysisTool) {
-    restoreAnalysisToolsFocus.current = true;
+    restoreAnalysisToolsFocus.current = advancedFeatures;
     setMultiOpen(value === "multi-interval");
     setCollisionOpen(value === "collision");
     setComparisonOpen(value === "model-comparison");

@@ -28,7 +28,7 @@ test("advanced models and tools are device-only opt-ins", async ({ page }) => {
 
   const tools = page.getByLabel("Analysis tools", { exact: true });
   const models = page.getByLabel("Model", { exact: true });
-  await expect(tools.locator("option")).toHaveCount(1);
+  await expect(tools).toHaveCount(0);
   await expect(
     page.getByText("More analyses: Settings → Advanced features", {
       exact: true,
@@ -60,6 +60,7 @@ test("advanced models and tools are device-only opt-ins", async ({ page }) => {
   const advanced = await advancedCheckbox(page);
   await expect(advanced).not.toBeChecked();
   await advanced.check();
+  await expect(tools).toBeVisible();
   await expect(tools.locator("option")).toHaveCount(4);
   await expect(
     page.getByText("More analyses: Settings → Advanced features", {
@@ -91,16 +92,17 @@ test("turning the opt-in off preserves an active advanced analysis", async ({
   ).toHaveValue("custom");
 
   await (await advancedCheckbox(page)).uncheck();
-  await expect(tools).toHaveValue("model-comparison");
+  await expect(tools).toHaveCount(0);
   await expect(
     page.getByText("More analyses: Settings → Advanced features", {
       exact: true,
     }),
   ).toHaveCount(0);
-  await expect(tools.locator('option[value="model-comparison"]')).toHaveCount(
-    1,
-  );
-  await expect(tools.locator('option[value="multi-interval"]')).toHaveCount(0);
+  const backToSingleFit = page.getByRole("button", {
+    name: "Back to single fit",
+    exact: true,
+  });
+  await expect(backToSingleFit).toBeVisible();
   await expect(
     page.getByLabel("Candidate 1 model", { exact: true }),
   ).toHaveValue("custom");
@@ -110,8 +112,8 @@ test("turning the opt-in off preserves an active advanced analysis", async ({
       .getByLabel("Custom equation", { exact: true }),
   ).toBeVisible();
 
-  await tools.selectOption("single-fit");
-  await expect(tools.locator("option")).toHaveCount(1);
+  await backToSingleFit.click();
+  await expect(tools).toHaveCount(0);
   await expect(
     page.getByText("More analyses: Settings → Advanced features", {
       exact: true,
@@ -156,6 +158,9 @@ test("an advanced session reopens on an opted-out device", async ({
     .click();
 
   await expect(await advancedCheckbox(fresh)).not.toBeChecked();
+  await expect(fresh.getByLabel("Analysis tools", { exact: true })).toHaveCount(
+    0,
+  );
   await expect(fresh.getByLabel("Model", { exact: true })).toHaveValue(
     "fourier",
   );

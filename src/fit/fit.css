@@ -678,9 +678,15 @@
 .fit-analysis-tools select {
   margin-bottom: 0;
 }
+.fit-analysis-tools-collapsed {
+  padding-top: 0;
+  border-top: 0;
+}
+.fit-analysis-tools-collapsed button {
+  width: 100%;
+}
 .fit-analysis-discovery {
   display: block;
-  margin-top: 5px;
   color: var(--muted);
   font-size: 10px;
   font-weight: 400;

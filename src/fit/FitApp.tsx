@@ -89,6 +89,7 @@ import {
   nameSavedSession,
 } from "../core/fit/report";
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -1384,8 +1385,15 @@ export default function FitApp() {
   const [comparisonRevision, setComparisonRevision] = useState(0);
   const workspaceRevision = useRef(0);
   const dirtyWorkspaces = useRef(new Set<FitWorkspace["kind"]>());
-  const analysisToolsSelect = useRef<HTMLSelectElement>(null);
   const restoreAnalysisToolsFocus = useRef(false);
+  const setAnalysisToolsSelect = useCallback(
+    (node: HTMLSelectElement | null) => {
+      if (!node || !restoreAnalysisToolsFocus.current) return;
+      restoreAnalysisToolsFocus.current = false;
+      node.focus({ preventScroll: true });
+    },
+    [],
+  );
   function draftChanged(kind: FitWorkspace["kind"]) {
     workspaceRevision.current += 1;
     dirtyWorkspaces.current.add(kind);
@@ -2210,19 +2218,11 @@ export default function FitApp() {
     setComparisonOpen(value === "model-comparison");
     if (value === "model-comparison") setComparisonVisited(true);
   }
-  useEffect(() => {
-    if (!restoreAnalysisToolsFocus.current) return;
-    restoreAnalysisToolsFocus.current = false;
-    const frame = requestAnimationFrame(() =>
-      analysisToolsSelect.current?.focus({ preventScroll: true }),
-    );
-    return () => cancelAnimationFrame(frame);
-  }, [analysisTool]);
   const analysisTools = (
     <AnalysisTools
       value={analysisTool}
       onChange={selectAnalysisTool}
-      selectRef={analysisToolsSelect}
+      selectRef={setAnalysisToolsSelect}
     />
   );
   const modelSelector = (

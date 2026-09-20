@@ -119,7 +119,9 @@ test("turning the opt-in off preserves an active advanced analysis", async ({
   ).toBeVisible();
   await expect(page.getByLabel("Model", { exact: true })).toHaveValue("custom");
   await expect(
-    page.getByLabel("Custom equation", { exact: true }),
+    page
+      .locator("aside.fit-controls")
+      .getByLabel("Custom equation", { exact: true }),
   ).toBeVisible();
 });
 

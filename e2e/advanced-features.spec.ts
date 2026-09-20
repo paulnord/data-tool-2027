@@ -71,6 +71,7 @@ test("advanced models and tools are device-only opt-ins", async ({ page }) => {
   await expect(page.getByLabel("Allow skew", { exact: true })).toBeVisible();
 
   await page.reload();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(await advancedCheckbox(page)).toBeChecked();
 });
 
@@ -104,7 +105,9 @@ test("turning the opt-in off preserves an active advanced analysis", async ({
     page.getByLabel("Candidate 1 model", { exact: true }),
   ).toHaveValue("custom");
   await expect(
-    page.getByLabel("Custom equation", { exact: true }),
+    page
+      .locator("fieldset:not([hidden])")
+      .getByLabel("Custom equation", { exact: true }),
   ).toBeVisible();
 
   await tools.selectOption("single-fit");

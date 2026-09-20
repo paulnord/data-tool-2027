@@ -270,15 +270,7 @@ test("header graph export uses the active multi-interval overview without hidden
     name: "Multi-interval analysis",
     exact: true,
   });
-  await page
-    .getByLabel("Number of data series", { exact: true })
-    .selectOption("2");
-  await page
-    .getByLabel("Data series 1 column", { exact: true })
-    .selectOption("1");
-  await page
-    .getByLabel("Data series 2 column", { exact: true })
-    .selectOption("3");
+  await page.getByLabel("Interval Y column", { exact: true }).selectOption("3");
   await page
     .getByLabel("Number of intervals", { exact: true })
     .selectOption("1");
@@ -294,7 +286,7 @@ test("header graph export uses the active multi-interval overview without hidden
     .getByRole("button", { name: "Fit Interval 1", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 2 of 2 data series fitted",
+    "Interval 1: fit complete",
   );
   await workspace
     .locator(".interval-result-diagnostics summary")
@@ -310,13 +302,8 @@ test("header graph export uses the active multi-interval overview without hidden
     await plots.evaluateAll((nodes) =>
       nodes.map((node) => node.getAttribute("aria-label")),
     ),
-  ).toEqual([
-    "x1 interval plot",
-    "x1 residuals",
-    "x2 interval plot",
-    "x2 residuals",
-  ]);
-  await expectExportedActivePlots(page, testInfo, plots, 4);
+  ).toEqual(["x2 interval plot", "x2 residuals"]);
+  await expectExportedActivePlots(page, testInfo, plots, 2);
 });
 
 test("header graph export uses collision graphs and includes residuals only when expanded", async ({

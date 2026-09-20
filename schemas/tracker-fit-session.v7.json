@@ -57,11 +57,7 @@
               ]
             }
           },
-          "required": [
-            "application",
-            "version",
-            "context"
-          ],
+          "required": ["application", "version", "context"],
           "additionalProperties": false
         },
         "dataset": {
@@ -98,11 +94,7 @@
                   ]
                 }
               },
-              "required": [
-                "id",
-                "label",
-                "unit"
-              ],
+              "required": ["id", "label", "unit"],
               "additionalProperties": false
             },
             "yColumn": {
@@ -128,11 +120,7 @@
                   ]
                 }
               },
-              "required": [
-                "id",
-                "label",
-                "unit"
-              ],
+              "required": ["id", "label", "unit"],
               "additionalProperties": false
             },
             "assumptions": {
@@ -140,34 +128,18 @@
               "properties": {
                 "exactX": {
                   "type": "string",
-                  "enum": [
-                    "asserted",
-                    "unknown",
-                    "known-false"
-                  ]
+                  "enum": ["asserted", "unknown", "known-false"]
                 },
                 "gaussianIndependent": {
                   "type": "string",
-                  "enum": [
-                    "asserted",
-                    "unknown",
-                    "known-false"
-                  ]
+                  "enum": ["asserted", "unknown", "known-false"]
                 },
                 "correctModel": {
                   "type": "string",
-                  "enum": [
-                    "asserted",
-                    "unknown",
-                    "known-false"
-                  ]
+                  "enum": ["asserted", "unknown", "known-false"]
                 }
               },
-              "required": [
-                "exactX",
-                "gaussianIndependent",
-                "correctModel"
-              ],
+              "required": ["exactX", "gaussianIndependent", "correctModel"],
               "additionalProperties": false
             },
             "rows": {
@@ -223,13 +195,7 @@
                     ]
                   }
                 },
-                "required": [
-                  "id",
-                  "x",
-                  "y",
-                  "included",
-                  "missingReason"
-                ],
+                "required": ["id", "x", "y", "included", "missingReason"],
                 "additionalProperties": false
               }
             }
@@ -251,21 +217,14 @@
               "properties": {
                 "errorStructure": {
                   "type": "string",
-                  "enum": [
-                    "uncorrelated",
-                    "known-correlated",
-                    "unknown"
-                  ]
+                  "enum": ["uncorrelated", "known-correlated", "unknown"]
                 },
                 "kind": {
                   "type": "string",
                   "const": "unknown-equal"
                 }
               },
-              "required": [
-                "errorStructure",
-                "kind"
-              ],
+              "required": ["errorStructure", "kind"],
               "additionalProperties": false
             },
             {
@@ -273,11 +232,7 @@
               "properties": {
                 "errorStructure": {
                   "type": "string",
-                  "enum": [
-                    "uncorrelated",
-                    "known-correlated",
-                    "unknown"
-                  ]
+                  "enum": ["uncorrelated", "known-correlated", "unknown"]
                 },
                 "kind": {
                   "type": "string",
@@ -303,19 +258,11 @@
                       "minLength": 1
                     }
                   },
-                  "required": [
-                    "kind",
-                    "description"
-                  ],
+                  "required": ["kind", "description"],
                   "additionalProperties": false
                 }
               },
-              "required": [
-                "errorStructure",
-                "kind",
-                "sigmaY",
-                "provenance"
-              ],
+              "required": ["errorStructure", "kind", "sigmaY", "provenance"],
               "additionalProperties": false
             },
             {
@@ -323,11 +270,7 @@
               "properties": {
                 "errorStructure": {
                   "type": "string",
-                  "enum": [
-                    "uncorrelated",
-                    "known-correlated",
-                    "unknown"
-                  ]
+                  "enum": ["uncorrelated", "known-correlated", "unknown"]
                 },
                 "kind": {
                   "type": "string",
@@ -359,10 +302,7 @@
                       "minLength": 1
                     }
                   },
-                  "required": [
-                    "kind",
-                    "description"
-                  ],
+                  "required": ["kind", "description"],
                   "additionalProperties": false
                 }
               },
@@ -443,11 +383,7 @@
               ]
             }
           },
-          "required": [
-            "application",
-            "version",
-            "context"
-          ],
+          "required": ["application", "version", "context"],
           "additionalProperties": false
         },
         "dataset": {
@@ -484,11 +420,7 @@
                   ]
                 }
               },
-              "required": [
-                "id",
-                "label",
-                "unit"
-              ],
+              "required": ["id", "label", "unit"],
               "additionalProperties": false
             },
             "yColumn": {
@@ -514,11 +446,7 @@
                   ]
                 }
               },
-              "required": [
-                "id",
-                "label",
-                "unit"
-              ],
+              "required": ["id", "label", "unit"],
               "additionalProperties": false
             },
             "assumptions": {
@@ -526,34 +454,18 @@
               "properties": {
                 "exactX": {
                   "type": "string",
-                  "enum": [
-                    "asserted",
-                    "unknown",
-                    "known-false"
-                  ]
+                  "enum": ["asserted", "unknown", "known-false"]
                 },
                 "gaussianIndependent": {
                   "type": "string",
-                  "enum": [
-                    "asserted",
-                    "unknown",
-                    "known-false"
-                  ]
+                  "enum": ["asserted", "unknown", "known-false"]
                 },
                 "correctModel": {
                   "type": "string",
-                  "enum": [
-                    "asserted",
-                    "unknown",
-                    "known-false"
-                  ]
+                  "enum": ["asserted", "unknown", "known-false"]
                 }
               },
-              "required": [
-                "exactX",
-                "gaussianIndependent",
-                "correctModel"
-              ],
+              "required": ["exactX", "gaussianIndependent", "correctModel"],
               "additionalProperties": false
             },
             "rows": {
@@ -609,13 +521,7 @@
                     ]
                   }
                 },
-                "required": [
-                  "id",
-                  "x",
-                  "y",
-                  "included",
-                  "missingReason"
-                ],
+                "required": ["id", "x", "y", "included", "missingReason"],
                 "additionalProperties": false
               }
             }
@@ -637,21 +543,14 @@
               "properties": {
                 "errorStructure": {
                   "type": "string",
-                  "enum": [
-                    "uncorrelated",
-                    "known-correlated",
-                    "unknown"
-                  ]
+                  "enum": ["uncorrelated", "known-correlated", "unknown"]
                 },
                 "kind": {
                   "type": "string",
                   "const": "unknown-equal"
                 }
               },
-              "required": [
-                "errorStructure",
-                "kind"
-              ],
+              "required": ["errorStructure", "kind"],
               "additionalProperties": false
             },
             {
@@ -659,11 +558,7 @@
               "properties": {
                 "errorStructure": {
                   "type": "string",
-                  "enum": [
-                    "uncorrelated",
-                    "known-correlated",
-                    "unknown"
-                  ]
+                  "enum": ["uncorrelated", "known-correlated", "unknown"]
                 },
                 "kind": {
                   "type": "string",
@@ -689,19 +584,11 @@
                       "minLength": 1
                     }
                   },
-                  "required": [
-                    "kind",
-                    "description"
-                  ],
+                  "required": ["kind", "description"],
                   "additionalProperties": false
                 }
               },
-              "required": [
-                "errorStructure",
-                "kind",
-                "sigmaY",
-                "provenance"
-              ],
+              "required": ["errorStructure", "kind", "sigmaY", "provenance"],
               "additionalProperties": false
             },
             {
@@ -709,11 +596,7 @@
               "properties": {
                 "errorStructure": {
                   "type": "string",
-                  "enum": [
-                    "uncorrelated",
-                    "known-correlated",
-                    "unknown"
-                  ]
+                  "enum": ["uncorrelated", "known-correlated", "unknown"]
                 },
                 "kind": {
                   "type": "string",
@@ -745,10 +628,7 @@
                       "minLength": 1
                     }
                   },
-                  "required": [
-                    "kind",
-                    "description"
-                  ],
+                  "required": ["kind", "description"],
                   "additionalProperties": false
                 }
               },
@@ -843,15 +723,7 @@
           }
         }
       },
-      "required": [
-        "cells",
-        "rowIds",
-        "headerRows",
-        "x",
-        "y",
-        "sigma",
-        "units"
-      ],
+      "required": ["cells", "rowIds", "headerRows", "x", "y", "sigma", "units"],
       "additionalProperties": false
     },
     "settings": {
@@ -885,6 +757,7 @@
             "exponential-growth",
             "sigmoid",
             "gaussian-shape",
+            "fourier",
             "custom"
           ]
         },
@@ -902,10 +775,7 @@
                 "type": "boolean"
               }
             },
-            "required": [
-              "value",
-              "fixed"
-            ],
+            "required": ["value", "fixed"],
             "additionalProperties": false
           }
         },
@@ -942,12 +812,7 @@
               }
             }
           },
-          "required": [
-            "expression",
-            "variable",
-            "names",
-            "units"
-          ],
+          "required": ["expression", "variable", "names", "units"],
           "additionalProperties": false
         },
         "sinePeriod": {
@@ -965,16 +830,97 @@
         "shape": {
           "type": "number"
         },
+        "polynomialBasis": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "power"
+                }
+              },
+              "required": ["kind"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "taylor"
+                },
+                "center": {
+                  "type": "number"
+                }
+              },
+              "required": ["kind", "center"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "chebyshev"
+                },
+                "center": {
+                  "type": "number"
+                },
+                "scale": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": ["kind", "center", "scale"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "fourier": {
+          "type": "object",
+          "properties": {
+            "harmonics": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "const": 1
+                },
+                {
+                  "type": "number",
+                  "const": 2
+                },
+                {
+                  "type": "number",
+                  "const": 3
+                },
+                {
+                  "type": "number",
+                  "const": 4
+                },
+                {
+                  "type": "number",
+                  "const": 5
+                }
+              ]
+            },
+            "period": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "origin": {
+              "type": "number"
+            }
+          },
+          "required": ["harmonics", "period", "origin"],
+          "additionalProperties": false
+        },
         "retainedPerRowUncertainty": {
           "type": "object",
           "properties": {
             "errorStructure": {
               "type": "string",
-              "enum": [
-                "uncorrelated",
-                "known-correlated",
-                "unknown"
-              ]
+              "enum": ["uncorrelated", "known-correlated", "unknown"]
             },
             "kind": {
               "type": "string",
@@ -995,30 +941,18 @@
               "properties": {
                 "kind": {
                   "type": "string",
-                  "enum": [
-                    "user-asserted",
-                    "instrument-calibrated",
-                    "unknown"
-                  ]
+                  "enum": ["user-asserted", "instrument-calibrated", "unknown"]
                 },
                 "description": {
                   "type": "string",
                   "minLength": 1
                 }
               },
-              "required": [
-                "kind",
-                "description"
-              ],
+              "required": ["kind", "description"],
               "additionalProperties": false
             }
           },
-          "required": [
-            "errorStructure",
-            "kind",
-            "sigmaByRow",
-            "provenance"
-          ],
+          "required": ["errorStructure", "kind", "sigmaByRow", "provenance"],
           "additionalProperties": false
         },
         "excludedIds": {
@@ -1050,11 +984,7 @@
     },
     "engine": {
       "type": "string",
-      "enum": [
-        "qr-vp-sine-2",
-        "qr-lm-3",
-        "qr-expression-4"
-      ]
+      "enum": ["qr-vp-sine-2", "qr-lm-3", "qr-expression-4"]
     },
     "format": {
       "type": "string",
@@ -1074,9 +1004,7 @@
               "const": "single-fit"
             }
           },
-          "required": [
-            "kind"
-          ],
+          "required": ["kind"],
           "additionalProperties": false
         },
         {
@@ -1147,10 +1075,7 @@
             },
             "uncertainty": {
               "type": "string",
-              "enum": [
-                "estimate",
-                "supplied"
-              ]
+              "enum": ["estimate", "supplied"]
             },
             "sigmas": {
               "minItems": 1,
@@ -1235,6 +1160,7 @@
                             "exponential-growth",
                             "sigmoid",
                             "gaussian-shape",
+                            "fourier",
                             "custom"
                           ]
                         },
@@ -1252,10 +1178,7 @@
                                 "type": "boolean"
                               }
                             },
-                            "required": [
-                              "value",
-                              "fixed"
-                            ],
+                            "required": ["value", "fixed"],
                             "additionalProperties": false
                           }
                         },
@@ -1315,6 +1238,91 @@
                         "shape": {
                           "type": "number"
                         },
+                        "polynomialBasis": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "const": "power"
+                                }
+                              },
+                              "required": ["kind"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "const": "taylor"
+                                },
+                                "center": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": ["kind", "center"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "const": "chebyshev"
+                                },
+                                "center": {
+                                  "type": "number"
+                                },
+                                "scale": {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0
+                                }
+                              },
+                              "required": ["kind", "center", "scale"],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        "fourier": {
+                          "type": "object",
+                          "properties": {
+                            "harmonics": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "const": 1
+                                },
+                                {
+                                  "type": "number",
+                                  "const": 2
+                                },
+                                {
+                                  "type": "number",
+                                  "const": 3
+                                },
+                                {
+                                  "type": "number",
+                                  "const": 4
+                                },
+                                {
+                                  "type": "number",
+                                  "const": 5
+                                }
+                              ]
+                            },
+                            "period": {
+                              "type": "number",
+                              "exclusiveMinimum": 0
+                            },
+                            "origin": {
+                              "type": "number"
+                            }
+                          },
+                          "required": ["harmonics", "period", "origin"],
+                          "additionalProperties": false
+                        },
                         "retainedPerRowUncertainty": {
                           "type": "object",
                           "properties": {
@@ -1356,10 +1364,7 @@
                                   "minLength": 1
                                 }
                               },
-                              "required": [
-                                "kind",
-                                "description"
-                              ],
+                              "required": ["kind", "description"],
                               "additionalProperties": false
                             }
                           },
@@ -1400,11 +1405,7 @@
                     }
                   }
                 },
-                "required": [
-                  "name",
-                  "range",
-                  "settings"
-                ],
+                "required": ["name", "range", "settings"],
                 "additionalProperties": false
               }
             },
@@ -1517,11 +1518,7 @@
                                 ]
                               }
                             },
-                            "required": [
-                              "application",
-                              "version",
-                              "context"
-                            ],
+                            "required": ["application", "version", "context"],
                             "additionalProperties": false
                           },
                           "dataset": {
@@ -1558,11 +1555,7 @@
                                     ]
                                   }
                                 },
-                                "required": [
-                                  "id",
-                                  "label",
-                                  "unit"
-                                ],
+                                "required": ["id", "label", "unit"],
                                 "additionalProperties": false
                               },
                               "yColumn": {
@@ -1588,11 +1581,7 @@
                                     ]
                                   }
                                 },
-                                "required": [
-                                  "id",
-                                  "label",
-                                  "unit"
-                                ],
+                                "required": ["id", "label", "unit"],
                                 "additionalProperties": false
                               },
                               "assumptions": {
@@ -1722,10 +1711,7 @@
                                     "const": "unknown-equal"
                                   }
                                 },
-                                "required": [
-                                  "errorStructure",
-                                  "kind"
-                                ],
+                                "required": ["errorStructure", "kind"],
                                 "additionalProperties": false
                               },
                               {
@@ -1763,10 +1749,7 @@
                                         "minLength": 1
                                       }
                                     },
-                                    "required": [
-                                      "kind",
-                                      "description"
-                                    ],
+                                    "required": ["kind", "description"],
                                     "additionalProperties": false
                                   }
                                 },
@@ -1819,10 +1802,7 @@
                                         "minLength": 1
                                       }
                                     },
-                                    "required": [
-                                      "kind",
-                                      "description"
-                                    ],
+                                    "required": ["kind", "description"],
                                     "additionalProperties": false
                                   }
                                 },
@@ -1903,11 +1883,7 @@
                                 ]
                               }
                             },
-                            "required": [
-                              "application",
-                              "version",
-                              "context"
-                            ],
+                            "required": ["application", "version", "context"],
                             "additionalProperties": false
                           },
                           "dataset": {
@@ -1944,11 +1920,7 @@
                                     ]
                                   }
                                 },
-                                "required": [
-                                  "id",
-                                  "label",
-                                  "unit"
-                                ],
+                                "required": ["id", "label", "unit"],
                                 "additionalProperties": false
                               },
                               "yColumn": {
@@ -1974,11 +1946,7 @@
                                     ]
                                   }
                                 },
-                                "required": [
-                                  "id",
-                                  "label",
-                                  "unit"
-                                ],
+                                "required": ["id", "label", "unit"],
                                 "additionalProperties": false
                               },
                               "assumptions": {
@@ -2108,10 +2076,7 @@
                                     "const": "unknown-equal"
                                   }
                                 },
-                                "required": [
-                                  "errorStructure",
-                                  "kind"
-                                ],
+                                "required": ["errorStructure", "kind"],
                                 "additionalProperties": false
                               },
                               {
@@ -2149,10 +2114,7 @@
                                         "minLength": 1
                                       }
                                     },
-                                    "required": [
-                                      "kind",
-                                      "description"
-                                    ],
+                                    "required": ["kind", "description"],
                                     "additionalProperties": false
                                   }
                                 },
@@ -2205,10 +2167,7 @@
                                         "minLength": 1
                                       }
                                     },
-                                    "required": [
-                                      "kind",
-                                      "description"
-                                    ],
+                                    "required": ["kind", "description"],
                                     "additionalProperties": false
                                   }
                                 },
@@ -2345,6 +2304,7 @@
                               "exponential-growth",
                               "sigmoid",
                               "gaussian-shape",
+                              "fourier",
                               "custom"
                             ]
                           },
@@ -2362,10 +2322,7 @@
                                   "type": "boolean"
                                 }
                               },
-                              "required": [
-                                "value",
-                                "fixed"
-                              ],
+                              "required": ["value", "fixed"],
                               "additionalProperties": false
                             }
                           },
@@ -2425,6 +2382,91 @@
                           "shape": {
                             "type": "number"
                           },
+                          "polynomialBasis": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "power"
+                                  }
+                                },
+                                "required": ["kind"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "taylor"
+                                  },
+                                  "center": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": ["kind", "center"],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "chebyshev"
+                                  },
+                                  "center": {
+                                    "type": "number"
+                                  },
+                                  "scale": {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0
+                                  }
+                                },
+                                "required": ["kind", "center", "scale"],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "fourier": {
+                            "type": "object",
+                            "properties": {
+                              "harmonics": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "const": 1
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 2
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 3
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 4
+                                  },
+                                  {
+                                    "type": "number",
+                                    "const": 5
+                                  }
+                                ]
+                              },
+                              "period": {
+                                "type": "number",
+                                "exclusiveMinimum": 0
+                              },
+                              "origin": {
+                                "type": "number"
+                              }
+                            },
+                            "required": ["harmonics", "period", "origin"],
+                            "additionalProperties": false
+                          },
                           "retainedPerRowUncertainty": {
                             "type": "object",
                             "properties": {
@@ -2466,10 +2508,7 @@
                                     "minLength": 1
                                   }
                                 },
-                                "required": [
-                                  "kind",
-                                  "description"
-                                ],
+                                "required": ["kind", "description"],
                                 "additionalProperties": false
                               }
                             },
@@ -2510,25 +2549,14 @@
                       },
                       "engine": {
                         "type": "string",
-                        "enum": [
-                          "qr-vp-sine-2",
-                          "qr-lm-3",
-                          "qr-expression-4"
-                        ]
+                        "enum": ["qr-vp-sine-2", "qr-lm-3", "qr-expression-4"]
                       }
                     },
-                    "required": [
-                      "request",
-                      "settings",
-                      "engine"
-                    ],
+                    "required": ["request", "settings", "engine"],
                     "additionalProperties": false
                   }
                 },
-                "required": [
-                  "label",
-                  "analysis"
-                ],
+                "required": ["label", "analysis"],
                 "additionalProperties": false
               }
             },
@@ -2538,11 +2566,7 @@
               "maximum": 9007199254740991
             }
           },
-          "required": [
-            "kind",
-            "candidates",
-            "activeCandidate"
-          ],
+          "required": ["kind", "candidates", "activeCandidate"],
           "additionalProperties": false
         },
         {
@@ -2613,10 +2637,7 @@
             },
             "uncertainty": {
               "type": "string",
-              "enum": [
-                "estimate",
-                "supplied"
-              ]
+              "enum": ["estimate", "supplied"]
             },
             "sigmas": {
               "minItems": 1,
@@ -2694,11 +2715,7 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "showResiduals",
-        "showGuides",
-        "showErrorBars"
-      ],
+      "required": ["showResiduals", "showGuides", "showErrorBars"],
       "additionalProperties": false
     }
   },

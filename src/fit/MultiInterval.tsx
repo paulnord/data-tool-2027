@@ -5,8 +5,9 @@ import {
 } from "../core/fit/modelNotation";
 import { ModelSelector, modelLabel } from "./ModelSelector";
 import { PeakShapeControls } from "./PeakShapeControls";
+import { SeriesModelControls } from "./SeriesModelControls";
 import { fitDerivedQuantities } from "../core/fit/derivedParameters";
-import { equations } from "./modelEquations";
+import { modelEquation } from "./modelEquations";
 import SourceNotes from "./SourceNotes";
 import {
   forwardRef,
@@ -39,6 +40,7 @@ import {
   maxIntervals,
   intervalRequests,
   intervalReport,
+  updateSharedSeriesModelMetadata,
   type IntervalConfig,
   type IntervalDefinition,
   type IntervalFit,
@@ -57,6 +59,7 @@ import {
 import { EditableNumber } from "./EditableNumber";
 import { FitErrorMessage } from "./FitErrorMessage";
 import Assumptions from "./Assumptions";
+import { polynomialDegree } from "../core/fit/polynomialModels";
 import "./multiInterval.css";
 const unitEntry = {
   autoCapitalize: "none",
@@ -78,7 +81,9 @@ function parameterUnit(
 ) {
   return modelParameterUnit(
     settings,
-    parameterNames(settings.model, settings.custom).indexOf(name),
+    parameterNames(settings.model, settings.custom, settings.fourier).indexOf(
+      name,
+    ),
     source.request.dataset.xColumn.unit,
     source.request.dataset.yColumn.unit,
   );
@@ -98,6 +103,7 @@ export default forwardRef<
     showGuides?: boolean;
     exportSizes?: ExportPlotSize[];
     analysisControl: ReactNode;
+    advancedFeatures?: boolean;
     onReady: (ready: boolean) => void;
     onDirty?: () => void;
   }
@@ -110,6 +116,7 @@ export default forwardRef<
     showGuides = false,
     exportSizes,
     analysisControl,
+    advancedFeatures = false,
     onReady,
     onDirty,
   },
@@ -302,7 +309,11 @@ export default forwardRef<
     !!equationDraft &&
     (equationDraft.expression !== settings.custom!.expression ||
       equationDraft.variable !== settings.custom!.variable);
-  const names = parameterNames(settings.model, settings.custom);
+  const names = parameterNames(
+    settings.model,
+    settings.custom,
+    settings.fourier,
+  );
   const numericInvalid = invalidNumbers.size > 0;
   const ready = results.some((r) => r?.some((f) => f.result));
   useEffect(() => onReady(ready), [ready, onReady]);
@@ -419,10 +430,16 @@ export default forwardRef<
     });
     updateInterval({
       ...selected,
-      settings: columns.map(() => {
-        const settings = initialSettings(model);
-        if (isNonlinearModel(model)) automaticStarts.current.add(settings);
-        return settings;
+      settings: selected.settings.map((previous) => {
+        const next = initialSettings(model);
+        if (
+          polynomialDegree(previous.model) !== undefined &&
+          polynomialDegree(model) !== undefined &&
+          previous.polynomialBasis
+        )
+          next.polynomialBasis = previous.polynomialBasis;
+        if (isNonlinearModel(model)) automaticStarts.current.add(next);
+        return next;
       }),
     });
   }
@@ -487,8 +504,13 @@ export default forwardRef<
       setResults((old) =>
         old.map((r, i) => (i === index ? event.data.result! : r)),
       );
+      const fittedCount = event.data.result!.filter((r) => r.result).length;
       setNotice(
-        `${intervals[index].name}: ${event.data.result!.filter((r) => r.result).length} of ${columns.length} data series fitted`,
+        columns.length === 1
+          ? fittedCount === 1
+            ? `${intervals[index].name}: fit complete`
+            : `${intervals[index].name}: fit unavailable`
+          : `${intervals[index].name}: ${fittedCount} of ${columns.length} legacy data series fitted`,
       );
     };
     w.onerror = (e) => {
@@ -503,44 +525,6 @@ export default forwardRef<
       config: { ...config, intervals: [selected] },
       index: 0,
     });
-  }
-  function curveCount(count: number) {
-    invalidate();
-    setCurve(0);
-    const candidates = Array.from({ length: width }, (_, i) => i).filter(
-      (i) => i !== xColumn && i !== table.label,
-    );
-    const next = columns.slice(0, count);
-    for (const i of candidates)
-      if (next.length < count && !next.includes(i)) next.push(i);
-    while (next.length < count) next.push(-1);
-    setColumns(next);
-    setYRanges(
-      next.map((_, i) => (i < columns.length ? (yRanges[i] ?? null) : null)),
-    );
-    setSigmas(next.map((_, i) => sigmas[i] ?? ""));
-    setIntervals((old) =>
-      old.map((item) => ({
-        ...item,
-        settings: next.map((_, i) => {
-          if (item.settings[i]) return item.settings[i];
-          const settings = {
-            ...structuredClone(item.settings[0]),
-            ...(item.settings[0].custom
-              ? {
-                  custom: {
-                    ...item.settings[0].custom,
-                    units: item.settings[0].custom.units.map(() => ""),
-                  },
-                }
-              : {}),
-          };
-          if (automaticStarts.current.has(item.settings[0]))
-            automaticStarts.current.add(settings);
-          return settings;
-        }),
-      })),
-    );
   }
   function countIntervals(count: number) {
     onDirty?.();
@@ -584,20 +568,13 @@ export default forwardRef<
     >
       <aside className="interval-controls">
         {open && analysisControl}
-        <h2>Data series</h2>
-        <label>
-          Data series
-          <select
-            aria-label="Number of data series"
-            value={columns.length}
-            onChange={(e) => curveCount(Number(e.target.value))}
-          >
-            <option value={1}>One data series</option>
-            <option value={2}>Two data series</option>
-            <option value={3}>Three data series</option>
-            <option value={4}>Four data series</option>
-          </select>
-        </label>
+        <h2>Data</h2>
+        {columns.length > 1 && (
+          <p className="fit-help">
+            Legacy multi-series session · existing series are preserved, but new
+            multi-interval analyses use one Y series.
+          </p>
+        )}
         <label>
           X column
           <select
@@ -621,9 +598,13 @@ export default forwardRef<
         </label>
         {columns.map((v, i) => (
           <label key={i}>
-            Data series {i + 1}
+            {columns.length === 1 ? "Y column" : `Data series ${i + 1}`}
             <select
-              aria-label={`Data series ${i + 1} column`}
+              aria-label={
+                columns.length === 1
+                  ? "Interval Y column"
+                  : `Data series ${i + 1} column`
+              }
               value={v}
               onChange={(e) => {
                 invalidate();
@@ -658,18 +639,30 @@ export default forwardRef<
               setNoise(e.target.value as "estimate" | "supplied");
             }}
           >
-            <option value="estimate">Estimate scatter separately</option>
+            <option value="estimate">
+              {columns.length === 1
+                ? "Unknown · estimate equal scatter"
+                : "Estimate scatter separately"}
+            </option>
             <option value="supplied">
-              Enter uncertainty for each data series
+              {columns.length === 1
+                ? "Enter common uncertainty"
+                : "Enter uncertainty for each data series"}
             </option>
           </select>
         </label>
         {noise === "supplied" &&
           columns.map((_, i) => (
             <label key={i}>
-              Data series {i + 1} σ
+              {columns.length === 1
+                ? "Common Y uncertainty σ"
+                : `Data series ${i + 1} σ`}
               <input
-                aria-label={`Data series ${i + 1} sigma`}
+                aria-label={
+                  columns.length === 1
+                    ? "Interval common sigma"
+                    : `Data series ${i + 1} sigma`
+                }
                 type="number"
                 step="any"
                 value={sigmas[i]}
@@ -786,20 +779,40 @@ export default forwardRef<
           label="Equation"
           ariaLabel="Interval equation"
           value={settings.model}
+          advancedFeatures={advancedFeatures}
           onChange={(value) => chooseModel(value as FitSettings["model"])}
         />
         <PeakShapeControls
           settings={settings}
           labelPrefix="Interval "
+          advancedFeatures={advancedFeatures}
           onChange={changeSettings}
         />
-        {modelNotationNote(settings.model) && (
-          <p className="fit-help">{modelNotationNote(settings.model)}</p>
+        <SeriesModelControls
+          settings={settings}
+          xValues={xs}
+          xUnit={heading(xColumn).unit}
+          advancedFeatures={advancedFeatures}
+          labelPrefix="Interval "
+          {...numberInput(`${active}-series`)}
+          onChange={(next) =>
+            updateInterval({
+              ...selected,
+              settings: updateSharedSeriesModelMetadata(
+                selected.settings,
+                curve,
+                next,
+              ),
+            })
+          }
+        />
+        {modelNotationNote(settings.model, settings.polynomialBasis) && (
+          <p className="fit-help">
+            {modelNotationNote(settings.model, settings.polynomialBasis)}
+          </p>
         )}
         {settings.model !== "custom" && (
-          <p className="interval-equation-preview">
-            {equations[settings.model]}
-          </p>
+          <p className="interval-equation-preview">{modelEquation(settings)}</p>
         )}
         {settings.model === "custom" && (
           <CustomEquationEditor
@@ -815,7 +828,7 @@ export default forwardRef<
               updateInterval({
                 ...selected,
                 settings: selected.settings.map((s) => {
-                  const oldNames = parameterNames(s.model, s.custom);
+                  const oldNames = parameterNames(s.model, s.custom, s.fourier);
                   return {
                     ...s,
                     custom: {
@@ -921,12 +934,13 @@ export default forwardRef<
             </label>
           )}
           <p>
-            Each data series is fitted separately. Values here are starting
-            values; fitted values appear beside the graphs.
+            {columns.length === 1
+              ? "Values here are starting values; fitted values appear beside the graph."
+              : "Each legacy data series is fitted separately. Values here are starting values; fitted values appear beside the graphs."}
           </p>
           {isNonlinearModel(settings.model) && (
             <p>
-              Starting estimates use this data series within the selected
+              Starting estimates use the selected observations within this
               interval. Editing a value or fixing a parameter preserves your
               starts when the range changes. Try different starts if needed;
               nonlinear fits can have more than one solution.
@@ -1116,7 +1130,9 @@ export default forwardRef<
           >
             <thead>
               <tr>
-                <th>Interval / data series</th>
+                <th>
+                  {columns.length === 1 ? "Interval" : "Interval / data series"}
+                </th>
                 <th>Parameters (± standard error)</th>
                 <th>Inference</th>
               </tr>
@@ -1135,6 +1151,7 @@ export default forwardRef<
                           ? parameterNames(
                               entry.settings.model,
                               entry.settings.custom,
+                              entry.settings.fourier,
                             ).map((name, j) => (
                               <div key={name}>
                                 {name} = {fmt(entry.result!.coefficients[j])}
@@ -1203,6 +1220,7 @@ export default forwardRef<
                           {parameterNames(
                             entry.settings.model,
                             entry.settings.custom,
+                            entry.settings.fourier,
                           ).map((name, j) => (
                             <tr key={name}>
                               <th>

@@ -333,7 +333,7 @@ test("synthetic time intervals fit independently and keep distinct monochrome gu
       .getByRole("button", { name: `Fit Interval ${index + 1}`, exact: true })
       .click();
     await expect(workspace.getByRole("status")).toHaveText(
-      `Interval ${index + 1}: 1 of 1 data series fitted`,
+      `Interval ${index + 1}: fit complete`,
     );
   }
   const plots = workspace.locator(

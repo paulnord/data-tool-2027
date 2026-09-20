@@ -3,7 +3,7 @@ import {
   modelParameterUnit,
   modelNotationNote,
 } from "../core/fit/modelNotation";
-import { equations } from "./modelEquations";
+import { modelEquation } from "./modelEquations";
 import { useCallback, useEffect, useState } from "react";
 import {
   parameterNames,
@@ -18,6 +18,7 @@ import { fitDerivedQuantities } from "../core/fit/derivedParameters";
 import { EditableNumber } from "./EditableNumber";
 import { CustomEquationEditor } from "./CustomEquationEditor";
 import { PeakShapeControls } from "./PeakShapeControls";
+import { SeriesModelControls } from "./SeriesModelControls";
 
 export type ComparisonAnalysis = {
   request: FitRequest;
@@ -43,12 +44,14 @@ export function CandidateSettings({
   result,
   onChange,
   onInvalid,
+  advancedFeatures = false,
 }: {
   draft: ComparisonDraft;
   labelPrefix: string;
   result?: FitResult;
   onChange: (draft: ComparisonDraft) => void;
   onInvalid: (invalid: boolean) => void;
+  advancedFeatures?: boolean;
 }) {
   const [invalidNumbers, setInvalidNumbers] = useState<Record<string, boolean>>(
     {},
@@ -65,7 +68,11 @@ export function CandidateSettings({
   }, [invalid, onInvalid]);
   useEffect(() => () => onInvalid(false), [onInvalid]);
   const settings = draft.settings;
-  const names = parameterNames(settings.model, settings.custom);
+  const names = parameterNames(
+    settings.model,
+    settings.custom,
+    settings.fourier,
+  );
   function update(patch: Partial<FitSettings>, useFit = false) {
     onChange({
       ...draft,
@@ -115,6 +122,32 @@ export function CandidateSettings({
           })),
         }}
         labelPrefix={`${labelPrefix} `}
+        advancedFeatures={advancedFeatures}
+        onChange={(settings) => {
+          setInvalidNumbers({});
+          onChange({ ...draft, settings });
+        }}
+      />
+      <SeriesModelControls
+        settings={{
+          ...settings,
+          parameters: settings.parameters.map((parameter, i) => ({
+            ...parameter,
+            value: result?.coefficients[i] ?? parameter.value,
+          })),
+        }}
+        xValues={draft.request.dataset.rows.map((row) => row.x)}
+        xUnit={draft.request.dataset.xColumn.unit}
+        advancedFeatures={advancedFeatures}
+        labelPrefix={`${labelPrefix} `}
+        onInvalidChange={(value) =>
+          setInvalidNumbers((previous) =>
+            previous["Series settings"] === value
+              ? previous
+              : { ...previous, "Series settings": value },
+          )
+        }
+        onRestoreInvalid={() => {}}
         onChange={(settings) => {
           setInvalidNumbers({});
           onChange({ ...draft, settings });
@@ -123,10 +156,12 @@ export function CandidateSettings({
       <p className="fit-equation" aria-label="Model equation">
         {settings.model === "custom"
           ? `y = ${settings.custom!.expression}`
-          : equations[settings.model]}
+          : modelEquation(settings)}
       </p>
-      {modelNotationNote(settings.model) && (
-        <p className="fit-help">{modelNotationNote(settings.model)}</p>
+      {modelNotationNote(settings.model, settings.polynomialBasis) && (
+        <p className="fit-help">
+          {modelNotationNote(settings.model, settings.polynomialBasis)}
+        </p>
       )}
       {settings.model === "custom" && (
         <CustomEquationEditor
@@ -309,7 +344,11 @@ export function CandidateDiagnostics({
   draft: ComparisonDraft;
   result: FitResult;
 }) {
-  const names = parameterNames(draft.settings.model, draft.settings.custom);
+  const names = parameterNames(
+    draft.settings.model,
+    draft.settings.custom,
+    draft.settings.fourier,
+  );
   const derived = fitDerivedQuantities(draft.request, draft.settings, result);
   const correlation = fitCorrelationMatrix(draft.settings, result);
   return (

@@ -7,6 +7,7 @@ import {
   fitInterval,
   intervalReport,
   intervalRequests,
+  updateSharedSeriesModelMetadata,
   type IntervalConfig,
 } from "../../src/core/fit/intervals";
 import { fit } from "../../src/core/fit/solve";
@@ -114,6 +115,76 @@ it("each interval can use a different equation with independent fixed parameters
     expect(entry.result!.covariance).not.toBeNull();
   });
   expect(fitInterval(s, c, 0)[0].settings.model).toBe("line");
+});
+it("shares polynomial and Fourier metadata without overwriting legacy series coefficients", () => {
+  const polynomial = [initialSettings("cubic"), initialSettings("cubic")];
+  polynomial[1].parameters[1] = { value: 12, fixed: true };
+  const chebyshev = updateSharedSeriesModelMetadata(polynomial, 0, {
+    ...polynomial[0],
+    polynomialBasis: { kind: "chebyshev", center: 2, scale: 3 },
+  });
+  expect(chebyshev.map((settings) => settings.polynomialBasis)).toEqual([
+    { kind: "chebyshev", center: 2, scale: 3 },
+    { kind: "chebyshev", center: 2, scale: 3 },
+  ]);
+  expect(chebyshev[1].parameters[1]).toEqual({ value: 12, fixed: true });
+  expect(polynomial[1].polynomialBasis).toBeUndefined();
+
+  const fourier = [initialSettings("fourier"), initialSettings("fourier")];
+  fourier[1].parameters = [
+    { value: 4, fixed: true },
+    { value: 5, fixed: false },
+    { value: 6, fixed: true },
+  ];
+  const expanded = updateSharedSeriesModelMetadata(fourier, 0, {
+    ...fourier[0],
+    fourier: { harmonics: 2, period: 4, origin: 1 },
+    parameters: [
+      ...fourier[0].parameters,
+      { value: 0, fixed: false },
+      { value: 0, fixed: false },
+    ],
+  });
+  expect(expanded.map((settings) => settings.fourier)).toEqual([
+    { harmonics: 2, period: 4, origin: 1 },
+    { harmonics: 2, period: 4, origin: 1 },
+  ]);
+  expect(expanded[1].parameters).toEqual([
+    { value: 4, fixed: true },
+    { value: 5, fixed: false },
+    { value: 6, fixed: true },
+    { value: 0, fixed: false },
+    { value: 0, fixed: false },
+  ]);
+});
+it("preserves legacy per-series metadata but rejects inconsistent new basis metadata", () => {
+  const c = config(2);
+  c.intervals[0].settings = [
+    { ...initialSettings("sine"), sinePeriod: 2 },
+    { ...initialSettings("sine"), sinePeriod: 3 },
+  ];
+  expect(() => fitInterval(source(), c, 0)).not.toThrow();
+
+  c.intervals[0].settings = [
+    {
+      ...initialSettings("quadratic"),
+      polynomialBasis: { kind: "taylor", center: 0 },
+    },
+    {
+      ...initialSettings("quadratic"),
+      polynomialBasis: { kind: "taylor", center: 1 },
+    },
+  ];
+  expect(() => fitInterval(source(), c, 0)).toThrow(/fixed equation settings/);
+
+  c.intervals[0].settings = [
+    initialSettings("fourier"),
+    {
+      ...initialSettings("fourier"),
+      fourier: { harmonics: 1, period: 3, origin: 0 },
+    },
+  ];
+  expect(() => fitInterval(source(), c, 0)).toThrow(/fixed equation settings/);
 });
 it("supports sine and custom equations and reports partial failures by curve", () => {
   const s = source(),

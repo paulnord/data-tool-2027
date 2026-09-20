@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { initialSettings } from "../../src/core/fit/schema";
 import { fit, predict } from "../../src/core/fit/solve";
-import { sampleFittedCurve } from "../../src/fit/fitCurve";
+import { sampleFittedCurve, sampleModelCurve } from "../../src/fit/fitCurve";
 import { plotPath } from "../../src/fit/plotScale";
 import { syntheticRequest } from "../support/synthetic";
 
@@ -125,4 +125,40 @@ it("resolves oscillator cycles at the high end of a broad logarithmic view", () 
   expect(
     sampleFittedCurve(settings, result, [1e-9, 10000]).samplingUnavailable,
   ).toBe(false);
+});
+
+it("samples comparison curves across the complete requested domain", () => {
+  const settings = initialSettings("line");
+  const request = syntheticRequest();
+  request.dataset.rows = [2, 3, 4].map((x, i) => ({
+    id: String(i),
+    x,
+    y: 1 + 2 * x,
+    included: true,
+    missingReason: null,
+  }));
+  const result = fit(request, settings);
+  const curve = sampleModelCurve(settings, result, [0, 10]);
+  expect(curve.points[0].x).toBe(0);
+  expect(curve.points.at(-1)!.x).toBe(10);
+  expect(curve.points).toHaveLength(160);
+  expect(curve.samplingUnavailable).toBe(false);
+});
+
+it("adapts full-domain Fourier sampling and refuses impractical density", () => {
+  const settings = initialSettings("fourier");
+  settings.fourier = { harmonics: 3, period: 2, origin: 0 };
+  const result = {
+    coefficients: [0, 1, 0, 0, 0, 0, 0],
+    residuals: [],
+  } as unknown as ReturnType<typeof fit>;
+  const curve = sampleModelCurve(settings, result, [0, 10]);
+  expect(curve.points).toHaveLength(601);
+  expect(curve.points[0].x).toBe(0);
+  expect(curve.points.at(-1)!.x).toBe(10);
+  expect(curve.samplingUnavailable).toBe(false);
+  expect(sampleModelCurve(settings, result, [0, 1000])).toEqual({
+    points: [],
+    samplingUnavailable: true,
+  });
 });

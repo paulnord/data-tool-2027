@@ -55,7 +55,7 @@ import {
   isNonlinearModel,
   suggestedParameters,
 } from "../core/fit/nonlinearModels";
-import { predict, type FitResult, type Statistic } from "../core/fit/solve";
+import type { FitResult, Statistic } from "../core/fit/solve";
 import { createPortal } from "react-dom";
 import { suppliedYErrorBars } from "../core/fit/errorBars";
 import type { ExportPlotSize } from "./exportSizing";
@@ -65,6 +65,8 @@ import { useModalDialog } from "./useModalDialog";
 import { reportTableTsv } from "../core/fit/report";
 import { automaticDomain, plotPath, plotScale } from "./plotScale";
 import { FitErrorMessage } from "./FitErrorMessage";
+import { sampleModelCurve } from "./fitCurve";
+import { polynomialDegree } from "../core/fit/polynomialModels";
 import "./modelComparison.css";
 
 type Analysis = ComparisonAnalysis;
@@ -107,6 +109,12 @@ function alternate(source: Analysis): Draft {
 
 function settingsFor(model: FitSettings["model"], source: Analysis) {
   const settings = initialSettings(model);
+  if (
+    polynomialDegree(source.settings.model) !== undefined &&
+    polynomialDegree(model) !== undefined &&
+    source.settings.polynomialBasis
+  )
+    settings.polynomialBasis = source.settings.polynomialBasis;
   settings.excludedIds = source.settings.excludedIds.slice();
   settings.conditionalInference = source.settings.conditionalInference;
   settings.physicalTimeConfirmed = source.settings.physicalTimeConfirmed;
@@ -235,21 +243,18 @@ function ComparisonPlot({
     { length: 420 },
     (_, i) => xDomain[0] + (i * (xDomain[1] - xDomain[0])) / 419,
   );
-  const curves = candidates.map((candidate) =>
+  const curveSamples = candidates.map((candidate) =>
     candidate.result
-      ? sample.map((x) => ({
-          x,
-          y: predict(
-            x,
-            candidate.settings.model,
-            candidate.result!.coefficients,
-            candidate.settings.sinePeriod,
-            candidate.settings.shape,
-            candidate.settings.custom,
-          ),
-        }))
-      : [],
+      ? sampleModelCurve(candidate.settings, candidate.result, xDomain)
+      : { points: [], samplingUnavailable: false },
   );
+  const curves = curveSamples.map((curve) => curve.points);
+  const unavailableCurves = curveSamples.flatMap((curve, index) =>
+    curve.samplingUnavailable ? [index + 1] : [],
+  );
+  const curveNotice = unavailableCurves.length
+    ? `${unavailableCurves.length === 1 ? "Curve" : "Curves"} ${unavailableCurves.join(", ")} unavailable at this period/view; zoom in or use a valid period.`
+    : null;
   const guideCurves = guides.map((guide) => ({
     ...guide,
     points:
@@ -447,6 +452,7 @@ function ComparisonPlot({
             unavailable.
           </desc>
         )}
+        {curveNotice && <desc data-plot-notice="true">{curveNotice}</desc>}
         {candidates.map((candidate, i) => (
           <g key={candidate.id}>
             <line
@@ -616,6 +622,11 @@ function ComparisonPlot({
           />
         )}
       </svg>
+      {!sizes && curveNotice && (
+        <p className="fit-log-notice" role="note">
+          {curveNotice}
+        </p>
+      )}
       {showResiduals && candidates.every((candidate) => candidate.result) && (
         <svg
           className="comparison-residual-plot"
@@ -968,6 +979,7 @@ export default function ModelComparison({
   onReady,
   onDirty,
   exportSizes,
+  advancedFeatures = false,
   ref,
 }: {
   source: Analysis;
@@ -981,6 +993,7 @@ export default function ModelComparison({
   onReady: (ready: boolean) => void;
   onDirty: () => void;
   exportSizes?: ExportPlotSize[];
+  advancedFeatures?: boolean;
   ref?: Ref<ModelComparisonActions>;
 }) {
   const [drafts, setDrafts] = useState<Draft[]>(
@@ -1511,6 +1524,7 @@ export default function ModelComparison({
               label="Model"
               ariaLabel={`Candidate ${i + 1} model`}
               value={draft.settings.model}
+              advancedFeatures={advancedFeatures}
               onChange={(value) =>
                 change(i, {
                   ...draft,
@@ -1518,17 +1532,18 @@ export default function ModelComparison({
                 })
               }
             />
-            <p className="comparison-candidate-weighting">
-              {weightingText(draft.request)}
-            </p>
             <CandidateSettings
               key={`${draft.request.requestId}-${draft.settings.model}`}
               draft={draft}
               labelPrefix={`Candidate ${i + 1}`}
               result={fitted?.[i].result}
+              advancedFeatures={advancedFeatures}
               onChange={(next) => change(i, next)}
               onInvalid={invalidCallbacks[i]}
             />
+            <p className="comparison-candidate-weighting">
+              {weightingText(draft.request)}
+            </p>
             <label className="comparison-file">
               Load fit session…
               <input

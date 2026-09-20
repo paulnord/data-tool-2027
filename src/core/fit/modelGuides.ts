@@ -22,7 +22,11 @@ export function modelGuideValues(
     value: coefficients[0],
     symbol: "b",
   };
-  if (settings.model === "sine" || settings.model === "sine-free-period")
+  if (
+    settings.model === "sine" ||
+    settings.model === "sine-free-period" ||
+    settings.model === "fourier"
+  )
     return [baselineGuide];
   if (
     settings.model === "gaussian" ||

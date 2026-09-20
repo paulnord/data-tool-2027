@@ -9,9 +9,13 @@ import {
   generatePythonCode,
   generateRootCode,
 } from "../../src/core/fit/codeExport";
+import {
+  generatePythonCode as generateReferencePythonCode,
+  generateRootCode as generateReferenceRootCode,
+} from "../../scripts/reference/fullCodeExport";
 import { parseDelimited } from "../../src/core/fit/dataInput";
 import { encodeCodeExportBundle } from "../../src/fit/codeExportArchive";
-import { initialSettings } from "../../src/core/fit/schema";
+import { initialSettings, settingsSchema } from "../../src/core/fit/schema";
 import { fit } from "../../src/core/fit/solve";
 import { syntheticRequest } from "../support/synthetic";
 
@@ -195,6 +199,16 @@ it("translates custom equations including fractional constants and constant pred
   const escaped = generatePythonCode(describe(request, settings));
   expect(escaped).toContain("def model(x, p_0, p_1):");
   expect(escaped).toContain("value = (p_0 + (p_1 * x))");
+  settings.custom = {
+    expression: "b+sin(2*pi*(x%2)/2)",
+    variable: "x",
+    names: ["b"],
+    units: ["m"],
+  };
+  settings.parameters = [{ value: 1, fixed: false }];
+  const periodic = describe(request, settings);
+  expect(generatePythonCode(periodic)).toContain("np.fmod(x, 2)");
+  expect(generateRootCode(periodic)).toContain("std::fmod(x, 2.0)");
 });
 
 it("includes only necessary peak mathematics and preserves physical bounds", () => {
@@ -218,6 +232,125 @@ it("includes only necessary peak mathematics and preserves physical bounds", () 
       expect(python).not.toContain("peak_moments(");
     }
   }
+});
+
+it("exports basis-aware polynomial and fixed-period Fourier evaluators", () => {
+  const request = syntheticRequest();
+  const cases = [
+    settingsSchema.parse({
+      ...initialSettings("cubic"),
+      polynomialBasis: { kind: "taylor", center: -1.25 },
+    }),
+    settingsSchema.parse({
+      ...initialSettings("quartic"),
+      polynomialBasis: {
+        kind: "chebyshev",
+        center: -0.75,
+        scale: 2.5,
+      },
+    }),
+    settingsSchema.parse({
+      ...initialSettings("fourier"),
+      fourier: { harmonics: 2, period: 3.75, origin: -0.5 },
+      parameters: Array.from({ length: 5 }, () => ({
+        value: 0,
+        fixed: false,
+      })),
+    }),
+  ];
+  for (const settings of cases) {
+    const description = describe(request, settings);
+    const python = generatePythonCode(description);
+    const root = generateRootCode(description);
+    expect(python).toContain("def model_jacobian(x):");
+    expect(python).toContain("jac=lambda x, *p: model_jacobian(x)");
+    expect(python).not.toContain("x--");
+    expect(root).not.toContain("x--");
+    const metadata = JSON.parse(generateCodeExportMetadata(description));
+    expect(metadata.fit.options).toMatchObject(
+      settings.model === "fourier"
+        ? { fourier: settings.fourier }
+        : { polynomialBasis: settings.polynomialBasis },
+    );
+  }
+  const chebyshev = generateRootCode(describe(request, cases[1]));
+  expect(chebyshev).toContain("double chebyshev_series(");
+  expect(chebyshev).toContain("const double next=2*z*t1-t0");
+  expect(chebyshev).toContain("std::isfinite(difference)");
+  const taylorDescription = describe(request, cases[0]);
+  const taylorPython = generatePythonCode(taylorDescription);
+  const taylorRoot = generateRootCode(taylorDescription);
+  expect(taylorPython).toContain("np.polynomial.polynomial.polyval");
+  expect(taylorPython).toContain(
+    "columns.append((columns[-1]/order)*centered)",
+  );
+  expect(taylorRoot).toContain("double taylor_series(");
+  expect(taylorRoot).not.toContain("std::pow((x-");
+  const chebyshevPython = generatePythonCode(describe(request, cases[1]));
+  expect(chebyshevPython).toContain("def polynomial_coordinate(x):");
+  expect(chebyshevPython).toContain("x/2.5 - (-0.75)/2.5");
+  const fourier = generateCodeExportMetadata(describe(request, cases[2]));
+  expect(fourier).toContain('"name": "s2"');
+  expect(fourier).toContain('"name": "c2"');
+
+  const fourierDescription = describe(request, cases[2]);
+  const quickPython = generatePythonCode(fourierDescription);
+  const quickRoot = generateRootCode(fourierDescription);
+  expect(quickPython).toContain("cycles = np.fmod(x, 3.75)/3.75");
+  expect(quickPython).toContain("cycles - np.rint(cycles)");
+  expect(quickPython).toContain("np.sin(1*fourier_phase(x))");
+  expect(quickRoot).toContain("cycles=std::fmod(x, 3.75)/3.75");
+  expect(quickRoot).toContain("cycles-=std::nearbyint(cycles)");
+  expect(quickRoot).toContain("std::sin(1*fourier_phase(x))");
+  expect(quickPython).toContain(
+    "effective_cycles = (x.max() - x.min()) * 2 / 3.75",
+  );
+  expect(quickPython).toContain(
+    "curve_count = max(160, int(np.ceil(effective_cycles * 40)) + 1)",
+  );
+  expect(quickPython).toContain(
+    'raise ValueError("Refusing to plot more than 800 effective Fourier cycles")',
+  );
+  expect(quickRoot).toContain(
+    "effective_cycles=(model.GetXmax()-model.GetXmin())*2/3.75",
+  );
+  expect(quickRoot).toContain(
+    "curve_points=static_cast<int>(std::ceil(effective_cycles*40))+1",
+  );
+  expect(quickRoot).toContain("model.SetNpx(curve_points)");
+
+  fourierDescription.view = {
+    ...fourierDescription.view,
+    mode: "log-x",
+    xRange: [0.1, 100],
+  };
+  const referencePython = generateReferencePythonCode(fourierDescription);
+  const referenceRoot = generateReferenceRootCode(fourierDescription);
+  expect(referencePython).toContain("cycles = np.fmod(x, 3.75)/3.75");
+  expect(referencePython).toContain("np.cos(2*fourier_phase(x))");
+  expect(referenceRoot).toContain("cycles=std::fmod(x, 3.75)/3.75");
+  expect(referenceRoot).toContain("std::cos(2*fourier_phase(x))");
+  expect(referencePython).toContain(
+    "effective_cycles = (x_max - x_min) * 2 / 3.75",
+  );
+  expect(referencePython).toContain(
+    "display_x = np.geomspace(x_min, x_max, 160)",
+  );
+  expect(referencePython).toContain(
+    "curve_x = np.unique(np.concatenate((phase_x, display_x)))",
+  );
+  expect(referenceRoot).toContain("effective_cycles=(x_max-x_min)*2/3.75");
+  expect(referenceRoot).toContain(
+    "curve_x.push_back(std::exp(log_x_min+(log_x_max-log_x_min)*i/159.0))",
+  );
+  expect(referenceRoot).toContain('fitted_curve.Draw("L SAME")');
+
+  const referencePower = generateReferencePythonCode(
+    describe(request, initialSettings("quadratic")),
+  );
+  expect(referencePower).toContain(
+    '\\"options\\":{\\"polynomialBasis\\":null}',
+  );
 });
 
 it("preserves extreme observations and keeps labels out of executable syntax", () => {

@@ -127,9 +127,9 @@ export function CustomEquationEditor({
       <details>
         <summary>Equation syntax</summary>
         <p>
-          Enter the right-hand side only. Use * for multiplication and ^ for
-          powers; for example y0 + v0*t + 0.5*a*t^2 with variable t. Names are
-          case-sensitive.
+          Enter the right-hand side only. Use * for multiplication, ^ for
+          powers, and % for floating-point remainder; for example y0 + v0*t +
+          0.5*a*t^2 with variable t. Names are case-sensitive.
         </p>
         <p>
           Functions: sin, cos, tan, asin, acos, atan, sinh, cosh, exp, ln

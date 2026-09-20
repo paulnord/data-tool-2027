@@ -109,6 +109,14 @@ export function IntervalPlot({
       ? null
       : sampleFittedCurve(r.settings, r.result, domain),
   );
+  const unavailableCurves = curves.flatMap((curve, index) =>
+    curve?.samplingUnavailable
+      ? [intervals[index]?.name || `Interval ${index + 1}`]
+      : [],
+  );
+  const curveNotice = unavailableCurves.length
+    ? `${unavailableCurves.length === 1 ? "Fitted curve" : "Fitted curves"} for ${unavailableCurves.join(", ")} unavailable at this period/view; zoom in or use a valid period.`
+    : null;
   const guideCurves = curves.flatMap((curve, i) => {
     const fit = results[i];
     if (!showGuides || !curve?.fitted.length || !fit?.result) return [];
@@ -226,6 +234,11 @@ export function IntervalPlot({
           />
         </div>
       )}
+      {!renderSize && curveNotice && (
+        <p className="fit-log-notice" role="note">
+          {curveNotice}
+        </p>
+      )}
       <svg
         style={{
           ...appearanceStyle(appearance),
@@ -298,6 +311,7 @@ export function IntervalPlot({
             Guide labels are keyed by interval above the plotting frame.
           </desc>
         )}
+        {curveNotice && <desc data-plot-notice="true">{curveNotice}</desc>}
         <defs>
           <clipPath id={id}>
             <rect

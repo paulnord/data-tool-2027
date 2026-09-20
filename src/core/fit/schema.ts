@@ -5,6 +5,14 @@ import {
   nonlinearModels,
   isNonlinearModel,
 } from "./nonlinearModels";
+import {
+  DEFAULT_FOURIER_SETTINGS,
+  effectivePolynomialBasis,
+  fourierParameterNames,
+  polynomialParameterNames,
+  type FourierSeriesSettings,
+  type PolynomialBasis,
+} from "./seriesModels";
 import { z } from "zod/v4";
 const finite = z.number().finite();
 const text = z.string().min(1);
@@ -139,6 +147,30 @@ const customSchema = z
     units: z.array(z.string().max(100)).min(1).max(8),
   })
   .strict();
+const polynomialBasisSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("power") }).strict(),
+  z.object({ kind: z.literal("taylor"), center: finite }).strict(),
+  z
+    .object({
+      kind: z.literal("chebyshev"),
+      center: finite,
+      scale: finite.positive(),
+    })
+    .strict(),
+]);
+const fourierSettingsSchema = z
+  .object({
+    harmonics: z.union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal(5),
+    ]),
+    period: finite.positive(),
+    origin: finite,
+  })
+  .strict();
 export const settingsSchema = z
   .object({
     model: z.enum([
@@ -155,6 +187,7 @@ export const settingsSchema = z
       "constant-acceleration",
       ...higherPolynomialIds,
       ...nonlinearModelIds,
+      "fourier",
       "custom",
     ]),
     parameters: z
@@ -166,6 +199,8 @@ export const settingsSchema = z
     periodMin: finite.positive().optional(),
     periodMax: finite.positive().optional(),
     shape: finite.optional(),
+    polynomialBasis: polynomialBasisSchema.optional(),
+    fourier: fourierSettingsSchema.optional(),
     retainedPerRowUncertainty: perRowUncertaintySchema.optional(),
     excludedIds: z.array(text),
     conditionalInference: z.boolean(),
@@ -174,6 +209,33 @@ export const settingsSchema = z
   })
   .strict()
   .superRefine(checkSettings);
+
+/** New representation metadata must stay coherent in a retained multi-series interval. */
+export function sameSharedModelMetadata(a: FitSettings, b: FitSettings) {
+  if (a.model !== b.model) return false;
+  if (polynomialDegree(a.model) !== undefined) {
+    const left = effectivePolynomialBasis(a.polynomialBasis),
+      right = effectivePolynomialBasis(b.polynomialBasis);
+    return (
+      left.kind === right.kind &&
+      (left.kind === "power" ||
+        (right.kind !== "power" &&
+          left.center === right.center &&
+          (left.kind !== "chebyshev" ||
+            (right.kind === "chebyshev" && left.scale === right.scale))))
+    );
+  }
+  if (a.model === "fourier")
+    return (
+      a.fourier?.harmonics === b.fourier?.harmonics &&
+      a.fourier?.period === b.fourier?.period &&
+      a.fourier?.origin === b.fourier?.origin
+    );
+  // Older v7 multi-series sessions allowed each series to retain its own
+  // supplied period, search bounds, shape, and coefficient constraints.
+  return true;
+}
+
 function checkSettings(
   s: {
     model: string;
@@ -182,10 +244,14 @@ function checkSettings(
     periodMax?: number;
     excludedIds: string[];
     custom?: CustomEquation;
+    polynomialBasis?: PolynomialBasis;
+    fourier?: FourierSeriesSettings;
   },
   ctx: z.RefinementCtx,
 ) {
-  if (s.parameters.length !== parameterNames(s.model, s.custom).length)
+  if (
+    s.parameters.length !== parameterNames(s.model, s.custom, s.fourier).length
+  )
     ctx.addIssue({
       code: "custom",
       message: "Parameter count does not match model",
@@ -207,6 +273,19 @@ function checkSettings(
           code: "custom",
           message: `${nonlinearModels[s.model].names[j]} must be positive`,
         });
+  const degree = polynomialDegree(s.model);
+  if (s.polynomialBasis && degree === undefined)
+    ctx.addIssue({
+      code: "custom",
+      message: "Polynomial basis metadata requires a polynomial model",
+    });
+  if (s.model === "fourier" && !s.fourier)
+    ctx.addIssue({ code: "custom", message: "Fourier settings are required" });
+  if (s.model !== "fourier" && s.fourier)
+    ctx.addIssue({
+      code: "custom",
+      message: "Fourier settings are only valid for a Fourier model",
+    });
   try {
     if (s.model === "custom") {
       if (!s.custom) throw Error("Custom equation is required");
@@ -498,6 +577,8 @@ export const sessionSchema = sessionObjectSchema.superRefine((s, ctx) => {
         settings.custom?.variable !== first.custom?.variable
       )
         fail("Data series in an interval must share an equation");
+      else if (!sameSharedModelMetadata(settings, first))
+        fail("Data series in an interval must share fixed equation settings");
     }
   }
 });
@@ -507,6 +588,38 @@ export const sessionEngine = (settings: { model: string }) =>
     : isNonlinearModel(settings.model)
       ? ("qr-lm-3" as const)
       : ("qr-vp-sine-2" as const);
+
+/** Keep the historical v7 shape for the default polynomial representation. */
+function canonicalSessionSettings(settings: FitSettings): FitSettings {
+  if (settings.polynomialBasis?.kind !== "power") return settings;
+  const canonical = { ...settings };
+  delete canonical.polynomialBasis;
+  return canonical;
+}
+
+function canonicalSessionWorkspace(workspace: FitWorkspace): FitWorkspace {
+  if (workspace.kind === "multi-interval")
+    return {
+      ...workspace,
+      intervals: workspace.intervals.map((interval) => ({
+        ...interval,
+        settings: interval.settings.map(canonicalSessionSettings),
+      })),
+    };
+  if (workspace.kind === "model-comparison")
+    return {
+      ...workspace,
+      candidates: workspace.candidates.map((candidate) => ({
+        ...candidate,
+        analysis: {
+          ...candidate.analysis,
+          settings: canonicalSessionSettings(candidate.analysis.settings),
+        },
+      })),
+    };
+  return workspace;
+}
+
 /** Construct a current session; file import itself never fills missing fields. */
 export function createSession(
   analysis: Omit<FitAnalysis, "engine">,
@@ -517,7 +630,7 @@ export function createSession(
     showErrorBars: true,
   },
 ): FitSession {
-  return sessionSchema.parse({
+  const parsed = sessionSchema.parse({
     format: "tracker-fit-session",
     version: SESSION_VERSION,
     request: analysis.request,
@@ -530,6 +643,13 @@ export function createSession(
     workspace,
     view,
   });
+  // Parsing remains permissive for explicit {kind: "power"}; only newly
+  // serialized sessions canonicalize that default away, including nested fits.
+  return {
+    ...parsed,
+    settings: canonicalSessionSettings(parsed.settings),
+    workspace: canonicalSessionWorkspace(parsed.workspace),
+  };
 }
 export const acknowledgmentSchema = z.discriminatedUnion("status", [
   z
@@ -566,19 +686,25 @@ const basisParameterNames: Record<string, string[]> = {
 export function parameterNames(
   model: string,
   custom?: CustomEquation,
+  fourier?: FourierSeriesSettings,
 ): string[] {
   if (model === "custom") return custom?.names ?? ["b", "m"];
   const degree = polynomialDegree(model);
-  if (degree !== undefined)
-    return Array.from({ length: degree + 1 }, (_, i) => `c${i}`);
+  if (degree !== undefined) return polynomialParameterNames(degree);
+  if (model === "fourier")
+    return fourierParameterNames(
+      fourier?.harmonics ?? DEFAULT_FOURIER_SETTINGS.harmonics,
+    );
   if (isNonlinearModel(model)) return nonlinearModels[model].names;
   return basisParameterNames[model] ?? [];
 }
 export function initialSettings(
   model: FitSettings["model"] = "constant-acceleration",
 ): FitSettings {
+  const fourier = model === "fourier" ? DEFAULT_FOURIER_SETTINGS : undefined;
   return settingsSchema.parse({
     model,
+    ...(fourier ? { fourier } : {}),
     ...(model === "custom"
       ? {
           custom: {
@@ -596,7 +722,7 @@ export function initialSettings(
       : model === "power-law"
         ? { shape: 2 }
         : {}),
-    parameters: parameterNames(model).map((_, i) => ({
+    parameters: parameterNames(model, undefined, fourier).map((_, i) => ({
       value: isNonlinearModel(model)
         ? nonlinearModels[model].defaults[i]
         : model === "sine-free-period" && i === 3

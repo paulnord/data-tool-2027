@@ -24,7 +24,7 @@ import {
   type FitRequest,
   type FitSettings,
 } from "../src/core/fit/schema";
-import { fit } from "../src/core/fit/solve";
+import { fit, predict } from "../src/core/fit/solve";
 import { syntheticRequest } from "../tests/support/synthetic";
 
 const inputs = [
@@ -169,6 +169,60 @@ for (const fixture of peakReference.cases) {
     input: `peak-shape-${fixture.name}`,
     session: { request, settings },
   });
+}
+const seriesScenarios: {
+  input: string;
+  settings: FitSettings;
+  truth: number[];
+}[] = [
+  {
+    input: "taylor-negative-center",
+    settings: {
+      ...initialSettings("cubic"),
+      polynomialBasis: { kind: "taylor", center: -1.25 },
+    },
+    truth: [1.1, -0.6, 0.3, -0.09],
+  },
+  {
+    input: "chebyshev-negative-center",
+    settings: {
+      ...initialSettings("quartic"),
+      polynomialBasis: { kind: "chebyshev", center: -0.75, scale: 2.5 },
+    },
+    truth: [0.4, 1.2, -0.35, 0.18, -0.06],
+  },
+  {
+    input: "fourier-negative-origin",
+    settings: {
+      ...initialSettings("fourier"),
+      fourier: { harmonics: 2, period: 3.75, origin: -0.5 },
+      parameters: Array.from({ length: 5 }, () => ({
+        value: 0,
+        fixed: false,
+      })),
+    },
+    truth: [0.7, 1.1, -0.25, 0.4, 0.15],
+  },
+];
+for (const { input, settings, truth } of seriesScenarios) {
+  const request = syntheticRequest();
+  request.dataset.rows.forEach((row, i) => {
+    row.x = -2 + i / 12;
+    row.y =
+      predict(
+        row.x,
+        settings.model,
+        truth,
+        settings.sinePeriod,
+        settings.shape,
+        settings.custom,
+        settings.polynomialBasis,
+        settings.fourier,
+      ) +
+      0.001 * Math.sin(i * 1.7);
+  });
+  settings.parameters = truth.map(() => ({ value: 0, fixed: false }));
+  scenarios.push({ input, session: { request, settings } });
 }
 const rootProbe = spawnSync("root", ["--version"], { encoding: "utf8" });
 const hasRoot = !rootProbe.error;

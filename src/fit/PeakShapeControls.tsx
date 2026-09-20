@@ -5,13 +5,16 @@ export function PeakShapeControls({
   settings,
   onChange,
   labelPrefix = "",
+  advancedFeatures = false,
 }: {
   settings: FitSettings;
   onChange: (settings: FitSettings) => void;
   labelPrefix?: string;
+  advancedFeatures?: boolean;
 }) {
   if (settings.model !== "gaussian" && settings.model !== "gaussian-shape")
     return null;
+  if (!advancedFeatures && settings.model !== "gaussian-shape") return null;
   return (
     <div
       className="peak-shape-controls"

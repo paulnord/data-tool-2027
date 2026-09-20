@@ -6,7 +6,7 @@ import {
 } from "../core/fit/modelNotation";
 import { ModelSelector } from "./ModelSelector";
 import { AnalysisTools, type AnalysisTool } from "./AnalysisTools";
-import { equations } from "./modelEquations";
+import { modelEquation } from "./modelEquations";
 import SourceNotes from "./SourceNotes";
 import { useModalDialog } from "./useModalDialog";
 import { InterfaceScaleContext } from "./InterfaceScale";
@@ -72,6 +72,12 @@ import { meanConfidenceBand } from "../core/fit/confidenceBand";
 import { modelGuideValues } from "../core/fit/modelGuides";
 import { fitDerivedQuantities } from "../core/fit/derivedParameters";
 import { PeakShapeControls } from "./PeakShapeControls";
+import { SeriesModelControls } from "./SeriesModelControls";
+import { polynomialDegree } from "../core/fit/polynomialModels";
+import {
+  readAdvancedFeatures,
+  storeAdvancedFeatures,
+} from "./advancedFeatures";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import {
   buildCodeExportDescription,
@@ -341,6 +347,8 @@ function Plot({
             state.settings.sinePeriod,
             state.settings.shape,
             state.settings.custom,
+            state.settings.polynomialBasis,
+            state.settings.fourier,
           ),
         )) &&
       !(
@@ -361,18 +369,27 @@ function Plot({
           state.settings.sinePeriod,
           state.settings.shape,
           state.settings.custom,
+          state.settings.polynomialBasis,
+          state.settings.fourier,
         )
       : r.y!,
   );
-  const period = ["sine-free-period", "damped-sine"].includes(
-    state.settings.model,
-  )
-    ? coeff[3]
-    : (state.settings.sinePeriod ?? 2 * Math.PI);
-  const cycles = ["sine", "sine-free-period", "damped-sine"].includes(
-    state.settings.model,
-  )
-    ? (range[1] - range[0]) / period
+  const period =
+    state.settings.model === "fourier"
+      ? state.settings.fourier?.period
+      : ["sine-free-period", "damped-sine"].includes(state.settings.model)
+        ? coeff[3]
+        : (state.settings.sinePeriod ?? 2 * Math.PI);
+  const cycles = [
+    "sine",
+    "sine-free-period",
+    "damped-sine",
+    "fourier",
+  ].includes(state.settings.model)
+    ? ((range[1] - range[0]) / (period ?? NaN)) *
+      (state.settings.model === "fourier"
+        ? (state.settings.fourier?.harmonics ?? 1)
+        : 1)
     : 0;
   const curveCount =
     !showModel || cycles > 800 || !Number.isFinite(cycles)
@@ -395,6 +412,8 @@ function Plot({
           state.settings.sinePeriod,
           state.settings.shape,
           state.settings.custom,
+          state.settings.polynomialBasis,
+          state.settings.fourier,
         ),
       };
     });
@@ -1168,6 +1187,7 @@ function PrintReport({
                       {parameterNames(
                         state.settings.model,
                         state.settings.custom,
+                        state.settings.fourier,
                       ).map((name, i) => (
                         <tr key={name}>
                           <td>
@@ -1306,6 +1326,8 @@ export default function FitApp() {
   const [appearance, setAppearance] = useState(defaultPlotAppearance);
   const [showResiduals, setShowResiduals] = useState(true);
   const [showGuides, setShowGuides] = useState(false);
+  const [advancedFeatures, setAdvancedFeatures] =
+    useState(readAdvancedFeatures);
   const [exportSizing, setExportSizing] = useState<ExportSizing | null>(null);
   const [exportSizeOpen, setExportSizeOpen] = useState(false);
   const [exportRender, setExportRender] = useState<{
@@ -2223,18 +2245,42 @@ export default function FitApp() {
       value={analysisTool}
       onChange={selectAnalysisTool}
       selectRef={setAnalysisToolsSelect}
+      advancedFeatures={advancedFeatures}
     />
   );
   const modelSelector = (
     <ModelSelector
       label="Model"
       value={state.settings.model}
+      advancedFeatures={advancedFeatures}
       onChange={(value) => {
         if (
           value === state.settings.model ||
           (value === "gaussian" && state.settings.model === "gaussian-shape")
         )
           return;
+        const settings: FitSettings = {
+          ...initialSettings(value as FitSettings["model"]),
+          ...(isNonlinearModel(value)
+            ? {
+                parameters: suggestedParameters(
+                  value,
+                  state.request,
+                  state.settings.excludedIds,
+                ).map((value) => ({ value, fixed: false })),
+              }
+            : {}),
+          excludedIds: state.settings.excludedIds,
+          selectionAfterInspection: state.settings.selectionAfterInspection,
+          retainedPerRowUncertainty: state.settings.retainedPerRowUncertainty,
+          physicalTimeConfirmed: state.settings.physicalTimeConfirmed,
+        };
+        if (
+          polynomialDegree(state.settings.model) !== undefined &&
+          polynomialDegree(value) !== undefined &&
+          state.settings.polynomialBasis
+        )
+          settings.polynomialBasis = state.settings.polynomialBasis;
         change({
           ...state,
           request: {
@@ -2247,24 +2293,30 @@ export default function FitApp() {
               },
             },
           },
-          settings: {
-            ...initialSettings(value as FitSettings["model"]),
-            ...(isNonlinearModel(value)
-              ? {
-                  parameters: suggestedParameters(
-                    value,
-                    state.request,
-                    state.settings.excludedIds,
-                  ).map((value) => ({ value, fixed: false })),
-                }
-              : {}),
-            excludedIds: state.settings.excludedIds,
-            selectionAfterInspection: state.settings.selectionAfterInspection,
-            retainedPerRowUncertainty: state.settings.retainedPerRowUncertainty,
-            physicalTimeConfirmed: state.settings.physicalTimeConfirmed,
-          },
+          settings,
         });
       }}
+    />
+  );
+  const seriesModelControls = (
+    <SeriesModelControls
+      settings={{
+        ...state.settings,
+        parameters: state.settings.parameters.map((parameter, i) => ({
+          ...parameter,
+          value: current?.coefficients[i] ?? parameter.value,
+        })),
+      }}
+      xValues={state.request.dataset.rows.map((row) => row.x)}
+      xUnit={state.request.dataset.xColumn.unit}
+      advancedFeatures={advancedFeatures}
+      onInvalidChange={numericDraftChanged}
+      onRestoreInvalid={() => {
+        setError(
+          "Enter a valid series setting. The last valid value was restored.",
+        );
+      }}
+      onChange={(settings) => change({ ...state, settings })}
     />
   );
   const analysisTable = tableForAnalysis(state);
@@ -2509,9 +2561,12 @@ export default function FitApp() {
     includeUncertaintyColumn = true,
   ) => (
     <>
-      {modelSelector}
-      {columnAssignments(extra, includeUncertaintyColumn)}
       {analysisTools}
+      <div className="fit-model-choice">
+        {modelSelector}
+        {seriesModelControls}
+      </div>
+      {columnAssignments(extra, includeUncertaintyColumn)}
     </>
   );
   const comparisonAnalysisControl = (uncertaintyControl: ReactNode) => (
@@ -2520,7 +2575,11 @@ export default function FitApp() {
       {columnAssignments(uncertaintyControl)}
     </>
   );
-  const names = parameterNames(state.settings.model, state.settings.custom);
+  const names = parameterNames(
+    state.settings.model,
+    state.settings.custom,
+    state.settings.fourier,
+  );
   const derived = current
     ? fitDerivedQuantities(state.request, state.settings, current)
     : [];
@@ -2642,6 +2701,26 @@ export default function FitApp() {
                   className="fit-settings-popover"
                   style={settingsPosition}
                 >
+                  <fieldset>
+                    <legend>Features</legend>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={advancedFeatures}
+                        onChange={(event) =>
+                          setAdvancedFeatures(
+                            storeAdvancedFeatures(event.target.checked),
+                          )
+                        }
+                      />
+                      Show advanced models and analysis tools
+                    </label>
+                    <p>
+                      Shows specialized models and analysis tools on this
+                      device. Existing advanced analyses remain available when
+                      this is off.
+                    </p>
+                  </fieldset>
                   <fieldset>
                     <legend>Graphs</legend>
                     <label>
@@ -2988,6 +3067,7 @@ export default function FitApp() {
               exportSizes={multiOpen ? exportRender?.sizes : undefined}
               ref={multiActions}
               analysisControl={analysisTools}
+              advancedFeatures={advancedFeatures}
               onReady={setMultiReady}
               onDirty={() => draftChanged("multi-interval")}
             />
@@ -3015,6 +3095,7 @@ export default function FitApp() {
                 }}
                 onDirty={() => draftChanged("model-comparison")}
                 onReady={setComparisonReady}
+                advancedFeatures={advancedFeatures}
                 ref={comparisonActions}
                 exportSizes={comparisonOpen ? exportRender?.sizes : undefined}
               />
@@ -3536,7 +3617,7 @@ export default function FitApp() {
                   !multiOpen &&
                   !comparisonOpen &&
                   analysisControl(uncertaintyAssignment, false)}
-                {state.settings.model !== "custom" && (
+                {advancedFeatures && state.settings.model !== "custom" && (
                   <button
                     className="edit-custom-equation"
                     disabled={
@@ -3579,7 +3660,7 @@ export default function FitApp() {
                 >
                   {state.settings.model === "custom"
                     ? `y = ${state.settings.custom!.expression}`
-                    : equations[state.settings.model]}
+                    : modelEquation(state.settings)}
                 </div>
                 {state.settings.model === "custom" && (
                   <CustomEquationEditor
@@ -3733,9 +3814,15 @@ export default function FitApp() {
                     </span>
                   </label>
                 )}
-                {modelNotationNote(state.settings.model) && (
+                {modelNotationNote(
+                  state.settings.model,
+                  state.settings.polynomialBasis,
+                ) && (
                   <p className="fit-help">
-                    {modelNotationNote(state.settings.model)}
+                    {modelNotationNote(
+                      state.settings.model,
+                      state.settings.polynomialBasis,
+                    )}
                   </p>
                 )}
                 {state.settings.model === "sine" && (
@@ -3795,6 +3882,7 @@ export default function FitApp() {
                       value: current?.coefficients[i] ?? p.value,
                     })),
                   }}
+                  advancedFeatures={advancedFeatures}
                   onChange={(settings) => change({ ...state, settings })}
                 />
                 <div className="parameter-heading">

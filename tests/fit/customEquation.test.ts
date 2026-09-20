@@ -36,6 +36,12 @@ it("parses powers, signs, constants and case-sensitive names without executing c
   expect(
     customValueGradient(0, settings("a*2^3^2", [1]).custom!, [1]).value,
   ).toBe(512);
+  expect(
+    customValueGradient(5.25, settings("a+(x%2)", [3]).custom!, [3]),
+  ).toEqual({
+    value: 4.25,
+    gradient: [1],
+  });
   for (const text of [
     "a+globalThis.x",
     "a+random()",

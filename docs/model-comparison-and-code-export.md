@@ -1,10 +1,18 @@
 # Model comparison, fit guides and code export
 
 Model guides and source-code output are presentation/export choices. Model
-comparison is an in-memory workspace that refits its candidates; it does not
-cache fitted results in a `.trksess` file. These features introduce no additional
-protocol fields. Added equation families use the documented [current session format](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15);
+comparison is a workspace that refits its candidates; it does not cache fitted
+results in a `.trksess` file. Equation-specific fixed metadata is part of the
+candidate settings in the documented [current session format](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15);
 requests and acknowledgments remain v1.
+
+**Settings → Features → Show advanced models and analysis tools** is a
+device-local, default-off visibility choice. It reveals model comparison,
+multi-interval fitting, collision analysis, and the specialized models and
+series controls. It is not saved in sessions or analysis bundles and does not
+change a model, result, or export. If an advanced model or workspace is already
+active—whether selected earlier or restored from a session—it remains visible
+and operable after this preference is turned off.
 
 ## Model guides and oscillation quantities
 
@@ -42,7 +50,9 @@ covariance between `s` and `c`. Phase is relative to the dataset's current X
 origin and is explicitly unavailable when the amplitude is zero. Phase
 availability does not depend on an absolute threshold in the chosen Y units.
 Separate `s sin(...)` and `c cos(...)` curves are not drawn because that
-decomposition also changes when the X origin changes.
+decomposition also changes when the X origin changes. The same rule applies to
+individual harmonics of a fixed-period Fourier fit: the coefficients are
+reported, but component curves are not yet a graph option.
 
 ## Comparing fitted models
 
@@ -155,6 +165,17 @@ formal likelihood criteria are unavailable rather than presented with false
 precision.
 Nonlinear convergence, local-minimum and conditioning warnings remain visible.
 
+Power, fixed-center Taylor, and fixed-center/fixed-scale Chebyshev
+representations of the same polynomial degree span the same model space. At
+full rank, with all coefficients free or fixed constraints transformed
+equivalently, they have the same predictions, likelihood, and fitted-parameter
+count, so comparing them as separate candidates cannot provide evidence for one
+functional model over another. Their coefficients and numerical conditioning
+can differ; a material disagreement in the fitted objective is a reason to
+inspect rank and conditioning rather than to interpret an information-criterion
+preference. Fixing the same numeric coefficient in different representations
+instead defines different constrained models.
+
 ## SciPy/ROOT analysis bundle
 
 After a fit, choose **Export → Python / SciPy analysis bundle (.zip)** or
@@ -204,7 +225,12 @@ Supplied uncertainties use `absolute_sigma=True`; unknown equal scatter uses
 residual variance SSE/(n − free parameters). Fixed parameters are held at their
 recorded values and omitted from optimization. Scalar custom equations broadcast
 over data and plot coordinates. Polynomial exports include analytic derivatives;
-update those derivatives if changing the polynomial equation.
+this includes power, fixed-center Taylor, and fixed-center/fixed-scale Chebyshev
+representations. Fixed-period Fourier exports also include their analytic design
+matrix. The generated equation fixes the recorded Taylor/Chebyshev metadata or
+Fourier period/origin directly in source; these values and the harmonic count
+also remain in `analysis.json`. Update `model_jacobian` whenever changing one of
+those generated series equations.
 
 ### C++/ROOT
 
@@ -246,6 +272,11 @@ The custom equation is translated from a validated syntax tree. Parameter names
 that conflict with Python syntax receive safe aliases in the model function;
 reports retain their original names. Measurements are never compiled into source.
 
+The exporter supports the implemented polynomial representations and
+fixed-period Fourier model in both Python/SciPy and C++/ROOT. Bessel functions
+and fitted-curve component plots remain deferred; no generated program should
+imply that those analyses were performed.
+
 ### Export format change
 
 Analysis bundle metadata is version **2** for these simple exports. Version 1
@@ -266,8 +297,9 @@ archive structure. `npm run test:code-exports` executes the generated programs
 with SciPy/Matplotlib and ROOT when installed. It checks actual coefficients,
 selected observations, χ² or SSE, degrees of freedom, fixed flags and unavailable
 uncertainties across linear, nonlinear and custom equations, including polynomial
-degrees 5–10 and skew/tail peaks. Dedicated linear cases check absolute supplied
-uncertainties and residual-scaled covariance, including excluded observations.
+degrees 5–10, Taylor and Chebyshev representations, fixed-period Fourier series,
+and skew/tail peaks. Dedicated linear cases check absolute supplied uncertainties
+and residual-scaled covariance, including excluded observations.
 Successful artifact creation alone is not evidence of a successful fit.
 
 - [SciPy curve_fit](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html): weighting and covariance conventions.

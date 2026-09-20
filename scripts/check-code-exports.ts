@@ -24,7 +24,7 @@ import {
   type FitRequest,
   type FitSettings,
 } from "../src/core/fit/schema";
-import { fit } from "../src/core/fit/solve";
+import { fit, predict } from "../src/core/fit/solve";
 import { syntheticRequest } from "../tests/support/synthetic";
 
 const inputs = [
@@ -213,6 +213,60 @@ scenarios.push({
   session: { request: reserved, settings: reservedSettings },
 });
 
+for (const [name, settings, truth] of [
+  [
+    "taylor-negative-center",
+    {
+      ...initialSettings("cubic"),
+      polynomialBasis: { kind: "taylor" as const, center: -1.25 },
+    },
+    [1.1, -0.6, 0.3, -0.09],
+  ],
+  [
+    "chebyshev-negative-center",
+    {
+      ...initialSettings("quartic"),
+      polynomialBasis: {
+        kind: "chebyshev" as const,
+        center: -0.75,
+        scale: 2.5,
+      },
+    },
+    [0.4, 1.2, -0.35, 0.18, -0.06],
+  ],
+  [
+    "fourier-negative-origin",
+    {
+      ...initialSettings("fourier"),
+      fourier: { harmonics: 2 as const, period: 3.75, origin: -0.5 },
+      parameters: Array.from({ length: 5 }, () => ({
+        value: 0,
+        fixed: false,
+      })),
+    },
+    [0.7, 1.1, -0.25, 0.4, 0.15],
+  ],
+] as const) {
+  const request = syntheticRequest();
+  request.dataset.rows.forEach((row, i) => {
+    row.x = -2 + i / 12;
+    row.y =
+      predict(
+        row.x,
+        settings.model,
+        truth,
+        settings.sinePeriod,
+        settings.shape,
+        settings.custom,
+        settings.polynomialBasis,
+        settings.fourier,
+      ) +
+      0.001 * Math.sin(i * 1.7);
+  });
+  settings.parameters = truth.map(() => ({ value: 0, fixed: false }));
+  scenarios.push({ input: name, session: { request, settings } });
+}
+
 const rootProbe = spawnSync("root", ["--version"], { encoding: "utf8" });
 const hasRoot = !rootProbe.error;
 if (!hasRoot && (rootProbe.error as NodeJS.ErrnoException).code !== "ENOENT")
@@ -266,6 +320,7 @@ try {
     const names = parameterNames(
       session.settings.model,
       session.settings.custom,
+      session.settings.fourier,
     );
     function checkFit(output: string, language: string) {
       const statistic = output.match(

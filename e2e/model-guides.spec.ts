@@ -208,7 +208,7 @@ for (const model of [
       page
         .getByRole("region", { name: "Multi-interval analysis", exact: true })
         .getByRole("status"),
-    ).toContainText("1 of 1 data series fitted");
+    ).toHaveText("Interval 1: fit complete");
     const interval = page
       .locator(".interval-overview .interval-graphs svg")
       .first();

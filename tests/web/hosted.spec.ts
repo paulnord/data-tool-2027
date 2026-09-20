@@ -99,7 +99,7 @@ test("both multi-fit workers load correctly from the hosted subdirectory", async
     page
       .getByRole("region", { name: "Multi-interval analysis", exact: true })
       .getByRole("status"),
-  ).toHaveText("Interval 1: 1 of 1 data series fitted");
+  ).toHaveText("Interval 1: fit complete");
 });
 
 test("app metadata and ordinary example downloads are available", async ({

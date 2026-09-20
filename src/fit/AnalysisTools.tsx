@@ -14,7 +14,22 @@ export function AnalysisTools({
   selectRef?: Ref<HTMLSelectElement>;
   advancedFeatures?: boolean;
 }) {
-  const showAdditionalTools = advancedFeatures || value !== "single-fit";
+  if (!advancedFeatures) {
+    return (
+      <div className="fit-analysis-tools fit-analysis-tools-collapsed">
+        {value === "single-fit" ? (
+          <span className="fit-analysis-discovery">
+            More analyses: Settings → Advanced features
+          </span>
+        ) : (
+          <button type="button" onClick={() => onChange("single-fit")}>
+            Back to single fit
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <label className="fit-analysis-tools">
       Analysis tools
@@ -25,25 +40,12 @@ export function AnalysisTools({
         onChange={(event) => onChange(event.target.value as AnalysisTool)}
       >
         <option value="single-fit">Single fit</option>
-        {showAdditionalTools && (
-          <optgroup label="Additional analysis tools">
-            {(advancedFeatures || value === "model-comparison") && (
-              <option value="model-comparison">Model comparison</option>
-            )}
-            {(advancedFeatures || value === "multi-interval") && (
-              <option value="multi-interval">Multi-interval fit</option>
-            )}
-            {(advancedFeatures || value === "collision") && (
-              <option value="collision">Collision · before and after</option>
-            )}
-          </optgroup>
-        )}
+        <optgroup label="Additional analysis tools">
+          <option value="model-comparison">Model comparison</option>
+          <option value="multi-interval">Multi-interval fit</option>
+          <option value="collision">Collision · before and after</option>
+        </optgroup>
       </select>
-      {!advancedFeatures && value === "single-fit" && (
-        <span className="fit-analysis-discovery">
-          More analyses: Settings → Advanced features
-        </span>
-      )}
     </label>
   );
 }

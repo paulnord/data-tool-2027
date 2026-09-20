@@ -120,8 +120,8 @@ test("comparison toolbar exports labeled SVG PNG and PDF with physical sizing an
   const svg = await readFile((await quick.path())!, "utf8");
   expect(svg).toContain("Supplied y uncertainty:");
   expect(svg).toContain("Compared residuals");
-  expect(svg).toContain("1: constant-acceleration");
-  expect(svg).toContain("2: line");
+  expect(svg).toContain("1: Constant acceleration · saved model");
+  expect(svg).toContain("2: Straight line");
   await page.locator(".fit-export-menu summary").click();
   await page
     .getByRole("menuitem", { name: "Figure size…", exact: true })

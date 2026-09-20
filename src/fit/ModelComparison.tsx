@@ -67,6 +67,7 @@ import { automaticDomain, plotPath, plotScale } from "./plotScale";
 import { FitErrorMessage } from "./FitErrorMessage";
 import { sampleModelCurve } from "./fitCurve";
 import { polynomialDegree } from "../core/fit/polynomialModels";
+import { modelDisplayName } from "./modelDisplay";
 import "./modelComparison.css";
 
 type Analysis = ComparisonAnalysis;
@@ -442,7 +443,7 @@ function ComparisonPlot({
           {candidates
             .map(
               (candidate, i) =>
-                `${i + 1}: ${candidate.label}; ${candidate.settings.model}; data: ${candidate.request.dataset.label}`,
+                `${i + 1}: ${candidate.label}; ${modelDisplayName(candidate.settings)}; data: ${candidate.request.dataset.label}`,
             )
             .join(". ")}
         </desc>
@@ -465,7 +466,7 @@ function ComparisonPlot({
             <text
               x={legendLeft + 27}
               y={font * (i * 1.3 + 1.2)}
-            >{`${i + 1}: ${candidate.settings.model}`}</text>
+            >{`${i + 1}: ${modelDisplayName(candidate.settings)}`}</text>
           </g>
         ))}
         <FitGuideLegend
@@ -763,6 +764,14 @@ function comparisonStatisticText(statistic: Statistic) {
   return statisticReasonText(statistic.reason);
 }
 
+function comparisonModelName(
+  candidates: readonly Pick<ComparisonCandidate, "id" | "settings">[],
+  id: string,
+) {
+  const candidate = candidates.find((item) => item.id === id);
+  return candidate ? modelDisplayName(candidate.settings) : "Unknown model";
+}
+
 function ComparisonPrintReport({
   candidates,
   comparison,
@@ -783,7 +792,7 @@ function ComparisonPrintReport({
   const [error, setError] = useState("");
   useModalDialog(dialog, ".fit-print-trigger");
   const rows: Array<[string, (metric: ComparisonMetrics) => string]> = [
-    ["Model", (m) => m.model],
+    ["Model", (m) => comparisonModelName(candidates, m.id)],
     ["Observations n", (m) => format(m.n)],
     ["Degrees of freedom df", (m) => format(m.df)],
     ["Free curve parameters k", (m) => format(m.modelParameters)],
@@ -945,8 +954,8 @@ function ComparisonPrintReport({
             </p>
             {candidates.map((candidate) => (
               <p key={candidate.id}>
-                {candidate.label}: {candidate.settings.model}; source:{" "}
-                {candidate.request.dataset.label}; inference:{" "}
+                {candidate.label}: {modelDisplayName(candidate.settings)};
+                source: {candidate.request.dataset.label}; inference:{" "}
                 {candidate.result.inference}.
                 {candidate.result.warnings.length > 0
                   ? ` Warnings: ${candidate.result.warnings.join("; ")}`
@@ -1368,7 +1377,7 @@ export default function ModelComparison({
       headers,
       ...comparison.metrics.map((metric) => [
         metric.label,
-        metric.model,
+        comparisonModelName(fitted ?? [], metric.id),
         metric.n,
         metric.df,
         metric.modelParameters,
@@ -1913,7 +1922,7 @@ export default function ModelComparison({
                     <tr key={metric.id}>
                       <th>
                         {metric.label}
-                        <small>{metric.model}</small>
+                        <small>{comparisonModelName(fitted, metric.id)}</small>
                       </th>
                       <td>{metric.n}</td>
                       <td>{metric.df}</td>

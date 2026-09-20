@@ -65,15 +65,15 @@ test("advanced opt-in reveals one polynomial family and its series representatio
   const degree = page.getByLabel("Model polynomial degree", { exact: true });
   await expect(degree.locator("option")).toHaveCount(9);
   await expect(degree.locator("option")).toHaveText([
-    "2 — quadratic",
-    "3 — cubic",
-    "4 — quartic",
-    "5 — quintic",
-    "6",
-    "7",
-    "8",
-    "9",
-    "10",
+    "Degree 2",
+    "Degree 3",
+    "Degree 4",
+    "Degree 5",
+    "Degree 6",
+    "Degree 7",
+    "Degree 8",
+    "Degree 9",
+    "Degree 10",
   ]);
 
   await enableAdvanced(page);
@@ -82,9 +82,9 @@ test("advanced opt-in reveals one polynomial family and its series representatio
     exact: true,
   });
   await expect(representation.locator("option")).toHaveText([
-    "Powers of x",
-    "Taylor series",
-    "Chebyshev basis",
+    "Power basis · 1, x, x²",
+    "Taylor basis · 1, (x−a), (x−a)²/2!",
+    "Chebyshev basis · T₀(z), T₁(z), T₂(z)",
   ]);
   await expect(page.getByLabel("Model", { exact: true })).toHaveValue(
     "polynomial",
@@ -161,6 +161,39 @@ test("Taylor and Chebyshev metadata survive session save and reopen", async ({
   ).toHaveValue("2.5");
   await chebyshevPage.close();
   await taylorPage.close();
+});
+
+test("comparison summaries name the polynomial representation", async ({
+  page,
+}) => {
+  await open(page);
+  await enableAdvanced(page);
+  await page.getByLabel("Model", { exact: true }).selectOption("polynomial");
+  await page
+    .getByLabel("Model polynomial degree", { exact: true })
+    .selectOption("polynomial-5");
+  await page
+    .getByLabel("Polynomial representation", { exact: true })
+    .selectOption("chebyshev");
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("model-comparison");
+  await page
+    .getByRole("button", { name: "Refit and compare", exact: true })
+    .click();
+  await expect(
+    page.locator(".model-comparison").getByRole("status"),
+  ).toHaveText("Comparison complete");
+  await expect(
+    page
+      .getByRole("table", {
+        name: "Model comparison statistics",
+        exact: true,
+      })
+      .locator("tbody tr")
+      .first()
+      .locator("small"),
+  ).toContainText("Chebyshev polynomial · degree 5 · center");
 });
 
 test("Fourier harmonics resize parameters and fixed metadata survive a fit", async ({

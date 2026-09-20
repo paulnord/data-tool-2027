@@ -148,10 +148,7 @@ export function ModelSelector({
           >
             {polynomialIds.map((model, i) => (
               <option key={model} value={model}>
-                {i + 2}
-                {i < 4
-                  ? ` — ${["quadratic", "cubic", "quartic", "quintic"][i]}`
-                  : ""}
+                Degree {i + 2}
               </option>
             ))}
           </select>

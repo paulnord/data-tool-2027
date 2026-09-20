@@ -5,6 +5,7 @@ import {
   effectivePolynomialBasis,
   fourierHarmonicCounts,
   fourierParameterNames,
+  polynomialBasisTerms,
   type FourierHarmonics,
   type PolynomialBasisKind,
 } from "../core/fit/seriesModels";
@@ -107,12 +108,18 @@ export function SeriesModelControls({
               chooseBasis(event.target.value as PolynomialBasisKind)
             }
           >
-            <option value="power">Powers of x</option>
+            <option value="power">
+              Power basis · {polynomialBasisTerms(degree, "power")}
+            </option>
             {(advancedFeatures || basis.kind === "taylor") && (
-              <option value="taylor">Taylor series</option>
+              <option value="taylor">
+                Taylor basis · {polynomialBasisTerms(degree, "taylor")}
+              </option>
             )}
             {(advancedFeatures || basis.kind === "chebyshev") && (
-              <option value="chebyshev">Chebyshev basis</option>
+              <option value="chebyshev">
+                Chebyshev basis · {polynomialBasisTerms(degree, "chebyshev")}
+              </option>
             )}
           </select>
         </label>

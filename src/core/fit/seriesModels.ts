@@ -36,6 +36,45 @@ export function effectivePolynomialBasis(
   return basis ?? DEFAULT_POLYNOMIAL_BASIS;
 }
 
+const superscriptDigits = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"];
+const subscriptDigits = ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"];
+
+function script(value: number, digits: readonly string[]) {
+  return String(value)
+    .split("")
+    .map((digit) => digits[Number(digit)])
+    .join("");
+}
+
+/** Compact, degree-aware terms for representation menus and teaching copy. */
+export function polynomialBasisTerms(
+  degree: number,
+  kind: PolynomialBasisKind,
+): string {
+  const indices =
+    degree <= 3
+      ? Array.from({ length: degree + 1 }, (_, i) => i)
+      : [0, 1, 2, -1, degree];
+  return indices
+    .map((order) => {
+      if (order < 0) return "…";
+      if (kind === "power")
+        return order === 0
+          ? "1"
+          : order === 1
+            ? "x"
+            : `x${script(order, superscriptDigits)}`;
+      if (kind === "taylor")
+        return order === 0
+          ? "1"
+          : order === 1
+            ? "(x−a)"
+            : `(x−a)${script(order, superscriptDigits)}/${order}!`;
+      return `T${script(order, subscriptDigits)}(z)`;
+    })
+    .join(", ");
+}
+
 /** All three bases span exactly the same degree-n polynomial model space. */
 export function polynomialBasisValues(
   x: number,

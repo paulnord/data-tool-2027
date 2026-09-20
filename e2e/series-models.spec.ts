@@ -131,7 +131,7 @@ test("polynomial degree changes preserve the selected representation in every wo
     .fill("2.75");
   await page
     .getByLabel("Interval equation polynomial degree", { exact: true })
-    .selectOption("quintic");
+    .selectOption("polynomial-5");
   await expect(
     page.getByLabel("Interval Polynomial representation", { exact: true }),
   ).toHaveValue("taylor");

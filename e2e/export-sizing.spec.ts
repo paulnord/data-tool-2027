@@ -548,9 +548,6 @@ for (const mode of ["multi-interval", "collision"] as const) {
     });
     if (mode === "multi-interval") {
       await page
-        .getByLabel("Number of data series", { exact: true })
-        .selectOption("2");
-      await page
         .getByLabel("Number of intervals", { exact: true })
         .selectOption("1");
       await page.getByLabel("Interval from", { exact: true }).fill("0.2");
@@ -568,7 +565,7 @@ for (const mode of ["multi-interval", "collision"] as const) {
     await expect(workspace.getByRole("status")).toHaveText(
       mode === "collision"
         ? "8 of 8 fits complete"
-        : "Interval 1: 2 of 2 data series fitted",
+        : "Interval 1: fit complete",
     );
     if (mode === "collision")
       await workspace
@@ -585,7 +582,7 @@ for (const mode of ["multi-interval", "collision"] as const) {
     const results = await resultTables.allTextContents();
     expect(results.length).toBeGreaterThan(0);
     await applySize(page, 170, 250);
-    const count = mode === "collision" ? 8 : 4;
+    const count = mode === "collision" ? 8 : 2;
     const graph = await inspectSvg(page, await downloadGraph(page, "svg"));
     expectPhysicalSvg(graph, 170, 250, 9, count);
     expect(

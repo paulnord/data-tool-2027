@@ -4,11 +4,14 @@ import {
   type TableAnalysis,
 } from "./dataTable";
 import {
+  parameterNames,
   requestSchema,
+  sameSharedModelMetadata,
   settingsSchema,
   type FitRequest,
   type FitSettings,
 } from "./schema";
+import { polynomialDegree } from "./polynomialModels";
 import { fit, type FitResult } from "./solve";
 import { fitReportTable, reportTableTsv, type Cell } from "./report";
 export const maxIntervals = 5;
@@ -31,6 +34,45 @@ export interface IntervalFit {
   result: FitResult | null;
   error: string | null;
 }
+
+/**
+ * Apply equation-basis edits to every curve retained in an older multi-series
+ * interval while preserving each curve's independent coefficient values.
+ */
+export function updateSharedSeriesModelMetadata(
+  settings: readonly FitSettings[],
+  active: number,
+  next: FitSettings,
+): FitSettings[] {
+  const current = settings[active];
+  if (!current || current.model !== next.model)
+    throw Error("Shared model metadata requires the current equation.");
+  if (polynomialDegree(next.model) !== undefined)
+    return settings.map((entry, index) =>
+      index === active
+        ? next
+        : { ...entry, polynomialBasis: next.polynomialBasis },
+    );
+  if (next.model === "fourier") {
+    const names = parameterNames(next.model, next.custom, next.fourier);
+    return settings.map((entry, index) => {
+      if (index === active) return next;
+      const oldNames = parameterNames(entry.model, entry.custom, entry.fourier);
+      return {
+        ...entry,
+        fourier: next.fourier,
+        parameters: names.map((name) => {
+          const previous = oldNames.indexOf(name);
+          return previous < 0
+            ? { value: 0, fixed: false }
+            : entry.parameters[previous];
+        }),
+      };
+    });
+  }
+  return settings.map((entry, index) => (index === active ? next : entry));
+}
+
 /** Independent numerical snapshots. No event finding, automatic range selection or derived mechanics. */
 export function intervalRequests(
   source: TableAnalysis,
@@ -141,6 +183,14 @@ export function fitInterval(
     throw Error(
       "Use the same equation for all data series within an interval.",
     );
+  if (
+    interval.settings.some(
+      (settings) => !sameSharedModelMetadata(settings, interval.settings[0]),
+    )
+  )
+    throw Error(
+      "Use the same fixed equation settings for all data series within an interval.",
+    );
   return requests.map((request, i) => {
     const settings: FitSettings = {
       ...interval.settings[i],
@@ -178,7 +228,10 @@ export function intervalReport(
       return [
         ["Interval", interval.name],
         ["Range", ...(interval.range ?? ["Not selected"])],
-        ["Data series", entry?.request.dataset.yColumn.label ?? j + 1],
+        [
+          config.columns.length === 1 ? "Y column" : "Data series",
+          entry?.request.dataset.yColumn.label ?? j + 1,
+        ],
         [],
         ...(entry?.result
           ? fitReportTable(entry.request, entry.settings, entry.result)

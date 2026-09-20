@@ -1,8 +1,32 @@
 # Equation families and notation
 
-The main analysis, model comparison, and multi-interval views use one model chooser. The first choices are Straight line, Polynomial, and Custom equation, in that order. Polynomial opens a separate degree selector for 2–10; degrees 2–5 also show quadratic, cubic, quartic, and quintic. Other groups are exponentials, powers and logarithms, oscillations, and peaks and transitions. Constant acceleration is omitted from new choices: a quadratic supplies the same curve family. Saved constant-acceleration analyses retain their original equation and parameters.
+The main analysis, model comparison, and multi-interval views use one model chooser. The first choices are Straight line and Polynomial. Polynomial opens a separate degree selector for 2–10; degrees 2–5 also show quadratic, cubic, quartic, and quintic. Other groups are exponentials, powers and logarithms, oscillations, and peaks and transitions. Constant acceleration is omitted from new choices: a quadratic supplies the same curve family. Saved constant-acceleration analyses retain their original equation and parameters.
 
-There is no universal shorthand across fitting libraries: [MATLAB](https://www.mathworks.com/help/curvefit/polynomial.html) uses `polyN`, [ROOT](https://root.cern.ch/manual/fitting/) uses `polN`, and [NumPy](https://numpy.org/doc/stable/reference/routines.polynomials.html) accepts a degree argument. The interface uses the explicit term degree (highest power), with coefficients in ascending order: `c0 + c1*x + … + cN*x^N`. The line model retains `b + m*x`.
+**Settings → Features → Show advanced models and analysis tools** is off by default. It adds Custom equation, supplied-exponent Power law, Reciprocal, Logarithmic, Logistic sigmoid, adjustable Gaussian shape, Fourier series, and the alternative polynomial representations described below. It also reveals model comparison, multi-interval fitting, and collision analysis in the shared **Analysis tools** selector. The preference is local to the browser profile or desktop webview on that device; it is not scientific input and is not stored in `.trksess` files. Turning it off does not replace or hide an advanced model or analysis that is already active, including one restored from a session.
+
+There is no universal shorthand across fitting libraries: [MATLAB](https://www.mathworks.com/help/curvefit/polynomial.html) uses `polyN`, [ROOT](https://root.cern.ch/manual/fitting/) uses `polN`, and [NumPy](https://numpy.org/doc/stable/reference/routines.polynomials.html) accepts a degree argument. The interface uses the explicit term degree (highest power). The line model retains `b + m*x`.
+
+## Polynomial representations
+
+Polynomial is one model family through degree 10. Advanced Features changes how its coefficients are represented without creating three different curve families:
+
+- **Powers of x:** \(y=\sum_{i=0}^{N}c_i x^i\). Coefficient \(c_i\) has units Y/X\(^i\).
+- **Taylor series:** \(y=\sum_{i=0}^{N}c_i(x-x_0)^i/i!\), at a fixed expansion center \(x_0\). Thus \(c_i\) represents the degree-\(i\) derivative at that center and has units Y/X\(^i\).
+- **Chebyshev basis:** \(y=\sum_{i=0}^{N}c_iT_i((x-x_0)/s)\), with fixed center \(x_0\) and positive scale \(s\). Every coefficient has Y units.
+
+When Taylor or Chebyshev is first selected, the interface suggests the midpoint of the available finite X values as the center and half their span as the Chebyshev scale (or scale 1 for a zero span). These values are then ordinary explicit model metadata: editing exclusions does not silently recalculate them. The center and scale are fixed, not fitted parameters, and are preserved in sessions and analysis-bundle metadata.
+
+For a fixed degree, all three representations span the same polynomial curve space. When all coefficients are free (or fixed constraints have been transformed equivalently), a full-rank fit therefore has the same predictions, residuals, SSE or chi-square, degrees of freedom, and model-comparison parameter count. Their coefficient values, units, covariance entries, and numerical conditioning differ. Fixing the same numeric coefficient in two representations imposes different constraints. The representations should not be treated as three competing physical models in model comparison.
+
+## Fixed-period Fourier series
+
+The advanced **Fourier series** model is
+
+\[
+y=b+\sum_{k=1}^{H}\left[s_k\sin\left(\frac{2\pi k(x-x_0)}{T}\right)+c_k\cos\left(\frac{2\pi k(x-x_0)}{T}\right)\right],
+\]
+
+with 1–5 harmonics. The positive period \(T\) and origin \(x_0\) are explicit fixed model metadata; only \(b,s_k,c_k\) are fit. All fitted coefficients have Y units. The model is linear in those coefficients and is solved by the same QR path as other basis models. It does not search for a period, choose the harmonic count, or claim that a periodic interpretation is physically appropriate. When every harmonic coefficient is free, changing the origin rotates the sine/cosine coefficients while leaving the fixed-period curve space unchanged; fixed numeric coefficients are representation-specific constraints.
 
 ## Exponentials, peaks and transitions
 
@@ -21,11 +45,13 @@ Displayed equations, help, and reports use `b + a/x`, `b + a*ln(x)`, and `b + a*
 
 ## Numerical limits and compatibility
 
-Polynomials use the existing column-scaled, pivoted, twice-reorthogonalized QR algorithm. There are up to 11 coefficients; positive residual degrees of freedom require more included observations than free identifiable coefficients. More rows alone do not guarantee numerical rank. Large offsets in x, narrow spans, and high degrees can produce poorly determined coefficients or explicit rank rejection. The solver reports its rank diagnostics; it does not change the x origin or silently lower the degree. High-degree polynomials can extrapolate poorly.
+Polynomial and fixed-period Fourier series use the existing column-scaled, pivoted, twice-reorthogonalized QR algorithm. There are up to 11 coefficients: degree 10 has 11, and five Fourier harmonics have one background plus ten sine/cosine coefficients. Positive residual degrees of freedom require more included observations than free identifiable coefficients. More rows alone do not guarantee numerical rank. Large offsets in X, narrow spans, clustered phase coverage, and high degrees or harmonic counts can produce poorly determined coefficients or explicit rank rejection. A centered or scaled basis can improve numerical behavior, but does not add information or make a high-order model scientifically justified. The solver reports its rank diagnostics; it does not silently lower the degree or harmonic count. High-degree polynomials can extrapolate poorly, while a fixed-period Fourier series is periodic outside the observed range.
 
-Custom equations retain their existing eight-parameter limit. Conversion to a custom equation is disabled for degree 8–10 polynomials, whose 9–11 coefficients exceed it. They still support fixed coefficients, uncertainty controls, reports, comparison, and SciPy/ROOT exports.
+Custom equations retain their existing eight-parameter limit. Conversion to a custom equation is disabled for degree 8–10 polynomials and Fourier series with four or five harmonics, whose 9–11 coefficients exceed it. They still support fixed coefficients, uncertainty controls, reports, comparison, and SciPy/ROOT exports.
 
-[Session v7](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15) covers every equation and workspace. Independent reference fixtures in `tests/fit/extended-model-reference.json` are generated with SciPy least squares, complex-step Jacobians, and SVD covariance. Checks cover fitted and fixed coefficients, starting suggestions, analytic derivatives, rank failure, positive widths, and session boundaries. These are numerical validation cases, not a claim that every dataset or nonlinear starting point will converge.
+[Session v7](integration.md#one-session-format-v7--pre-beta-migration-2026-09-15) covers every equation and workspace. Powers of x canonically omits representation metadata, so an ordinary polynomial save retains the pre-existing v7 settings shape. The parser also accepts an explicit power marker and removes it on the next save. Taylor, Chebyshev, and Fourier metadata require a build that implements those advanced choices. Independent tests compare the three same-degree polynomial representations, exercise Fourier recovery and rank failure, and round-trip the fixed basis metadata. The existing reference fixtures in `tests/fit/extended-model-reference.json` use SciPy least squares, complex-step Jacobians, and SVD covariance for the other extended models. These are numerical validation cases, not a claim that every dataset or nonlinear starting point will converge.
+
+Bessel-function models and graphs that decompose a fitted curve into individual terms are deferred. They need an explicit model contract, domains and normalization, independent numerical references, and a consistent presentation across single-fit, comparison, and interval workspaces before they can be offered as fit choices.
 
 ## Peak shape
 

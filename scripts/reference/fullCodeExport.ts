@@ -9,6 +9,7 @@ import {
   isNonlinearModel,
   nonlinearModels,
 } from "../../src/core/fit/nonlinearModels";
+import { effectivePolynomialBasis } from "../../src/core/fit/seriesModels";
 import {
   pythonPeakShapeHelpers,
   rootPeakShapeHelpers,
@@ -165,6 +166,37 @@ export function generateCodeExportCsv(description: CodeExportDescription) {
 function pythonExpression(settings: FitSettings) {
   if (settings.model === "custom")
     return renderEquation(settings.custom!, "python", (i) => `p[${i}]`);
+  const degree = polynomialDegree(settings.model);
+  if (degree !== undefined) {
+    const basis = effectivePolynomialBasis(settings.polynomialBasis);
+    if (basis.kind === "taylor") {
+      const centered = `(x-(${number(basis.center)}))`;
+      const coefficients = Array.from({ length: degree + 1 }, (_, i) =>
+        i < 2 ? `p[${i}]` : `p[${i}]/${number(factorial(i))}`,
+      ).join(", ");
+      return `np.polynomial.polynomial.polyval(${centered}, np.array([${coefficients}]))`;
+    }
+    if (basis.kind === "chebyshev") {
+      const coefficients = Array.from(
+        { length: degree + 1 },
+        (_, i) => `p[${i}]`,
+      ).join(", ");
+      return `np.polynomial.chebyshev.chebval(polynomial_coordinate(x), np.array([${coefficients}]))`;
+    }
+  }
+  if (settings.model === "fourier") {
+    const fourier = settings.fourier!;
+    const phase = "fourier_phase(x)";
+    return [
+      "p[0]",
+      ...Array.from({ length: fourier.harmonics }, (_, i) => i + 1).flatMap(
+        (harmonic) => [
+          `p[${2 * harmonic - 1}]*np.sin(${harmonic}*${phase})`,
+          `p[${2 * harmonic}]*np.cos(${harmonic}*${phase})`,
+        ],
+      ),
+    ].join(" + ");
+  }
   const suppliedPeriod = number(settings.sinePeriod ?? 2 * Math.PI);
   const shape = number(
     settings.shape ?? (settings.model === "exponential" ? -1 : 2),
@@ -192,8 +224,85 @@ function pythonExpression(settings: FitSettings) {
     "damped-sine":
       "p[0] + np.exp(-x/p[4])*(p[1]*np.sin(2*np.pi*x/p[3]) + p[2]*np.cos(2*np.pi*x/p[3]))",
     lorentzian: "p[0] + p[1]/(1 + ((x-p[2])/p[3])**2)",
+    fourier: "p[0]",
   };
   return expressions[settings.model];
+}
+
+function factorial(value: number) {
+  let result = 1;
+  for (let i = 2; i <= value; i++) result *= i;
+  return result;
+}
+
+function pythonPolynomialHelper(settings: FitSettings) {
+  const degree = polynomialDegree(settings.model);
+  const basis = effectivePolynomialBasis(settings.polynomialBasis);
+  if (degree === undefined || basis.kind !== "chebyshev") return "";
+  return `def polynomial_coordinate(x):
+    x = np.asarray(x, dtype=float)
+    with np.errstate(over="ignore", invalid="ignore"):
+        difference = x - (${number(basis.center)})
+        return np.where(np.isfinite(difference), difference/${number(basis.scale)}, x/${number(basis.scale)} - (${number(basis.center)})/${number(basis.scale)})
+
+`;
+}
+
+function pythonFourierHelper(settings: FitSettings) {
+  if (settings.model !== "fourier") return "";
+  const fourier = settings.fourier!;
+  return `def fourier_phase(x):
+    x = np.asarray(x, dtype=float)
+    cycles = np.fmod(x, ${number(fourier.period)})/${number(fourier.period)} - np.fmod(${number(fourier.origin)}, ${number(fourier.period)})/${number(fourier.period)}
+    return 2*np.pi*(cycles - np.rint(cycles))
+
+`;
+}
+
+function pythonSeriesJacobian(settings: FitSettings) {
+  const degree = polynomialDegree(settings.model);
+  if (degree !== undefined) {
+    const basis = effectivePolynomialBasis(settings.polynomialBasis);
+    if (basis.kind === "chebyshev")
+      return `def model_jacobian(x):
+    x = np.asarray(x, dtype=float)
+    return np.polynomial.chebyshev.chebvander(polynomial_coordinate(x), ${degree})
+`;
+    if (basis.kind === "taylor")
+      return `def model_jacobian(x):
+    x = np.asarray(x, dtype=float)
+    centered = x - (${number(basis.center)})
+    columns = [np.ones_like(x)]
+    for order in range(1, ${degree + 1}):
+        columns.append((columns[-1]/order)*centered)
+    return np.column_stack(columns)
+`;
+    const columns = Array.from({ length: degree + 1 }, (_, i) =>
+      i === 0 ? "np.ones_like(x)" : `x**${i}`,
+    );
+    return `def model_jacobian(x):
+    x = np.asarray(x, dtype=float)
+    return np.column_stack([${columns.join(", ")}])
+`;
+  }
+  if (settings.model === "fourier") {
+    const fourier = settings.fourier!;
+    const phase = "fourier_phase(x)";
+    const columns = [
+      "np.ones_like(x)",
+      ...Array.from({ length: fourier.harmonics }, (_, i) => i + 1).flatMap(
+        (harmonic) => [
+          `np.sin(${harmonic}*${phase})`,
+          `np.cos(${harmonic}*${phase})`,
+        ],
+      ),
+    ];
+    return `def model_jacobian(x):
+    x = np.asarray(x, dtype=float)
+    return np.column_stack([${columns.join(", ")}])
+`;
+  }
+  return "";
 }
 
 function parameterBounds(settings: FitSettings) {
@@ -226,7 +335,11 @@ function axisLabel(label: string, unit: string | null) {
 function executableIdentity(settings: FitSettings) {
   return {
     model: settings.model,
-    parameterNames: parameterNames(settings.model, settings.custom),
+    parameterNames: parameterNames(
+      settings.model,
+      settings.custom,
+      settings.fourier,
+    ),
     customEquation: settings.custom
       ? {
           expression: settings.custom.expression,
@@ -239,7 +352,11 @@ function executableIdentity(settings: FitSettings) {
         ? { sinePeriod: settings.sinePeriod }
         : ["exponential", "power-law"].includes(settings.model)
           ? { shape: settings.shape }
-          : {},
+          : polynomialDegree(settings.model) !== undefined
+            ? { polynomialBasis: settings.polynomialBasis ?? null }
+            : settings.model === "fourier"
+              ? { fourier: settings.fourier }
+              : {},
   };
 }
 
@@ -250,6 +367,7 @@ export function generateCodeExportMetadata(
   const names = parameterNames(
     description.settings.model,
     description.settings.custom,
+    description.settings.fourier,
   );
   const bounds = parameterBounds(description.settings);
   const {
@@ -335,9 +453,10 @@ export function generatePythonCode(description: CodeExportDescription) {
   const polynomialJac =
     description.settings.model === "gaussian-shape"
       ? '            jac="3-point", # Central differences include the mode recentering.\n'
-      : polynomialDegree(description.settings.model) === undefined
+      : polynomialDegree(description.settings.model) === undefined &&
+          description.settings.model !== "fourier"
         ? ""
-        : "            # Analytic polynomial derivatives; update these if editing model().\n            jac=lambda x, *free: np.column_stack([x**i for i in free_index]),\n";
+        : "            # Analytic series derivatives; update model_jacobian if editing model().\n            jac=lambda x, *free: model_jacobian(x)[:, free_index],\n";
   const meanGuide = `
 if view["showGuides"]:
     ax_data.axhline(fitted[0], linestyle="--", color="0.45", linewidth=1.1, label="mean position b")`;
@@ -367,6 +486,19 @@ if view["showGuides"]:
     ax_data.plot(curve_x, fitted[0] + envelope, "--", color="0.55", linewidth=1.0, label="envelope")
     ax_data.plot(curve_x, fitted[0] - envelope, "--", color="0.55", linewidth=1.0)`
       : (otherGuides[description.settings.model] ?? "");
+  const curveSampling =
+    description.settings.model === "fourier"
+      ? `    effective_cycles = (x_max - x_min) * ${description.settings.fourier!.harmonics} / ${number(description.settings.fourier!.period)}
+    if not np.isfinite(effective_cycles) or effective_cycles < 0 or effective_cycles > 800:
+        raise ValueError("Refusing to plot more than 800 effective Fourier cycles")
+    curve_count = max(160, int(np.ceil(effective_cycles * 40)) + 1)
+    phase_x = np.linspace(x_min, x_max, curve_count)
+    if log_x:
+        display_x = np.geomspace(x_min, x_max, 160)
+        curve_x = np.unique(np.concatenate((phase_x, display_x)))
+    else:
+        curve_x = phase_x`
+      : "    curve_x = np.geomspace(x_min, x_max, 800) if log_x else np.linspace(x_min, x_max, 800)";
   return `#!/usr/bin/env python3
 """Refit a Data Tool 2027 CSV with NumPy, SciPy, and Matplotlib.
 
@@ -390,11 +522,13 @@ BUNDLE_DIR = Path(__file__).resolve().parent
 DEFAULT_DATA = BUNDLE_DIR / "data.csv"
 DEFAULT_ANALYSIS = BUNDLE_DIR / "analysis.json"
 
+${pythonPolynomialHelper(description.settings)}${pythonFourierHelper(description.settings)}
 # The fitted function: edit the equation here when adapting this program.
 def model(x, *p):
     value = ${pythonExpression(description.settings)}
     # Constant custom equations are scalars; callers need one prediction per X.
     return np.broadcast_to(np.asarray(value, dtype=float), np.shape(x))
+${pythonSeriesJacobian(description.settings)}
 ${description.settings.model === "gaussian-shape" ? pythonPeakShapeHelpers : ""}
 
 def fit_data(data, analysis):
@@ -629,7 +763,7 @@ def plot_fit(analysis, result, output=None, show=False):
     x_min, x_max = map(float, view["xRange"])
     log_x = view["mode"] in {"log-x", "log-log"}
     log_y = view["mode"] in {"log-y", "log-log"}
-    curve_x = np.geomspace(x_min, x_max, 800) if log_x else np.linspace(x_min, x_max, 800)
+${curveSampling}
     ax_data.plot(curve_x, model(curve_x, *fitted), color="#cc9550", linewidth=2, label="SciPy fit")${guideCode.replaceAll("\n", "\n    ")}
 
     def axis_label(axis):
@@ -707,6 +841,25 @@ function cppString(value: string) {
 function rootExpression(settings: FitSettings) {
   if (settings.model === "custom")
     return renderEquation(settings.custom!, "root", (i) => `p[${i}]`);
+  const degree = polynomialDegree(settings.model);
+  if (degree !== undefined) {
+    const basis = effectivePolynomialBasis(settings.polynomialBasis);
+    if (basis.kind === "taylor") return "taylor_series(x, p)";
+    if (basis.kind === "chebyshev") return "chebyshev_series(x, p)";
+  }
+  if (settings.model === "fourier") {
+    const fourier = settings.fourier!;
+    const phase = "fourier_phase(x)";
+    return [
+      "p[0]",
+      ...Array.from({ length: fourier.harmonics }, (_, i) => i + 1).flatMap(
+        (harmonic) => [
+          `p[${2 * harmonic - 1}]*std::sin(${harmonic}*${phase})`,
+          `p[${2 * harmonic}]*std::cos(${harmonic}*${phase})`,
+        ],
+      ),
+    ].join(" + ");
+  }
   const suppliedPeriod = number(settings.sinePeriod ?? 2 * Math.PI);
   const shape = number(
     settings.shape ?? (settings.model === "exponential" ? -1 : 2),
@@ -737,14 +890,64 @@ function rootExpression(settings: FitSettings) {
     "damped-sine":
       "p[0] + std::exp(-x/p[4])*(p[1]*std::sin(2*TMath::Pi()*x/p[3]) + p[2]*std::cos(2*TMath::Pi()*x/p[3]))",
     lorentzian: "p[0] + p[1]/(1 + std::pow((x-p[2])/p[3], 2))",
+    fourier: "p[0]",
   };
   return expressions[settings.model];
+}
+
+function rootSeriesHelper(settings: FitSettings) {
+  const degree = polynomialDegree(settings.model);
+  const basis = effectivePolynomialBasis(settings.polynomialBasis);
+  if (degree === undefined) return "";
+  if (basis.kind === "taylor") {
+    const inverseFactorials = Array.from({ length: degree + 1 }, (_, i) =>
+      number(1 / factorial(i)),
+    ).join(", ");
+    return `double taylor_series(double x, const double *p) {
+  const double inverse_factorial[] = {${inverseFactorials}};
+  const double z=x-(${number(basis.center)});
+  double value=p[${degree}]*inverse_factorial[${degree}];
+  for (int i=${degree - 1}; i>=0; --i)
+    value=value*z+p[i]*inverse_factorial[i];
+  return value;
+}
+`;
+  }
+  if (basis.kind !== "chebyshev") return "";
+  return `double chebyshev_series(double x, const double *p) {
+  const double difference=x-(${number(basis.center)});
+  const double z=std::isfinite(difference) ? difference/${number(basis.scale)}
+    : x/${number(basis.scale)}-(${number(basis.center)})/${number(basis.scale)};
+  double t0=1.0, t1=z, value=p[0]+p[1]*t1;
+  for (int i=2; i<=${degree}; ++i) {
+    const double next=2*z*t1-t0;
+    value+=p[i]*next; t0=t1; t1=next;
+  }
+  return value;
+}
+`;
+}
+
+function rootFourierHelper(settings: FitSettings) {
+  if (settings.model !== "fourier") return "";
+  const fourier = settings.fourier!;
+  return `double fourier_phase(double x) {
+  double cycles=std::fmod(x, ${number(fourier.period)})/${number(fourier.period)}
+    -std::fmod(${number(fourier.origin)}, ${number(fourier.period)})/${number(fourier.period)};
+  cycles-=std::nearbyint(cycles);
+  return 2*TMath::Pi()*cycles;
+}
+`;
 }
 
 /** ROOT macro for the bundle's external CSV input. */
 export function generateRootCode(description: CodeExportDescription) {
   const { settings, view } = description;
-  const names = parameterNames(settings.model, settings.custom);
+  const names = parameterNames(
+    settings.model,
+    settings.custom,
+    settings.fourier,
+  );
   const logX = view.mode === "log-x" || view.mode === "log-log";
   const logY = view.mode === "log-y" || view.mode === "log-log";
   const free = settings.parameters.filter(
@@ -829,6 +1032,37 @@ export function generateRootCode(description: CodeExportDescription) {
   const yLimits = view.yRange
     ? `\n  graph.SetMinimum(${number(view.yRange[0])}); graph.SetMaximum(${number(view.yRange[1])});`
     : "";
+  const curveSampling =
+    settings.model === "fourier"
+      ? `
+  const double effective_cycles=(x_max-x_min)*${settings.fourier!.harmonics}/${number(settings.fourier!.period)};
+  if (!std::isfinite(effective_cycles) || effective_cycles<0 || effective_cycles>800)
+    throw std::runtime_error("Refusing to plot more than 800 effective Fourier cycles");
+  int curve_points=static_cast<int>(std::ceil(effective_cycles*40))+1;
+  if (curve_points<160) curve_points=160;
+  std::vector<double> curve_x; curve_x.reserve(curve_points${logX ? "+160" : ""});
+  for (int i=0; i<curve_points; ++i)
+    curve_x.push_back(x_min+(x_max-x_min)*i/(curve_points-1.0));${
+      logX
+        ? `
+  const double log_x_min=std::log(x_min), log_x_max=std::log(x_max);
+  for (int i=0; i<160; ++i)
+    curve_x.push_back(std::exp(log_x_min+(log_x_max-log_x_min)*i/159.0));
+  std::sort(curve_x.begin(), curve_x.end());
+  curve_x.erase(std::unique(curve_x.begin(), curve_x.end()), curve_x.end());`
+        : ""
+    }
+  std::vector<double> curve_y(curve_x.size());
+  for (size_t i=0; i<curve_x.size(); ++i) curve_y[i]=model.Eval(curve_x[i]);
+  TGraph fitted_curve(curve_x.size(), curve_x.data(), curve_y.data());
+  fitted_curve.SetName("fitted_curve"); fitted_curve.SetLineColor(kOrange+7); fitted_curve.SetLineWidth(3);`
+      : "";
+  const curveDraw =
+    settings.model === "fourier"
+      ? 'fitted_curve.Draw("L SAME");'
+      : 'model.Draw("same");';
+  const curveWrite =
+    settings.model === "fourier" ? " fitted_curve.Write();" : "";
   const residualPanel = view.showResiduals
     ? `
   canvas.cd(2); gPad->SetGrid();${logX ? " gPad->SetLogx();" : ""}
@@ -874,6 +1108,8 @@ export function generateRootCode(description: CodeExportDescription) {
 #include <vector>
 #include <utility>
 ${settings.model === "gaussian-shape" ? "double gaussian_peak(double x, const double *p);" : ""}
+${rootSeriesHelper(settings)}
+${rootFourierHelper(settings)}
 
 // The fitted function: the equation is the first function in this file.
 double model_function(double *xx, double *p) {
@@ -1146,12 +1382,12 @@ void plot_fit(Data &data, TF1 &model, FitOutcome &result, const char *output_ste
     `${description.title};${axisLabel(description.xLabel, description.xUnit)};${axisLabel(description.yLabel, description.yUnit)}`,
   )});
   graph.SetMarkerStyle(20);
-  model.SetRange(x_min, x_max); // Display zoom never changes the fitted sample.
+  model.SetRange(x_min, x_max); // Display zoom never changes the fitted sample.${curveSampling}
   TCanvas canvas("data_tool_canvas", ${cppString(description.title)}, 900, ${view.showResiduals ? 700 : 520});
   ${view.showResiduals ? "canvas.Divide(1, 2); canvas.cd(1);" : "canvas.cd();"}
   gPad->SetGrid();${logX ? " gPad->SetLogx();" : ""}${logY ? " gPad->SetLogy();" : ""}
   graph.Draw("${graphDrawOption}"); graph.GetXaxis()->SetLimits(x_min, x_max);${yLimits}
-  model.SetLineColor(kOrange+7); model.SetLineWidth(3); model.Draw("same");${guideCode}
+  model.SetLineColor(kOrange+7); model.SetLineWidth(3); ${curveDraw}${guideCode}
   TGraph excluded_graph(excluded_x.size(), excluded_x.data(), excluded_y.data());
   excluded_graph.SetName("excluded_data"); excluded_graph.SetMarkerStyle(5); excluded_graph.SetMarkerColor(kGray+1);
   if (!excluded_x.empty()) excluded_graph.Draw("P SAME");
@@ -1160,7 +1396,7 @@ ${residualPanel}
     output_stem && *output_stem ? output_stem : ${cppString(`${description.fileStem}-root`)};
   canvas.SaveAs((output_base + ".pdf").c_str());
   TFile output((output_base + ".root").c_str(), "RECREATE");
-  graph.Write(); excluded_graph.Write(); model.Write();${view.showResiduals ? " residuals.Write();" : ""} canvas.Write();
+  graph.Write(); excluded_graph.Write();${curveWrite} model.Write();${view.showResiduals ? " residuals.Write();" : ""} canvas.Write();
   // Keep an unavailable covariance explicitly separate from statistical errors.
   if (!errors_available) fit_result.SetTitle(("Numerical minimizer result; standard errors unavailable: " + uncertainty_reason).c_str());
   fit_result.Write(errors_available ? "fit_result" : "numerical_fit_result");

@@ -42,7 +42,7 @@ function parse(expression: string) {
     throw Error("Enter an expression of 1–1000 characters.");
   const tokens: string[] = [];
   const pattern =
-    /\s*(?:(\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|[()+\-*/^])/y;
+    /\s*(?:(\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|[()+\-*/%^])/y;
   let position = 0;
   while (position < expression.trimEnd().length) {
     pattern.lastIndex = position;
@@ -94,7 +94,10 @@ function parse(expression: string) {
     while (cursor < tokens.length) {
       const op = tokens[cursor],
         priority = (
-          { "+": 1, "-": 1, "*": 2, "/": 2, "^": 4 } as Record<string, number>
+          { "+": 1, "-": 1, "*": 2, "/": 2, "%": 2, "^": 4 } as Record<
+            string,
+            number
+          >
         )[op];
       if (!priority || priority < min) break;
       cursor++;
@@ -199,6 +202,8 @@ export function renderEquation(
     if (node.kind === "neg") return `(-${walk(node.child)})`;
     if (node.kind === "call")
       return `${calls[target][node.name]}(${walk(node.child)})`;
+    if (node.op === "%")
+      return `${target === "python" ? "np.fmod" : "std::fmod"}(${walk(node.left)}, ${walk(node.right)})`;
     const op = node.op === "^" ? (target === "python" ? "**" : null) : node.op;
     if (op) return `(${walk(node.left)} ${op} ${walk(node.right)})`;
     return `std::pow(${walk(node.left)}, ${walk(node.right)})`;
@@ -262,7 +267,9 @@ export function customValueGradient(
             ? a.value * b.value
             : node.op === "/"
               ? a.value / b.value
-              : a.value ** b.value;
+              : node.op === "%"
+                ? a.value % b.value
+                : a.value ** b.value;
     const gradient = p.map((_, i) => {
       const da = a.gradient[i],
         db = b.gradient[i];
@@ -272,6 +279,7 @@ export function customValueGradient(
       if (node.op === "*") return da * b.value + a.value * db;
       if (node.op === "/")
         return (da * b.value - a.value * db) / (b.value * b.value);
+      if (node.op === "%") return da - Math.trunc(a.value / b.value) * db;
       return (
         (da === 0 || b.value === 0
           ? 0
@@ -296,6 +304,7 @@ export function customIsLinear(def: CustomEquation, free: readonly number[]) {
     if (n.op === "+" || n.op === "-") return Math.max(a, b);
     if (n.op === "*") return Math.min(2, a + b);
     if (n.op === "/") return b === 0 ? a : 2;
+    if (n.op === "%") return a === 0 && b === 0 ? 0 : 2;
     if (a === 0 && b === 0) return 0;
     if (n.right.kind === "number" && n.right.value === 1) return a;
     return 2;

@@ -22,6 +22,20 @@ export default defineConfig({
       : undefined,
     viewport: { width: 1440, height: 1000 },
     trace: "retain-on-failure",
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: "http://127.0.0.1:5174",
+          localStorage: [
+            {
+              name: "data-tool-2027.advanced-features",
+              value: "true",
+            },
+          ],
+        },
+      ],
+    },
   },
   webServer: {
     command: "npm run dev",

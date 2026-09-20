@@ -21,6 +21,11 @@ test("student chooses three ranges, fits one at a time and preserves the other r
   page,
 }) => {
   const workspace = await open(page);
+  await expect(
+    workspace
+      .getByLabel("Interval uncertainty model", { exact: true })
+      .locator('option[value="estimate"]'),
+  ).toHaveText("Unknown · estimate equal scatter");
   const fit = workspace.getByRole("button", {
     name: "Fit Interval 1",
     exact: true,
@@ -39,7 +44,7 @@ test("student chooses three ranges, fits one at a time and preserves the other r
     .getByRole("button", { name: "Fit Interval 1", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 1 of 1 data series fitted",
+    "Interval 1: fit complete",
   );
   await page.getByRole("button", { name: "Interval 2", exact: true }).click();
   await range(page, "3.2", "5.8");
@@ -47,7 +52,7 @@ test("student chooses three ranges, fits one at a time and preserves the other r
     .getByRole("button", { name: "Fit Interval 2", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 2: 1 of 1 data series fitted",
+    "Interval 2: fit complete",
   );
   await page.getByRole("button", { name: "Interval 3", exact: true }).click();
   await range(page, "6.2", "8.8");
@@ -55,7 +60,7 @@ test("student chooses three ranges, fits one at a time and preserves the other r
     .getByRole("button", { name: "Fit Interval 3", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 3: 1 of 1 data series fitted",
+    "Interval 3: fit complete",
   );
   await expect(
     workspace.getByRole("table", { name: /parameters$/ }),
@@ -77,7 +82,7 @@ test("student chooses three ranges, fits one at a time and preserves the other r
     .getByRole("button", { name: "Fit Interval 3", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 3: 1 of 1 data series fitted",
+    "Interval 3: fit complete",
   );
   await page
     .getByLabel("Analysis tools", { exact: true })
@@ -148,7 +153,7 @@ test("draw a range, select sine for contact, and use custom equations with case-
     .getByRole("button", { name: "Fit Interval 1", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 1 of 1 data series fitted",
+    "Interval 1: fit complete",
   );
   await page.getByRole("button", { name: "Interval 2", exact: true }).click();
   await range(page, "0.05", "0.075");
@@ -168,7 +173,7 @@ test("draw a range, select sine for contact, and use custom equations with case-
     .getByRole("button", { name: "Fit Interval 2", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 2: 1 of 1 data series fitted",
+    "Interval 2: fit complete",
   );
   await expect(
     workspace.getByRole("table", { name: /Interval 1.*parameters/ }),
@@ -181,52 +186,41 @@ test("draw a range, select sine for contact, and use custom equations with case-
     .getByRole("button", { name: "Fit Interval 2", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 2: 1 of 1 data series fitted",
+    "Interval 2: fit complete",
   );
 });
-test("one-dimensional carts and four-component data use independent curves", async ({
+test("multi-interval fits one selected Y series with one common uncertainty", async ({
   page,
 }) => {
   const workspace = await open(page, "collision.csv");
-  await page.getByLabel("Number of data series").selectOption("2");
+  await expect(
+    page.getByLabel("Number of data series", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByLabel("Interval Y column", { exact: true }),
+  ).toHaveValue("1");
+  await page.getByLabel("Interval Y column", { exact: true }).selectOption("3");
   await range(page, "0", "1.6");
   await page
     .getByRole("button", { name: "Fit Interval 1", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 2 of 2 data series fitted",
-  );
-  await page.getByLabel("Number of data series").selectOption("3");
-  await page
-    .getByRole("button", { name: "Fit Interval 1", exact: true })
-    .click();
-  await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 3 of 3 data series fitted",
-  );
-  await page.getByLabel("Number of data series").selectOption("4");
-  await expect(
-    workspace.getByRole("table", { name: /parameters$/ }),
-  ).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Fit Interval 1", exact: true })
-    .click();
-  await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 4 of 4 data series fitted",
+    "Interval 1: fit complete",
   );
   await page.getByLabel("Interval uncertainty model").selectOption("supplied");
   await expect(
     page.getByRole("button", { name: "Fit Interval 1", exact: true }),
   ).toBeDisabled();
-  for (let i = 1; i <= 4; i++)
-    await page
-      .getByLabel(`Data series ${i} sigma`, { exact: true })
-      .fill(".003");
+  await page.getByLabel("Interval common sigma", { exact: true }).fill(".003");
   await page
     .getByRole("button", { name: "Fit Interval 1", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 4 of 4 data series fitted",
+    "Interval 1: fit complete",
   );
+  await expect(
+    workspace.getByRole("table", { name: /parameters$/ }),
+  ).toHaveCount(1);
 });
 
 test("five Millikan intervals retain separate results with Fit beside interval selection", async ({
@@ -250,7 +244,7 @@ test("five Millikan intervals retain separate results with Fit beside interval s
     await range(page, String((i - 1) * 20), String((i - 1) * 20 + 15));
     await fit.click();
     await expect(workspace.getByRole("status")).toHaveText(
-      `Interval ${i}: 1 of 1 data series fitted`,
+      `Interval ${i}: fit complete`,
     );
   }
   await expect(

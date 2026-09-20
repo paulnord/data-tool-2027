@@ -7,6 +7,9 @@ standalone programs in `src/core/fit/codeExport.ts`.
 
 This is development/reference material, not another export setting. It shares
 scientific equation definitions and peak evaluation helpers with the application.
+The reference generator also retains fixed polynomial-basis and Fourier-series
+metadata in its executable-identity check, so alternate metadata cannot silently
+change the meaning of the coefficients.
 
 To validate the detailed reference with installed NumPy, SciPy, Matplotlib and ROOT:
 

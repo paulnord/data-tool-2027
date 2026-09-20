@@ -1,5 +1,7 @@
 import type { FitSettings } from "./schema";
 import { isNonlinearModel, nonlinearParameterUnit } from "./nonlinearModels";
+import { polynomialDegree } from "./polynomialModels";
+import type { PolynomialBasis } from "./seriesModels";
 
 export function modelParameterUnit(
   settings: FitSettings,
@@ -12,6 +14,12 @@ export function modelParameterUnit(
   if (settings.model === "custom") return settings.custom!.units[index] || "?";
   if (isNonlinearModel(settings.model))
     return nonlinearParameterUnit(settings.model, index, xUnit, yUnit);
+  if (settings.model === "fourier") return y;
+  if (
+    polynomialDegree(settings.model) !== undefined &&
+    settings.polynomialBasis?.kind === "chebyshev"
+  )
+    return y;
   if (settings.model === "sine-free-period" && index === 3) return x;
   if (settings.model === "reciprocal" && index === 1) return `(${y})·(${x})`;
   if (
@@ -28,7 +36,18 @@ export function modelParameterUnit(
   return `${y}/${x}${index > 1 ? `^${index}` : ""}`;
 }
 
-export function modelNotationNote(model: string): string | null {
+export function modelNotationNote(
+  model: string,
+  polynomialBasis?: PolynomialBasis,
+): string | null {
+  if (polynomialDegree(model) !== undefined) {
+    if (polynomialBasis?.kind === "taylor")
+      return "Taylor coefficients are derivatives at the fixed expansion center; the degree-i term is cᵢ(x − center)ⁱ/i!. The center is model metadata, not a fitted parameter.";
+    if (polynomialBasis?.kind === "chebyshev")
+      return "Chebyshev coefficients multiply Tᵢ((x − center)/scale). The center and positive scale are fixed model metadata, not fitted parameters; all coefficients have y-units.";
+  }
+  if (model === "fourier")
+    return "The period and origin are fixed model metadata, not fitted parameters. Each harmonic has fitted sine and cosine coefficients in y-units.";
   if (model === "gaussian-shape")
     return "Sinh–arcsinh peak: A is peak height above b, μ is peak position, and w is a positive width scale (not generally a standard deviation). zₘ is the mode of h. skew = 0 is symmetric; tail = 1 retains the Gaussian tail parameter, below 1 is heavier and above 1 lighter. Derived skewness and excess kurtosis describe the normalized peak, not measurement uncertainty.";
   if (model === "sine-free-period")

@@ -5,6 +5,66 @@ import { plotScale } from "./plotScale";
 export type CurvePoint = { x: number; y: number };
 type Range = [number, number];
 
+/** Sample a fitted model across the complete requested display range. */
+export function sampleModelCurve(
+  settings: FitSettings,
+  result: FitResult,
+  range: Range,
+  logX = false,
+): { points: CurvePoint[]; samplingUnavailable: boolean } {
+  const [lo, hi] = range;
+  if (!(Number.isFinite(lo) && Number.isFinite(hi) && hi > lo))
+    return { points: [], samplingUnavailable: false };
+  const period =
+    settings.model === "sine" || settings.model === "fourier"
+      ? settings.model === "fourier"
+        ? settings.fourier?.period
+        : settings.sinePeriod
+      : ["sine-free-period", "damped-sine"].includes(settings.model)
+        ? result.coefficients[3]
+        : null;
+  const cycles =
+    period === null
+      ? 0
+      : ((hi - lo) / (period ?? NaN)) *
+        (settings.model === "fourier" ? (settings.fourier?.harmonics ?? 1) : 1);
+  if (!Number.isFinite(cycles) || cycles < 0 || cycles > 800)
+    return { points: [], samplingUnavailable: true };
+  const count = Math.max(160, Math.ceil(cycles * 40) + 1);
+  const scale = plotScale(range, logX);
+  // Uniform log sampling alone aliases oscillations at the high-X end.
+  // Combine phase-resolving physical samples with display samples so the
+  // compressed cycles and the broad low-X region are both represented.
+  const sampleXs =
+    logX && period !== null
+      ? [
+          ...new Set([
+            ...Array.from(
+              { length: count },
+              (_, i) => lo + ((hi - lo) * i) / (count - 1),
+            ),
+            ...Array.from({ length: 160 }, (_, i) => scale.value(i / 159)),
+          ]),
+        ].sort((a, b) => a - b)
+      : Array.from({ length: count }, (_, i) => scale.value(i / (count - 1)));
+  return {
+    points: sampleXs.map((x) => ({
+      x,
+      y: predict(
+        x,
+        settings.model,
+        result.coefficients,
+        settings.sinePeriod,
+        settings.shape,
+        settings.custom,
+        settings.polynomialBasis,
+        settings.fourier,
+      ),
+    })),
+    samplingUnavailable: false,
+  };
+}
+
 /** Display-only curves. Actual fitted observations define the supported span. */
 export function sampleFittedCurve(
   settings: FitSettings,
@@ -27,49 +87,9 @@ export function sampleFittedCurve(
       : null;
   let samplingUnavailable = false;
   const sample = (range: Range): CurvePoint[] => {
-    const [lo, hi] = range;
-    if (!(Number.isFinite(lo) && Number.isFinite(hi) && hi > lo)) return [];
-    const period =
-      settings.model === "sine"
-        ? settings.sinePeriod
-        : ["sine-free-period", "damped-sine"].includes(settings.model)
-          ? result.coefficients[3]
-          : null;
-    const cycles = period === null ? 0 : (hi - lo) / (period ?? NaN);
-    if (!Number.isFinite(cycles) || cycles < 0 || cycles > 800) {
-      samplingUnavailable = true;
-      return [];
-    }
-    const count = Math.max(160, Math.ceil(cycles * 40) + 1);
-    const scale = plotScale(range, logX);
-    // Uniform log sampling alone aliases oscillations at the high-X end.
-    // Combine phase-resolving physical samples with display samples so the
-    // compressed cycles and the broad low-X region are both represented.
-    const sampleXs =
-      logX && period !== null
-        ? [
-            ...new Set([
-              ...Array.from(
-                { length: count },
-                (_, i) => lo + ((hi - lo) * i) / (count - 1),
-              ),
-              ...Array.from({ length: 160 }, (_, i) => scale.value(i / 159)),
-            ]),
-          ].sort((a, b) => a - b)
-        : Array.from({ length: count }, (_, i) => scale.value(i / (count - 1)));
-    return sampleXs.map((x) => {
-      return {
-        x,
-        y: predict(
-          x,
-          settings.model,
-          result.coefficients,
-          settings.sinePeriod,
-          settings.shape,
-          settings.custom,
-        ),
-      };
-    });
+    const sampled = sampleModelCurve(settings, result, range, logX);
+    samplingUnavailable ||= sampled.samplingUnavailable;
+    return sampled.points;
   };
   if (!support || support[0] === support[1])
     return {

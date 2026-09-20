@@ -23,6 +23,7 @@ const groups: { label: string; models: [FitSettings["model"], string][] }[] = [
     models: [
       ["sine-free-period", "Sinusoid"],
       ["damped-sine", "Damped oscillation"],
+      ["fourier", "Fourier series"],
     ],
   },
   {
@@ -34,6 +35,21 @@ const groups: { label: string; models: [FitSettings["model"], string][] }[] = [
     ],
   },
 ];
+
+const advancedModels = new Set<FitSettings["model"]>([
+  "custom",
+  "power-law",
+  "reciprocal",
+  "logarithmic",
+  "sigmoid",
+  "gaussian-shape",
+  "fourier",
+]);
+
+export function isAdvancedModel(model: FitSettings["model"]): boolean {
+  return advancedModels.has(model);
+}
+
 export function modelLabel(model: string): string {
   if (model === "gaussian-shape") return "Gaussian peak · adjustable shape";
   const degree = polynomialDegree(model);
@@ -59,11 +75,13 @@ export function ModelSelector({
   ariaLabel = label,
   value,
   onChange,
+  advancedFeatures = false,
 }: {
   label: string;
   ariaLabel?: string;
   value: string;
   onChange: (value: string) => void;
+  advancedFeatures?: boolean;
 }) {
   const degree = polynomialDegree(value);
   return (
@@ -87,24 +105,32 @@ export function ModelSelector({
         >
           <option value="line">Straight line</option>
           <option value="polynomial">Polynomial…</option>
-          <option value="custom">Custom equation…</option>
-          {groups.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.models.map(([model, name]) => (
-                <option key={model} value={model}>
-                  {name}
-                </option>
-              ))}
-              {group.label === "Oscillations" && value === "sine" && (
-                <option value="sine">Sinusoid · saved fixed period</option>
-              )}
-              {group.label === "Exponentials" && value === "exponential" && (
-                <option value="exponential">
-                  Exponential · saved fixed rate
-                </option>
-              )}
-            </optgroup>
-          ))}
+          {(advancedFeatures || value === "custom") && (
+            <option value="custom">Custom equation…</option>
+          )}
+          {groups.map((group) => {
+            const models = group.models.filter(
+              ([model]) =>
+                advancedFeatures || !isAdvancedModel(model) || model === value,
+            );
+            return (
+              <optgroup key={group.label} label={group.label}>
+                {models.map(([model, name]) => (
+                  <option key={model} value={model}>
+                    {name}
+                  </option>
+                ))}
+                {group.label === "Oscillations" && value === "sine" && (
+                  <option value="sine">Sinusoid · saved fixed period</option>
+                )}
+                {group.label === "Exponentials" && value === "exponential" && (
+                  <option value="exponential">
+                    Exponential · saved fixed rate
+                  </option>
+                )}
+              </optgroup>
+            );
+          })}
           {value === "constant-acceleration" && (
             <option value="constant-acceleration">
               Constant acceleration · saved model

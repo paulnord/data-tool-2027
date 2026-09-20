@@ -8,9 +8,13 @@ A residual is observed Y minus the model prediction at X. With unknown equal sca
 
 Models linear in their free parameters use column-scaled, pivoted, twice-reorthogonalized QR. Fixed-parameter contributions are removed before solving for free parameters. Rank is assessed using the documented normalized threshold of 10⁻¹². The solver does not explicitly invert normal equations. Rank loss prevents reporting a unique set of fitted parameters and ordinary confidence intervals.
 
+Polynomial degrees 2–10 remain one family with three available coefficient representations: powers of X, a Taylor basis about a fixed center, and a Chebyshev basis with fixed center and positive scale. At a fixed degree these design matrices span the same mathematical column space, so a full-rank least-squares solution with all coefficients free (or equivalently transformed constraints) has the same fitted values and objective even though the coefficients, coefficient units, covariance, and floating-point conditioning differ. Identically numbered fixed coefficients are not equivalent constraints across representations. The Taylor center and Chebyshev center/scale are declared model metadata rather than estimated parameters; exclusions do not redefine them.
+
+The fixed-period Fourier model uses 1–5 harmonics and the columns \(1,\sin(k\phi),\cos(k\phi)\), where \(\phi=2\pi(x-x_0)/T\). Its period and origin are fixed metadata and its amplitudes are solved by QR. This is not the fitted-period sinusoid's bounded frequency search: Data Tool does not optimize the Fourier period or select the number of harmonics automatically. At the upper limit it has 11 coefficients, so adequate observation count, phase coverage, and numerical rank still matter.
+
 Nonlinear models use damped Gauss–Newton steps in Levenberg–Marquardt form, with QR solutions and a final undamped Jacobian rank check. The fitted-period sine has a separate bounded frequency search. Custom equations use automatic differentiation and a structural check for linear dependence on free parameters. Iteration limits, invalid domains and convergence failures are explicit diagnostics. Local convergence does not establish a global optimum.
 
-See the [scientific specification](scientific-spec.md), [nonlinear implementation and validation](nonlinear-fits.md), and [custom-equation reference](custom-equations.md) for algorithm details and model-specific limits.
+See the [equation-family reference](equation-families.md), [scientific specification](scientific-spec.md), [nonlinear implementation and validation](nonlinear-fits.md), and [custom-equation reference](custom-equations.md) for algorithm details and model-specific limits.
 
 ## Statistical conventions
 
@@ -32,7 +36,7 @@ The application preserves imported observations, missing values, explicit units 
 
 ## Verification evidence
 
-The scientific suite compares fitted coefficients, objectives and covariance with independent numerical references. It also checks rank failures, fixed parameters, units, exclusions, missing data and file round trips. Monte Carlo tests assess confidence-interval behavior in specified linear and nonlinear regimes. Independent reference generators and random-data generators are test tooling, not application runtime components.
+The scientific suite compares fitted coefficients, objectives and covariance with independent numerical references. It also checks rank failures, fixed parameters, units, exclusions, missing data and file round trips. Series-model tests verify that equal-degree power, Taylor and Chebyshev fits reproduce the same predictions and objective, recover known fixed-period Fourier coefficients, retain fixed basis metadata across exclusions and sessions, and reject invalid scale, period, or parameter counts. Code-export checks execute the generated SciPy and ROOT forms when those external runtimes are installed. Monte Carlo tests assess confidence-interval behavior in specified linear and nonlinear regimes. Independent reference generators and random-data generators are test tooling, not application runtime components.
 
 Relevant evidence is maintained in:
 
@@ -42,6 +46,8 @@ Relevant evidence is maintained in:
 - [Browser workflow tests](../e2e/) for importing, fitting, display controls and reports.
 
 Passing these checks supports the implementation in the tested regimes. It does not guarantee identifiability, convergence, interval coverage or model adequacy for every dataset. Reports retain the relevant diagnostics and limitations so the numerical result can be assessed in context.
+
+Bessel-function fitting and plots of individual basis components are not part of the implemented numerical contract. Either addition needs a precise parameterization, domain and normalization, independent reference cases, and output semantics before it can be treated as validated functionality.
 
 ## References and further reading
 

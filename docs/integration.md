@@ -63,12 +63,15 @@ Every session requires `workspace` and `view`. `workspace.kind` identifies what 
 open:
 
 - `single-fit`: use the root equation, parameter values/fixed flags, exclusions,
-  units and uncertainty assumptions. All built-in and custom equations use the
-  same settings schema and file version.
+  units and uncertainty assumptions. Polynomial settings may declare a power,
+  fixed-center Taylor, or fixed-center/fixed-scale Chebyshev representation;
+  a fixed-period Fourier model declares its harmonic count, period, and origin.
+  All built-in and custom equations use the same settings schema and file version.
 - `multi-interval`: X/Y assignments, uncertainty mode and retained common sigmas,
-  assumption acceptance, interval names/ranges, and each series' settings. Hidden
-  interval slots are retained; active interval and series indices restore the
-  selected controls.
+  assumption acceptance, interval names/ranges, and fit settings. New workspaces
+  contain one Y series. Existing v7 multi-series arrays and their active series
+  index remain valid and are preserved on import/save. Hidden interval slots are
+  retained; the active interval restores its selected controls.
 - `model-comparison`: two to six labeled candidates and the active candidate.
   Each candidate contains a validated analysis, using the same request/settings/
   engine/source fields as the root. It has no separate format, version or nested
@@ -79,19 +82,32 @@ open:
 `view` preserves residual, guide and error-bar visibility for every analysis.
 Interval/collision workspaces also retain shared X limits, per-graph Y limits and
 print-detail preferences. Appearance, single-fit graph mode/axis limits, output
-size, undo history, editor drafts and computed results are not serialized. Fits
-are recalculated explicitly after opening; saved starts are not re-suggested.
+size, Advanced Features visibility, undo history, editor drafts and computed
+results are not serialized. The Advanced Features opt-in is stored only for the
+current browser profile or desktop webview. Opening an advanced saved model or
+workspace keeps that active choice available even when the opt-in is off. Fits are
+recalculated explicitly after opening; saved starts are not re-suggested.
 
 The shared settings schema validates model-specific coefficient counts, positive
 widths/time constants, fixed flags and custom-expression grammar, names and
-units. Engines identify the current solver: `qr-vp-sine-2` for basis models,
-`qr-lm-3` for nonlinear built-ins, and `qr-expression-4` for custom equations.
-Adding an equation does not select another session format.
+units. A polynomial representation field is valid only for a polynomial. Powers
+of X is encoded canonically by omitting that optional field, preserving the
+pre-existing v7 shape; an explicit `{ "kind": "power" }` remains valid on import
+and is omitted the next time the session is saved. Taylor center and Chebyshev
+center/positive scale are fixed model metadata. Fourier settings are required
+only for the Fourier model and allow 1–5 harmonics, a positive fixed period, and
+a finite fixed origin. Taylor, Chebyshev, and Fourier sessions require a build
+that implements their identifiers and metadata; earlier strict v7 readers reject
+those advanced sessions without replacing open work. Engines identify the current solver:
+`qr-vp-sine-2` for basis models, `qr-lm-3` for nonlinear built-ins, and
+`qr-expression-4` for custom equations. Adding an equation does not select
+another session format.
 
 Validate every request and original snapshot, retained uncertainty map, exclusion
 identity, source-table association and nested candidate. Workspace validation also
 checks available/distinct columns, finite increasing ranges, positive sigmas,
-per-series settings/range counts and existing active indices. Collision windows
+settings/range counts and existing active indices, including retained legacy
+multi-series workspaces. Collision windows
 must be separated. Incomplete numeric or equation drafts block saving.
 
 Open through **Data… → Load file**, then **Use these data**. Applying a session

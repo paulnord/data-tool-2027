@@ -120,6 +120,50 @@ it("workspace round trips preserve hidden intervals, separate curve units, const
   w.activeCurve = 1;
   expect(sessionSchema.parse(JSON.parse(JSON.stringify(s)))).toEqual(s);
 });
+it("accepts legacy implicit power metadata but rejects inconsistent shared series metadata", () => {
+  const s = multiSession();
+  if (s.workspace.kind !== "multi-interval") throw Error("Wrong workspace");
+  const w = s.workspace;
+  s.dataTable!.cells.forEach((row, i) =>
+    row.push(i ? String(i / 1000) : "Second Y"),
+  );
+  s.dataTable!.units.push("m");
+  w.columns.push(2);
+  w.sigmas.push(0.04);
+  w.yRanges.push(null);
+  for (const interval of w.intervals)
+    interval.settings = [
+      initialSettings("quadratic"),
+      initialSettings("quadratic"),
+    ];
+  delete w.intervals[0].settings[0].polynomialBasis;
+  const legacy = JSON.parse(JSON.stringify(s));
+  expect(sessionSchema.parse(legacy)).toEqual(legacy);
+
+  w.intervals[0].settings = [
+    { ...initialSettings("sine"), sinePeriod: 2 },
+    { ...initialSettings("sine"), sinePeriod: 3 },
+  ];
+  expect(sessionSchema.safeParse(s).success).toBe(true);
+
+  w.intervals[0].settings = [
+    initialSettings("quadratic"),
+    {
+      ...initialSettings("quadratic"),
+      polynomialBasis: { kind: "taylor", center: 1 },
+    },
+  ];
+  expect(sessionSchema.safeParse(s).success).toBe(false);
+
+  w.intervals[0].settings = [
+    initialSettings("fourier"),
+    {
+      ...initialSettings("fourier"),
+      fourier: { harmonics: 1, period: 3, origin: 0 },
+    },
+  ];
+  expect(sessionSchema.safeParse(s).success).toBe(false);
+});
 const invalidCases: [
   string,
   (s: ReturnType<typeof multiSession>, w: MultiIntervalWorkspace) => void,

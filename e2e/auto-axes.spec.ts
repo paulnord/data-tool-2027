@@ -195,7 +195,7 @@ test("interval X menus match Y controls and share display limits without changin
     .getByRole("button", { name: "Fit Interval 1", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 1 of 1 data series fitted",
+    "Interval 1: fit complete",
   );
   await workspace.locator(".interval-result-diagnostics summary").click();
   const main = workspace.getByRole("img", {

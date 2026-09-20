@@ -20,7 +20,9 @@ on import, before saving, and for numerical analysis before fitting:
   have a null reason. All numerical inputs remain finite in binary64.
 - Known correlation cannot coexist with asserted independent Gaussian errors.
 - Model-specific parameter counts, positive widths/time constants and valid
-  ordered period bounds. The engine must match the model.
+  ordered period bounds. The engine must match the model. Powers of X is
+  canonically serialized without the optional polynomial-representation field;
+  an explicit power marker is accepted and removed on the next save.
 - Custom expressions use the restricted grammar, exact first-occurrence parameter
   order and matching names/units/parameters (1–8). Custom metadata is forbidden
   for built-ins. Polynomial degree N requires N+1 coefficients (up to 11).

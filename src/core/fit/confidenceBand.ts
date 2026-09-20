@@ -62,6 +62,8 @@ export function meanConfidenceBand(
         settings.sinePeriod,
         settings.shape,
         settings.custom,
+        settings.polynomialBasis,
+        settings.fourier,
       ),
       halfWidth = critical * standardError;
     const lower = mean - halfWidth,

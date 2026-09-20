@@ -1,5 +1,7 @@
 import { polynomialExpressions } from "./polynomialModels";
+import { polynomialDegree } from "./polynomialModels";
 import { modelNotationNote, modelParameterUnit } from "./modelNotation";
+import { effectivePolynomialBasis, seriesEquation } from "./seriesModels";
 import {
   nonlinearModels,
   nonlinearModelIds,
@@ -26,7 +28,11 @@ export function fitCorrelationMatrix(
   settings: FitSettings,
   result: FitResult,
 ): Cell[][] {
-  const names = parameterNames(settings.model, settings.custom);
+  const names = parameterNames(
+    settings.model,
+    settings.custom,
+    settings.fourier,
+  );
   if (!result.covariance)
     return [["Parameter correlation matrix", "Unavailable"]];
   return [
@@ -89,7 +95,11 @@ export function fitReportTable(
   result: FitResult,
   sections: ReportSections = {},
 ): Cell[][] {
-  const names = parameterNames(settings.model, settings.custom);
+  const names = parameterNames(
+    settings.model,
+    settings.custom,
+    settings.fourier,
+  );
   // Human-readable row numbers refer to the complete input order, not the
   // filtered fit sample. Stable IDs still identify observations everywhere else.
   const rowNumbers = new Map(
@@ -102,7 +112,7 @@ export function fitReportTable(
     (row) => row.label !== undefined,
   );
   const derived = fitDerivedQuantities(request, settings, result);
-  const equations = {
+  const equations: Record<string, string> = {
     ...(Object.fromEntries(
       Object.entries(
         polynomialExpressions((i) => (i === 0 ? "c0" : `c${i}*x^${i}`)),
@@ -123,13 +133,18 @@ export function fitReportTable(
     logarithmic: "y = b + a ln(x)",
     "constant-acceleration": "y = y0 + v0*t + 0.5*a*t^2",
   };
+  const series = seriesEquation(
+    settings.model,
+    settings.polynomialBasis,
+    settings.fourier,
+  );
   const rows: Cell[][] = [
     ["Dataset", request.dataset.label],
     [
       "Model",
       settings.model === "custom"
         ? `y = ${settings.custom!.expression}`
-        : equations[settings.model],
+        : (series ?? equations[settings.model]),
     ],
     ...(settings.model === "custom"
       ? [
@@ -162,8 +177,36 @@ export function fitReportTable(
     ...(settings.model === "sine"
       ? [["Supplied period T", settings.sinePeriod ?? 2 * Math.PI]]
       : []),
-    ...(modelNotationNote(settings.model)
-      ? [["Unit convention", modelNotationNote(settings.model)]]
+    ...(polynomialDegree(settings.model) !== undefined
+      ? [
+          [
+            "Polynomial representation",
+            effectivePolynomialBasis(settings.polynomialBasis).kind,
+          ],
+          ...(settings.polynomialBasis?.kind === "taylor"
+            ? [["Fixed expansion center", settings.polynomialBasis.center]]
+            : settings.polynomialBasis?.kind === "chebyshev"
+              ? [
+                  ["Fixed basis center", settings.polynomialBasis.center],
+                  ["Fixed basis scale", settings.polynomialBasis.scale],
+                ]
+              : []),
+        ]
+      : []),
+    ...(settings.model === "fourier"
+      ? [
+          ["Fourier harmonics", settings.fourier!.harmonics],
+          ["Fixed Fourier period", settings.fourier!.period],
+          ["Fixed Fourier origin", settings.fourier!.origin],
+        ]
+      : []),
+    ...(modelNotationNote(settings.model, settings.polynomialBasis)
+      ? [
+          [
+            "Unit convention",
+            modelNotationNote(settings.model, settings.polynomialBasis),
+          ],
+        ]
       : []),
     ...(settings.model === "sine-free-period"
       ? [

@@ -10,7 +10,11 @@ import {
 } from "./nonlinearModels";
 import { nonlinearSolve } from "./nonlinearSolve";
 import { searchPeriod } from "./periodSearch";
-import { polynomialDegree } from "./polynomialModels";
+import {
+  seriesBasisValues,
+  type FourierSeriesSettings,
+  type PolynomialBasis,
+} from "./seriesModels";
 import {
   requestSchema,
   analysisSchema,
@@ -60,12 +64,13 @@ export function basis(
   model: FitSettings["model"],
   sinePeriod = 2 * Math.PI,
   shape?: number,
+  polynomialBasis?: PolynomialBasis,
+  fourier?: FourierSeriesSettings,
 ): number[] {
   if (model === "custom" || isNonlinearModel(model))
     throw Error("Nonlinear models require parameter-dependent evaluation");
-  const degree = polynomialDegree(model);
-  if (degree !== undefined)
-    return Array.from({ length: degree + 1 }, (_, i) => x ** i);
+  const series = seriesBasisValues(x, model, polynomialBasis, fourier);
+  if (series) return series;
   switch (model) {
     case "line":
       return [1, x];
@@ -103,6 +108,8 @@ export function predict(
   sinePeriod = 2 * Math.PI,
   shape?: number,
   custom?: CustomEquation,
+  polynomialBasis?: PolynomialBasis,
+  fourier?: FourierSeriesSettings,
 ) {
   if (model === "custom")
     return custom ? customValueGradient(x, custom, coefficients).value : NaN;
@@ -114,7 +121,7 @@ export function predict(
       coefficients[1] * Math.sin((2 * Math.PI * x) / coefficients[3]) +
       coefficients[2] * Math.cos((2 * Math.PI * x) / coefficients[3])
     );
-  return basis(x, model, sinePeriod, shape).reduce(
+  return basis(x, model, sinePeriod, shape, polynomialBasis, fourier).reduce(
     (sum, v, i) => sum + v * coefficients[i],
     0,
   );
@@ -131,7 +138,14 @@ export function modelGradient(
   if (isNonlinearModel(settings.model))
     return nonlinearValueGradient(x, settings.model, coefficients).gradient;
   if (settings.model !== "sine-free-period")
-    return basis(x, settings.model, settings.sinePeriod, settings.shape);
+    return basis(
+      x,
+      settings.model,
+      settings.sinePeriod,
+      settings.shape,
+      settings.polynomialBasis,
+      settings.fourier,
+    );
   const [b, s, c, T] = coefficients;
   void b;
   const phase = (2 * Math.PI * x) / T;
@@ -188,6 +202,8 @@ export function fit(request: FitRequest, settings: FitSettings): FitResult {
         isSine ? "sine" : settings.model,
         period ?? settings.sinePeriod,
         settings.shape,
+        settings.polynomialBasis,
+        settings.fourier,
       ),
     );
     const linearFree = free.filter((j) => !isSine || j < 3);
@@ -220,6 +236,9 @@ export function fit(request: FitRequest, settings: FitSettings): FitResult {
             values,
             settings.sinePeriod,
             settings.shape,
+            settings.custom,
+            settings.polynomialBasis,
+            settings.fourier,
           )) /
           sigma[i]) **
           2,
@@ -361,6 +380,8 @@ export function fit(request: FitRequest, settings: FitSettings): FitResult {
       settings.sinePeriod,
       settings.shape,
       settings.custom,
+      settings.polynomialBasis,
+      settings.fourier,
     );
     return {
       id: row.id,

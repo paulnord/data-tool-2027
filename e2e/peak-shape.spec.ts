@@ -259,7 +259,7 @@ test("interval peaks share shape controls and report derived moments", async ({
     page
       .getByRole("region", { name: "Multi-interval analysis", exact: true })
       .getByRole("status"),
-  ).toHaveText("Interval 1: 1 of 1 data series fitted");
+  ).toHaveText("Interval 1: fit complete");
   await expect(
     page.getByRole("table", { name: /derived peak quantities/ }),
   ).toContainText("2.46669");

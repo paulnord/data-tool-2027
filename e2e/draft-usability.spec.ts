@@ -135,7 +135,7 @@ test("a valid interval fits independently of another interval's unfinished range
     page
       .getByRole("region", { name: "Multi-interval analysis", exact: true })
       .getByRole("status"),
-  ).toHaveText("Interval 1: 1 of 1 data series fitted");
+  ).toHaveText("Interval 1: fit complete");
 });
 
 test("applying table edits requires a choice before discarding interval work", async ({

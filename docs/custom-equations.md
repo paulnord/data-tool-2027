@@ -8,7 +8,7 @@ Use the normal parameter table for starting values, units and fixed/free control
 
 ## Expression language
 
-Decimal/scientific numbers; identifiers beginning with an ASCII letter followed by letters, digits or underscores; parentheses; `+ - * / ^`. Multiplication is explicit. Powers associate right to left: `2^3^2` is 512; `-x^2` is `-(x^2)`. Unary signs also work in exponents.
+Decimal/scientific numbers; identifiers beginning with an ASCII letter followed by letters, digits or underscores; parentheses; `+ - * / % ^`. Multiplication is explicit. `%` is floating-point remainder and is primarily useful for reducing periodic coordinates. Powers associate right to left: `2^3^2` is 512; `-x^2` is `-(x^2)`. Unary signs also work in exponents.
 
 One-argument functions: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sinh`, `cosh`, `exp`, `ln` (natural log), `log` (base 10), `sqrt`. Constants `pi` and `e` are reserved, as are function names. No JavaScript, property access, assignment, randomness, helper functions, branches or parameter-to-parameter definitions. Limits: 1000 characters, 256 tokens, 48 nested parser levels, 1–8 parameters and 64 characters per identifier.
 

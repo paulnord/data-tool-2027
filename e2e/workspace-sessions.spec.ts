@@ -145,7 +145,7 @@ test("Cavendish session opens both intervals in seconds and saves a complete res
     .getByRole("button", { name: "Fit Oscillation 1", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Oscillation 1: 1 of 1 data series fitted",
+    "Oscillation 1: fit complete",
   );
   await page.getByRole("button", { name: /^Oscillation 2$/ }).click();
   await expect(page.getByLabel("Interval from", { exact: true })).toHaveValue(
@@ -155,7 +155,7 @@ test("Cavendish session opens both intervals in seconds and saves a complete res
     .getByRole("button", { name: "Fit Oscillation 2", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Oscillation 2: 1 of 1 data series fitted",
+    "Oscillation 2: fit complete",
   );
   await expect(
     workspace.getByRole("table", { name: /parameters$/ }),

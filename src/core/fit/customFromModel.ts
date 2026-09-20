@@ -7,6 +7,12 @@ import {
 } from "./schema";
 import { inspectEquation } from "./customEquation";
 import { polynomialExpressions } from "./polynomialModels";
+import { polynomialDegree } from "./polynomialModels";
+import {
+  effectivePolynomialBasis,
+  fourierExpression,
+  polynomialEvaluationExpression,
+} from "./seriesModels";
 /** Explicit conversion preserves the physical coefficients and fixed assertions. */
 export function customFromModel(
   settings: FitSettings,
@@ -43,10 +49,23 @@ export function customFromModel(
     "damped-sine": "b+exp(-x/tau)*(s*sin(2*pi*x/T)+c*cos(2*pi*x/T))",
     lorentzian: "b+A/(1+((x-mu)/gamma)^2)",
   };
-  const expression = equations[settings.model],
+  const degree = polynomialDegree(settings.model);
+  const expression =
+      degree !== undefined
+        ? polynomialEvaluationExpression(
+            degree,
+            effectivePolynomialBasis(settings.polynomialBasis),
+          )
+        : settings.model === "fourier"
+          ? fourierExpression(settings.fourier!)
+          : equations[settings.model],
     variable = settings.model === "constant-acceleration" ? "t" : "x";
   const names = inspectEquation(expression, variable).names,
-    oldNames = parameterNames(settings.model);
+    oldNames = parameterNames(
+      settings.model,
+      settings.custom,
+      settings.fourier,
+    );
   const xu = request.dataset.xColumn.unit ?? "?",
     yu = request.dataset.yColumn.unit ?? "?";
   const entries = new Map(

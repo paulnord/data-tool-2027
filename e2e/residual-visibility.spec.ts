@@ -249,7 +249,7 @@ test("the global preference omits residuals from interval diagnostics while pres
     .getByRole("button", { name: "Fit Interval 1", exact: true })
     .click();
   await expect(workspace.getByRole("status")).toHaveText(
-    "Interval 1: 1 of 1 data series fitted",
+    "Interval 1: fit complete",
   );
   const main = workspace.getByRole("img", {
     name: "Drop position interval plot",

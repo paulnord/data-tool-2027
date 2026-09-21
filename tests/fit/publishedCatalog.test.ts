@@ -7,7 +7,7 @@ const dir = "examples/data/published";
 it("classifies every published study exactly once with data and documentation", () => {
   const names = publishedStudyCatalog.map(({ fileName }) => fileName);
   expect(new Set(names).size).toBe(names.length);
-  expect(publishedStudyCatalog).toHaveLength(15);
+  expect(publishedStudyCatalog).toHaveLength(17);
 
   const listedData = names.map((fileName) =>
     fileName.replace(/\.trksess$/, ".csv"),

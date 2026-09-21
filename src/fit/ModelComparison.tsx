@@ -60,6 +60,7 @@ import { createPortal } from "react-dom";
 import { suppliedYErrorBars } from "../core/fit/errorBars";
 import type { ExportPlotSize } from "./exportSizing";
 import { YAxisTitle } from "./YAxisTitle";
+import { AxisControls } from "./YAxisControls";
 import PrintPages from "./PrintPages";
 import { useModalDialog } from "./useModalDialog";
 import { reportTableTsv } from "../core/fit/report";
@@ -131,7 +132,16 @@ function settingsFor(model: FitSettings["model"], source: Analysis) {
   return settings;
 }
 
+type ComparisonAxes = {
+  xRange: [number, number] | null;
+  yRange: [number, number] | null;
+  logX: boolean;
+  logY: boolean;
+};
+
 function ComparisonPlot({
+  axes,
+  onAxes,
   candidates,
   showResiduals,
   showErrorBars,
@@ -140,6 +150,8 @@ function ComparisonPlot({
   onSelect,
   onToggle,
 }: {
+  axes: ComparisonAxes;
+  onAxes?: (axes: ComparisonAxes) => void;
   onSelect?: (box: SelectionRectangle, mode: SelectionMode) => void;
   onToggle?: (id: string) => void;
   candidates: (Omit<ComparisonCandidate, "result"> & { result?: FitResult })[];
@@ -234,19 +246,25 @@ function ComparisonPlot({
   const errorBars = showErrorBars
     ? suppliedYErrorBars(candidates[0].request)
     : { bars: [], unavailable: 0 };
-  const bars = errorBars.bars.filter((bar) => includedIds.has(bar.id));
-  const xDomain = automaticDomain(
-    observations.map((row) => row.x),
-    false,
-    0.06,
+  // Measurement uncertainties remain meaningful when a row is excluded from fitting.
+  const bars = errorBars.bars;
+  const { logX, logY } = axes;
+  const visibleObservations = observations.filter(
+    (row) => (!logX || row.x > 0) && (!logY || row.y > 0),
   );
-  const sample = Array.from(
-    { length: 420 },
-    (_, i) => xDomain[0] + (i * (xDomain[1] - xDomain[0])) / 419,
+  const xDomain =
+    axes.xRange ??
+    automaticDomain(
+      observations.map((row) => row.x),
+      logX,
+      0.06,
+    );
+  const sample = Array.from({ length: 420 }, (_, i) =>
+    plotScale(xDomain, logX).value(i / 419),
   );
   const curveSamples = candidates.map((candidate) =>
     candidate.result
-      ? sampleModelCurve(candidate.settings, candidate.result, xDomain)
+      ? sampleModelCurve(candidate.settings, candidate.result, xDomain, logX)
       : { points: [], samplingUnavailable: false },
   );
   const curves = curveSamples.map((curve) => curve.points);
@@ -270,27 +288,26 @@ function ComparisonPlot({
             ).find((value) => value.id === guide.id)!.value,
           })),
   }));
-  const yDomain = automaticDomain(
-    [
-      ...observations.map((row) => row.y),
-      ...bars.flatMap((bar) => [bar.lower, bar.upper]),
-      ...curves.flatMap((curve) => curve.map((point) => point.y)),
-      ...guideCurves.flatMap((guide) => guide.points.map((point) => point.y)),
-    ],
-    false,
-    0.12,
-  );
-  const xScale = plotScale(xDomain, false);
-  const yScale = plotScale(yDomain, false);
+  const yDomain =
+    axes.yRange ??
+    automaticDomain(
+      [
+        ...observations.map((row) => row.y),
+        ...bars.flatMap((bar) => [bar.lower, bar.upper]),
+        ...curves.flatMap((curve) => curve.map((point) => point.y)),
+        ...guideCurves.flatMap((guide) => guide.points.map((point) => point.y)),
+      ],
+      logY,
+      0.12,
+    );
+  const xScale = plotScale(xDomain, logX);
+  const yScale = plotScale(yDomain, logY);
   const xTicks = xScale.ticks(6);
   const yTicks = yScale.ticks(5);
   const x = (value: number) =>
-    left +
-    ((value - xDomain[0]) / (xDomain[1] - xDomain[0])) * (width - left - right);
+    left + xScale.fraction(value) * (width - left - right);
   const y = (value: number) =>
-    top +
-    (1 - (value - yDomain[0]) / (yDomain[1] - yDomain[0])) *
-      (height - top - bottom);
+    top + (1 - yScale.fraction(value)) * (height - top - bottom);
   const residualHeight = sizedResidualHeight ?? sizes?.[1]?.height ?? 148,
     residualTop = sizes ? Math.max(6, font * 0.6) : 8,
     residualBottom = Math.max(40, font * 3.3);
@@ -342,7 +359,46 @@ function ComparisonPlot({
   }
   return (
     <div className="comparison-plot-wrap">
+      {onAxes && (
+        <div className="fit-axis-controls">
+          {(["X", "Y"] as const).map((axis) => (
+            <AxisControls
+              key={axis}
+              axis={axis}
+              label="Comparison"
+              domain={axis === "X" ? xDomain : yDomain}
+              custom={!!(axis === "X" ? axes.xRange : axes.yRange)}
+              log={axis === "X" ? logX : logY}
+              onChange={(range) =>
+                onAxes({ ...axes, [axis === "X" ? "xRange" : "yRange"]: range })
+              }
+              onLogChange={(log) =>
+                onAxes({
+                  ...axes,
+                  [axis === "X" ? "logX" : "logY"]: log,
+                  [axis === "X" ? "xRange" : "yRange"]: null,
+                })
+              }
+            />
+          ))}
+        </div>
+      )}
+      {visibleObservations.length < observations.length && (
+        <p className="fit-log-notice" role="note">
+          {observations.length - visibleObservations.length} nonpositive
+          observation(s) cannot be shown on logarithmic axes; fit inclusion is
+          unchanged.
+        </p>
+      )}
+      {logY && bars.some((bar) => bar.lower <= 0 && bar.upper > 0) && (
+        <p className="fit-log-notice" role="note">
+          Uncertainty intervals reaching zero or below are clipped at the lower
+          plot edge.
+        </p>
+      )}
       <svg
+        data-x-scale={logX ? "log" : "linear"}
+        data-y-scale={logY ? "log" : "linear"}
         className="comparison-plot"
         width={width}
         height={height}
@@ -541,13 +597,14 @@ function ComparisonPlot({
             textAnchor="middle"
           >
             {candidates[0].request.dataset.xColumn.label}
+            {logX ? " (log scale)" : ""}
             {candidates[0].request.dataset.xColumn.unit
               ? ` [${candidates[0].request.dataset.xColumn.unit}]`
               : ""}
           </text>
         )}
         <YAxisTitle
-          label={candidates[0].request.dataset.yColumn.label}
+          label={`${candidates[0].request.dataset.yColumn.label}${logY ? " (log scale)" : ""}`}
           unit={candidates[0].request.dataset.yColumn.unit ?? null}
           x={font * 1.1}
           y={top + (height - top - bottom) / 2}
@@ -584,16 +641,24 @@ function ComparisonPlot({
               />
             );
           })}
-          {bars.map((bar) => (
-            <path
-              key={bar.id}
-              className="comparison-error-bar"
-              data-row-id={bar.id}
-              d={`M${x(bar.x)},${y(bar.lower)}V${y(bar.upper)} M${x(bar.x) - 3},${y(bar.lower)}h6 M${x(bar.x) - 3},${y(bar.upper)}h6`}
-            >
-              <title>{`Supplied y uncertainty: ±${format(bar.sigma)} ${candidates[0].request.dataset.yColumn.unit ?? ""}`}</title>
-            </path>
-          ))}
+          {bars
+            .filter(
+              (bar) =>
+                (!logX || bar.x > 0) &&
+                (!logY ||
+                  (bar.upper > 0 &&
+                    visibleObservations.some((row) => row.id === bar.id))),
+            )
+            .map((bar) => (
+              <path
+                key={bar.id}
+                className="comparison-error-bar"
+                data-row-id={bar.id}
+                d={`M${x(bar.x)},${y(logY ? Math.max(yDomain[0], bar.lower) : bar.lower)}V${y(bar.upper)}${logY && bar.lower < yDomain[0] ? "" : ` M${x(bar.x) - 3},${y(bar.lower)}h6`} M${x(bar.x) - 3},${y(bar.upper)}h6`}
+              >
+                <title>{`Supplied y uncertainty: ±${format(bar.sigma)} ${candidates[0].request.dataset.yColumn.unit ?? ""}`}</title>
+              </path>
+            ))}
           {curves.map((curve, i) => (
             <path
               key={candidates[i].id}
@@ -601,7 +666,7 @@ function ComparisonPlot({
               d={plotPath(curve, x, y)}
             />
           ))}
-          {observations.map((row) => (
+          {visibleObservations.map((row) => (
             <circle
               key={row.id}
               data-row-id={row.id}
@@ -723,32 +788,35 @@ function ComparisonPlot({
             textAnchor="middle"
           >
             {candidates[0].request.dataset.xColumn.label}
+            {logX ? " (log scale)" : ""}
             {candidates[0].request.dataset.xColumn.unit
               ? ` [${candidates[0].request.dataset.xColumn.unit}]`
               : ""}
           </text>
           <g clipPath={`url(#${clipId}-residual)`}>
             {candidates.flatMap((candidate, candidateIndex) =>
-              (candidate.result?.residuals ?? []).map((row) =>
-                candidateIndex === 0 ? (
-                  <circle
-                    key={`${candidate.id}-${row.id}`}
-                    className="comparison-residual-1"
-                    cx={x(row.x)}
-                    cy={residualY(row.residual)}
-                    r={markerRadius}
-                  />
-                ) : (
-                  <rect
-                    key={`${candidate.id}-${row.id}`}
-                    className={`comparison-residual-${candidateIndex + 1}`}
-                    x={x(row.x) - squareHalf}
-                    y={residualY(row.residual) - squareHalf}
-                    width={squareHalf * 2}
-                    height={squareHalf * 2}
-                  />
+              (candidate.result?.residuals ?? [])
+                .filter((row) => !logX || row.x > 0)
+                .map((row) =>
+                  candidateIndex === 0 ? (
+                    <circle
+                      key={`${candidate.id}-${row.id}`}
+                      className="comparison-residual-1"
+                      cx={x(row.x)}
+                      cy={residualY(row.residual)}
+                      r={markerRadius}
+                    />
+                  ) : (
+                    <rect
+                      key={`${candidate.id}-${row.id}`}
+                      className={`comparison-residual-${candidateIndex + 1}`}
+                      x={x(row.x) - squareHalf}
+                      y={residualY(row.residual) - squareHalf}
+                      width={squareHalf * 2}
+                      height={squareHalf * 2}
+                    />
+                  ),
                 ),
-              ),
             )}
           </g>
         </svg>
@@ -773,6 +841,7 @@ function comparisonModelName(
 }
 
 function ComparisonPrintReport({
+  axes,
   candidates,
   comparison,
   showResiduals,
@@ -780,6 +849,7 @@ function ComparisonPrintReport({
   showGuides,
   onClose,
 }: {
+  axes: ComparisonAxes;
   candidates: ComparisonCandidate[];
   comparison: ComparisonResult;
   showResiduals: boolean;
@@ -879,6 +949,7 @@ function ComparisonPrintReport({
               <p>{candidates[0].request.dataset.label}</p>
               <div className="fit-print-graphs">
                 <ComparisonPlot
+                  axes={axes}
                   candidates={candidates}
                   showResiduals={showResiduals}
                   showErrorBars={showErrorBars}
@@ -1025,6 +1096,12 @@ export default function ModelComparison({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
+  const [axes, setAxes] = useState<ComparisonAxes>({
+    xRange: null,
+    yRange: null,
+    logX: false,
+    logY: false,
+  });
   const [invalid, setInvalid] = useState<Record<string, boolean>>({});
   const invalidDraft = Object.values(invalid).some(Boolean);
   const invalidCallbacks = useMemo(
@@ -1138,6 +1215,7 @@ export default function ModelComparison({
     changeAll(drafts.map((value, i) => (i === index ? draft : value)));
   }
   function useSharedData(analysis: Analysis) {
+    setAxes({ xRange: null, yRange: null, logX: false, logY: false });
     setSelectionHistory([]);
     setInvalid({});
     changeAll(
@@ -1230,7 +1308,13 @@ export default function ModelComparison({
           candidate.settings,
           candidate.result,
           {
-            mode: "linear",
+            mode: axes.logX
+              ? axes.logY
+                ? "log-log"
+                : "log-x"
+              : axes.logY
+                ? "log-y"
+                : "linear",
             xRange,
             yRange,
             showResiduals,
@@ -1689,6 +1773,8 @@ export default function ModelComparison({
           Option/Alt-drag excludes · Selection applies to all models
         </p>
         <ComparisonPlot
+          axes={axes}
+          onAxes={setAxes}
           candidates={
             fitted && !invalidDraft
               ? fitted
@@ -1813,6 +1899,7 @@ export default function ModelComparison({
             {exportSizes && (
               <div className="fit-export-render" aria-hidden="true" inert>
                 <ComparisonPlot
+                  axes={axes}
                   candidates={fitted}
                   showResiduals={showResiduals}
                   showErrorBars={showErrorBars}
@@ -1824,6 +1911,7 @@ export default function ModelComparison({
             {printOpen &&
               createPortal(
                 <ComparisonPrintReport
+                  axes={axes}
                   candidates={fitted}
                   comparison={comparison}
                   showResiduals={showResiduals}

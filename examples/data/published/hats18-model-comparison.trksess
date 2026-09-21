@@ -1,0 +1,3150 @@
+{
+  "request": {
+    "format": "tracker-fit-request",
+    "version": 1,
+    "requestId": "bc0cd3bf-ca8a-4ebc-b95e-9d45c8a9d275",
+    "snapshotId": "89d1a244-0e8f-42be-9020-026579ed1132",
+    "source": {
+      "application": "Published literature example",
+      "version": "Data Tool 2027 example 2026-09-21",
+      "context": "Southworth et al. (2022), A search for transit timing variations in the HATS-18 planetary system, MNRAS 515, 3212; DOI 10.1093/mnras/stac1931; https://arxiv.org/abs/2207.05873. All 32 times and quoted uncertainties from Table 3 are retained, in published row order, including the two TESS sector timings. Original BJD(TDB), uncertainty in days, integer cycle E, and source are preserved in the source table. Plot x = E/1000 and y = 86400 * [T - 2458626.511225 - 0.83784382*E] seconds, using the fixed reference ephemeris in section 4.3. Decimal arithmetic was used for this transformation. Subtracting this fixed line is a change of coordinates: the fitted intercept and slope remain free in every candidate. Models: linear (constant period), quadratic (constant period change per orbit), cubic (changing period evolution). All observations are included; supplied absolute 1-sigma timing uncertainties are used, with Gaussian independence and model adequacy treated as conditional assumptions. Table 4 published AIC = 61.3, 63.1, 62.9 and BIC = 64.2, 67.5, 68.7 (linear, quadratic, cubic). The paper uses chi-squared + 2k and chi-squared + k*ln(n). Data Tool retains Gaussian normalization, so absolute AIC/BIC share a common offset; delta AIC = 0, 1.80685, 1.57571. Reduced chi-squared in Data Tool uses n-k: approximately 1.90983, 1.96903, 1.95967. The paper's linear value 1.79 appears to use chi-squared/n. Parameter uncertainties here retain the supplied absolute sigma scale; the paper inflates ephemeris uncertainties. Linear is preferred modestly by AIC; these rankings do not prove a constant orbital period. SECOND SESSION: Adds two independent El Sauce CDK20 transits observed on 2024-05-08 and 2024-05-29, published by Kutluay et al. (2026), Chasing the Tides, arXiv:2602.01446v1, Tables 2 and 3: https://arxiv.org/html/2602.01446v1 . BJD(TDB) 2460439.60668 +/- 0.00082 d and 2460460.55349 +/- 0.00086 d, corresponding to original ephemeris cycles 2164 and 2189. Both added observations are present and initially unchecked in every candidate; all three fits retain exactly the original 32 selected observations and original parameter values. The newer paper also reanalyses historical and TESS observations; those are not appended here to avoid duplicating or replacing the original sample. Check the two new rows to include them in a subsequent refit. The original sample was not used to estimate or rescale the new timing uncertainties. Companion CSV: hats18-model-comparison.csv. Complete references: [S2022] Southworth, John; Barker, A. J.; Hinse, T. C.; Jongen, Y.; Dominik, M.; Jørgensen, U. G.; Longa-Peña, P.; Sajadian, S.; Snodgrass, C.; Tregloan-Reed, J.; Bach-Møller, N.; Bonavita, M.; Bozza, V.; Burgdorf, M. J.; Jaimes, R. Figuera; Helling, Ch.; Hitchcock, J. A.; Hundertmark, M.; Khalouei, E.; Korhonen, H.; Mancini, L.; Peixinho, N.; Rahvar, S.; Rabus, M.; Skottfelt, J.; Spyratos, P. (2022). A search for transit timing variations in the HATS-18 planetary system. Monthly Notices of the Royal Astronomical Society, 515(3), 3212. DOI: 10.1093/mnras/stac1931. https://doi.org/10.1093/mnras/stac1931 . Data: Table 3; model comparison: Table 4; reference ephemeris: section 4.3. Exact manuscript used: https://arxiv.org/abs/2207.05873v1 . [K2026] Kutluay, A. C.; Baştürk, Ö.; Barker, Adrian J.; Yalçınkaya, S.; Southworth, J.; Selam, S. O.; Şimşir, Ö.; Kaplan, K.; Akar, F.; Ertürk, İ. A.; Zengin, Z.; Akalın, E.; Özsoy, V.; Yaldır, Ö.; İçöz, D.; Mancini, L.; Duru, B.; Tezcan, F.; Özfidan, A.; Umar, U.; Wünsche, A.; Burgdorf, M. J.; Cannon, R. E.; Jaimes, R. J. Figuera; Hinse, T. C.; Okoth, V.; Reed, J. T.; Buğday, E. S.; Akdere, U.; Turan, Y.; Aliş, S.; Tezcan, C. T.; Yelkenci, F. K.; Hajarat, S. (2026). Chasing the Tides: Searching for Orbital Decay Signatures in Transit Timing Data and Tidal Models for 20 Hot Jupiters. arXiv:2602.01446v1, submitted 1 February 2026 (manuscript reports accepted for publication in Publications of the Astronomical Society of the Pacific). DOI: 10.48550/arXiv.2602.01446. https://doi.org/10.48550/arXiv.2602.01446 . Data: Table 3; observing dates/instrument: Table 2 and section III.1.5. Exact manuscript used: https://arxiv.org/html/2602.01446v1 .",
+      "fileName": "hats18-model-comparison.csv"
+    },
+    "dataset": {
+      "id": "hats18-transit-timings-southworth-2022",
+      "label": "HATS-18: original comparison plus two unselected 2024 transits",
+      "xColumn": {
+        "id": "x",
+        "label": "Orbit count / 1000",
+        "unit": "1"
+      },
+      "yColumn": {
+        "id": "y",
+        "label": "Transit O-C",
+        "unit": "s"
+      },
+      "assumptions": {
+        "exactX": "asserted",
+        "gaussianIndependent": "unknown",
+        "correctModel": "unknown"
+      },
+      "rows": [
+        {
+          "id": "hats18-01",
+          "x": -1.451,
+          "y": 21.411648,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-02",
+          "x": -0.945,
+          "y": -31.54464,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-03",
+          "x": -0.864,
+          "y": 23.801472,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-04",
+          "x": -0.845,
+          "y": 11.48256,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-05",
+          "x": -0.839,
+          "y": -24.193728,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-06",
+          "x": -0.814,
+          "y": 19.395072,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-07",
+          "x": -0.488,
+          "y": 22.391424,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-08",
+          "x": -0.469,
+          "y": 33.400512,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-09",
+          "x": -0.463,
+          "y": -6.595776,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-10",
+          "x": -0.457,
+          "y": -30.176064,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-11",
+          "x": -0.438,
+          "y": -66.686976,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-12",
+          "x": -0.432,
+          "y": 64.388736,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-13",
+          "x": -0.401,
+          "y": -21.874752,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-14",
+          "x": -0.054,
+          "y": 32.942592,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-15",
+          "x": -0.007,
+          "y": -31.817664,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-16",
+          "x": 0,
+          "y": -17.712,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-17",
+          "x": 0.012,
+          "y": 37.943424,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-18",
+          "x": 0.325,
+          "y": 14.9904,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-19",
+          "x": 0.282,
+          "y": 100.894464,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-20",
+          "x": 0.307,
+          "y": 40.803264,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-21",
+          "x": 0.331,
+          "y": -34.509888,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-22",
+          "x": 0.387,
+          "y": -85.824576,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-23",
+          "x": 0.413,
+          "y": 77.530176,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-24",
+          "x": 0.425,
+          "y": -112.1904,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-25",
+          "x": 0.487,
+          "y": 90.258624,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-26",
+          "x": 0.795,
+          "y": -23.49216,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-27",
+          "x": 0.689,
+          "y": 91.844928,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-28",
+          "x": 0.863,
+          "y": -8.783424,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-29",
+          "x": 0.875,
+          "y": 12.312,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-30",
+          "x": 0.888,
+          "y": -49.866624,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-31",
+          "x": 0.894,
+          "y": 38.009088,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-32",
+          "x": 0.9,
+          "y": -36.5472,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-new-2024-01",
+          "x": 2.164,
+          "y": 123.424128,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "hats18-new-2024-02",
+          "x": 2.189,
+          "y": 185.156928,
+          "included": true,
+          "missingReason": null
+        }
+      ]
+    },
+    "uncertainty": {
+      "errorStructure": "uncorrelated",
+      "kind": "supplied-per-row",
+      "sigmaByRow": {
+        "hats18-01": 25.92,
+        "hats18-02": 34.56,
+        "hats18-03": 16.416,
+        "hats18-04": 54.432,
+        "hats18-05": 14.688,
+        "hats18-06": 15.552,
+        "hats18-07": 25.056,
+        "hats18-08": 18.144,
+        "hats18-09": 23.328,
+        "hats18-10": 15.552,
+        "hats18-11": 23.328,
+        "hats18-12": 58.752,
+        "hats18-13": 20.736,
+        "hats18-14": 37.152,
+        "hats18-15": 18.144,
+        "hats18-16": 38.88,
+        "hats18-17": 17.28,
+        "hats18-18": 31.104,
+        "hats18-19": 58.752,
+        "hats18-20": 41.472,
+        "hats18-21": 46.656,
+        "hats18-22": 76.032,
+        "hats18-23": 39.744,
+        "hats18-24": 67.392,
+        "hats18-25": 59.616,
+        "hats18-26": 25.056,
+        "hats18-27": 68.256,
+        "hats18-28": 17.28,
+        "hats18-29": 18.144,
+        "hats18-30": 34.56,
+        "hats18-31": 36.288,
+        "hats18-32": 50.112,
+        "hats18-new-2024-01": 70.848,
+        "hats18-new-2024-02": 74.304
+      },
+      "provenance": {
+        "kind": "user-asserted",
+        "description": "Table 3 quoted 1-sigma mid-transit timing uncertainties in days, multiplied by 86400 to obtain seconds; treated as absolute independent Gaussian uncertainties for conditional comparison. No residual-based rescaling. Two added unselected timings use the absolute uncertainties from Kutluay et al. (2026), Table 3, likewise converted from days to seconds."
+      }
+    }
+  },
+  "dataTable": {
+    "cells": [
+      [
+        "Orbit count / 1000",
+        "Transit O-C",
+        "Timing uncertainty",
+        "Orbit count",
+        "Mid-transit BJD(TDB)",
+        "Published timing uncertainty",
+        "Measurement source",
+        "Reference",
+        "Selected in session"
+      ],
+      [
+        "-1.451",
+        "21.411648000",
+        "25.92000",
+        "-1451",
+        "2457410.80009",
+        "0.00030",
+        "This work (Penev et al. 2016 transit)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.945",
+        "-31.544640000",
+        "34.56000",
+        "-945",
+        "2457834.74845",
+        "0.00040",
+        "Patra et al. (2020)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.864",
+        "23.801472000",
+        "16.41600",
+        "-864",
+        "2457902.61444",
+        "0.00019",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.845",
+        "11.482560000",
+        "54.43200",
+        "-845",
+        "2457918.53333",
+        "0.00063",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.839",
+        "-24.193728000",
+        "14.68800",
+        "-839",
+        "2457923.55998",
+        "0.00017",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.814",
+        "19.395072000",
+        "15.55200",
+        "-814",
+        "2457944.50658",
+        "0.00018",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.488",
+        "22.391424000",
+        "25.05600",
+        "-488",
+        "2458217.64370",
+        "0.00029",
+        "Patra et al. (2020)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.469",
+        "33.400512000",
+        "18.14400",
+        "-469",
+        "2458233.56286",
+        "0.00021",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.463",
+        "-6.595776000",
+        "23.32800",
+        "-463",
+        "2458238.58946",
+        "0.00027",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.457",
+        "-30.176064000",
+        "15.55200",
+        "-457",
+        "2458243.61625",
+        "0.00018",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.438",
+        "-66.686976000",
+        "23.32800",
+        "-438",
+        "2458259.53486",
+        "0.00027",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.432",
+        "64.388736000",
+        "58.75200",
+        "-432",
+        "2458264.56344",
+        "0.00068",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.401",
+        "-21.874752000",
+        "20.73600",
+        "-401",
+        "2458290.53560",
+        "0.00024",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.054",
+        "32.942592000",
+        "37.15200",
+        "-54",
+        "2458581.26804",
+        "0.00043",
+        "This work (TESS)",
+        "S2022",
+        "1"
+      ],
+      [
+        "-0.007",
+        "-31.817664000",
+        "18.14400",
+        "-7",
+        "2458620.64595",
+        "0.00021",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.0",
+        "-17.712000000",
+        "38.88000",
+        "0",
+        "2458626.51102",
+        "0.00045",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.012",
+        "37.943424000",
+        "17.28000",
+        "12",
+        "2458636.56579",
+        "0.00020",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.325",
+        "14.990400000",
+        "31.10400",
+        "325",
+        "2458898.81064",
+        "0.00036",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.282",
+        "100.894464000",
+        "58.75200",
+        "282",
+        "2458862.78435",
+        "0.00068",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.307",
+        "40.803264000",
+        "41.47200",
+        "307",
+        "2458883.72975",
+        "0.00048",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.331",
+        "-34.509888000",
+        "46.65600",
+        "331",
+        "2458903.83713",
+        "0.00054",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.387",
+        "-85.824576000",
+        "76.03200",
+        "387",
+        "2458950.75579",
+        "0.00088",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.413",
+        "77.530176000",
+        "39.74400",
+        "413",
+        "2458972.54162",
+        "0.00046",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.425",
+        "-112.190400000",
+        "67.39200",
+        "425",
+        "2458982.59355",
+        "0.00078",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.487",
+        "90.258624000",
+        "59.61600",
+        "487",
+        "2459034.54221",
+        "0.00069",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.795",
+        "-23.492160000",
+        "25.05600",
+        "795",
+        "2459292.59679",
+        "0.00029",
+        "This work (TESS)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.689",
+        "91.844928000",
+        "68.25600",
+        "689",
+        "2459203.78668",
+        "0.00079",
+        "This work (Jongen telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.863",
+        "-8.783424000",
+        "17.28000",
+        "863",
+        "2459349.57034",
+        "0.00020",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.875",
+        "12.312000000",
+        "18.14400",
+        "875",
+        "2459359.62471",
+        "0.00021",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.888",
+        "-49.866624000",
+        "34.56000",
+        "888",
+        "2459370.51596",
+        "0.00040",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.894",
+        "38.009088000",
+        "36.28800",
+        "894",
+        "2459375.54404",
+        "0.00042",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "0.9",
+        "-36.547200000",
+        "50.11200",
+        "900",
+        "2459380.57024",
+        "0.00058",
+        "This work (Danish telescope)",
+        "S2022",
+        "1"
+      ],
+      [
+        "2.164",
+        "123.42412800",
+        "70.84800",
+        "2164",
+        "2460439.60668",
+        "0.00082",
+        "Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-08",
+        "K2026",
+        "0"
+      ],
+      [
+        "2.189",
+        "185.15692800",
+        "74.30400",
+        "2189",
+        "2460460.55349",
+        "0.00086",
+        "Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-29",
+        "K2026",
+        "0"
+      ]
+    ],
+    "rowIds": [
+      "header",
+      "hats18-01",
+      "hats18-02",
+      "hats18-03",
+      "hats18-04",
+      "hats18-05",
+      "hats18-06",
+      "hats18-07",
+      "hats18-08",
+      "hats18-09",
+      "hats18-10",
+      "hats18-11",
+      "hats18-12",
+      "hats18-13",
+      "hats18-14",
+      "hats18-15",
+      "hats18-16",
+      "hats18-17",
+      "hats18-18",
+      "hats18-19",
+      "hats18-20",
+      "hats18-21",
+      "hats18-22",
+      "hats18-23",
+      "hats18-24",
+      "hats18-25",
+      "hats18-26",
+      "hats18-27",
+      "hats18-28",
+      "hats18-29",
+      "hats18-30",
+      "hats18-31",
+      "hats18-32",
+      "hats18-new-2024-01",
+      "hats18-new-2024-02"
+    ],
+    "headerRows": 1,
+    "x": 0,
+    "y": 1,
+    "sigma": 2,
+    "units": [
+      "1",
+      "s",
+      "s",
+      "1",
+      "d",
+      "d",
+      "",
+      "",
+      "1"
+    ]
+  },
+  "settings": {
+    "model": "line",
+    "parameters": [
+      {
+        "value": 0.0041262277923515426,
+        "fixed": false
+      },
+      {
+        "value": -0.3724245566437255,
+        "fixed": false
+      }
+    ],
+    "excludedIds": [
+      "hats18-new-2024-01",
+      "hats18-new-2024-02"
+    ],
+    "conditionalInference": true,
+    "physicalTimeConfirmed": false,
+    "selectionAfterInspection": false
+  },
+  "engine": "qr-vp-sine-2",
+  "format": "tracker-fit-session",
+  "version": 7,
+  "workspace": {
+    "kind": "model-comparison",
+    "candidates": [
+      {
+        "label": "Linear · constant orbital period",
+        "analysis": {
+          "request": {
+            "format": "tracker-fit-request",
+            "version": 1,
+            "requestId": "bc0cd3bf-ca8a-4ebc-b95e-9d45c8a9d275",
+            "snapshotId": "89d1a244-0e8f-42be-9020-026579ed1132",
+            "source": {
+              "application": "Published literature example",
+              "version": "Data Tool 2027 example 2026-09-21",
+              "context": "Southworth et al. (2022), A search for transit timing variations in the HATS-18 planetary system, MNRAS 515, 3212; DOI 10.1093/mnras/stac1931; https://arxiv.org/abs/2207.05873. All 32 times and quoted uncertainties from Table 3 are retained, in published row order, including the two TESS sector timings. Original BJD(TDB), uncertainty in days, integer cycle E, and source are preserved in the source table. Plot x = E/1000 and y = 86400 * [T - 2458626.511225 - 0.83784382*E] seconds, using the fixed reference ephemeris in section 4.3. Decimal arithmetic was used for this transformation. Subtracting this fixed line is a change of coordinates: the fitted intercept and slope remain free in every candidate. Models: linear (constant period), quadratic (constant period change per orbit), cubic (changing period evolution). All observations are included; supplied absolute 1-sigma timing uncertainties are used, with Gaussian independence and model adequacy treated as conditional assumptions. Table 4 published AIC = 61.3, 63.1, 62.9 and BIC = 64.2, 67.5, 68.7 (linear, quadratic, cubic). The paper uses chi-squared + 2k and chi-squared + k*ln(n). Data Tool retains Gaussian normalization, so absolute AIC/BIC share a common offset; delta AIC = 0, 1.80685, 1.57571. Reduced chi-squared in Data Tool uses n-k: approximately 1.90983, 1.96903, 1.95967. The paper's linear value 1.79 appears to use chi-squared/n. Parameter uncertainties here retain the supplied absolute sigma scale; the paper inflates ephemeris uncertainties. Linear is preferred modestly by AIC; these rankings do not prove a constant orbital period. SECOND SESSION: Adds two independent El Sauce CDK20 transits observed on 2024-05-08 and 2024-05-29, published by Kutluay et al. (2026), Chasing the Tides, arXiv:2602.01446v1, Tables 2 and 3: https://arxiv.org/html/2602.01446v1 . BJD(TDB) 2460439.60668 +/- 0.00082 d and 2460460.55349 +/- 0.00086 d, corresponding to original ephemeris cycles 2164 and 2189. Both added observations are present and initially unchecked in every candidate; all three fits retain exactly the original 32 selected observations and original parameter values. The newer paper also reanalyses historical and TESS observations; those are not appended here to avoid duplicating or replacing the original sample. Check the two new rows to include them in a subsequent refit. The original sample was not used to estimate or rescale the new timing uncertainties. Companion CSV: hats18-model-comparison.csv. Complete references: [S2022] Southworth, John; Barker, A. J.; Hinse, T. C.; Jongen, Y.; Dominik, M.; Jørgensen, U. G.; Longa-Peña, P.; Sajadian, S.; Snodgrass, C.; Tregloan-Reed, J.; Bach-Møller, N.; Bonavita, M.; Bozza, V.; Burgdorf, M. J.; Jaimes, R. Figuera; Helling, Ch.; Hitchcock, J. A.; Hundertmark, M.; Khalouei, E.; Korhonen, H.; Mancini, L.; Peixinho, N.; Rahvar, S.; Rabus, M.; Skottfelt, J.; Spyratos, P. (2022). A search for transit timing variations in the HATS-18 planetary system. Monthly Notices of the Royal Astronomical Society, 515(3), 3212. DOI: 10.1093/mnras/stac1931. https://doi.org/10.1093/mnras/stac1931 . Data: Table 3; model comparison: Table 4; reference ephemeris: section 4.3. Exact manuscript used: https://arxiv.org/abs/2207.05873v1 . [K2026] Kutluay, A. C.; Baştürk, Ö.; Barker, Adrian J.; Yalçınkaya, S.; Southworth, J.; Selam, S. O.; Şimşir, Ö.; Kaplan, K.; Akar, F.; Ertürk, İ. A.; Zengin, Z.; Akalın, E.; Özsoy, V.; Yaldır, Ö.; İçöz, D.; Mancini, L.; Duru, B.; Tezcan, F.; Özfidan, A.; Umar, U.; Wünsche, A.; Burgdorf, M. J.; Cannon, R. E.; Jaimes, R. J. Figuera; Hinse, T. C.; Okoth, V.; Reed, J. T.; Buğday, E. S.; Akdere, U.; Turan, Y.; Aliş, S.; Tezcan, C. T.; Yelkenci, F. K.; Hajarat, S. (2026). Chasing the Tides: Searching for Orbital Decay Signatures in Transit Timing Data and Tidal Models for 20 Hot Jupiters. arXiv:2602.01446v1, submitted 1 February 2026 (manuscript reports accepted for publication in Publications of the Astronomical Society of the Pacific). DOI: 10.48550/arXiv.2602.01446. https://doi.org/10.48550/arXiv.2602.01446 . Data: Table 3; observing dates/instrument: Table 2 and section III.1.5. Exact manuscript used: https://arxiv.org/html/2602.01446v1 .",
+              "fileName": "hats18-model-comparison.csv"
+            },
+            "dataset": {
+              "id": "hats18-transit-timings-southworth-2022",
+              "label": "HATS-18: original comparison plus two unselected 2024 transits",
+              "xColumn": {
+                "id": "x",
+                "label": "Orbit count / 1000",
+                "unit": "1"
+              },
+              "yColumn": {
+                "id": "y",
+                "label": "Transit O-C",
+                "unit": "s"
+              },
+              "assumptions": {
+                "exactX": "asserted",
+                "gaussianIndependent": "unknown",
+                "correctModel": "unknown"
+              },
+              "rows": [
+                {
+                  "id": "hats18-01",
+                  "x": -1.451,
+                  "y": 21.411648,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-02",
+                  "x": -0.945,
+                  "y": -31.54464,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-03",
+                  "x": -0.864,
+                  "y": 23.801472,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-04",
+                  "x": -0.845,
+                  "y": 11.48256,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-05",
+                  "x": -0.839,
+                  "y": -24.193728,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-06",
+                  "x": -0.814,
+                  "y": 19.395072,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-07",
+                  "x": -0.488,
+                  "y": 22.391424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-08",
+                  "x": -0.469,
+                  "y": 33.400512,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-09",
+                  "x": -0.463,
+                  "y": -6.595776,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-10",
+                  "x": -0.457,
+                  "y": -30.176064,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-11",
+                  "x": -0.438,
+                  "y": -66.686976,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-12",
+                  "x": -0.432,
+                  "y": 64.388736,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-13",
+                  "x": -0.401,
+                  "y": -21.874752,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-14",
+                  "x": -0.054,
+                  "y": 32.942592,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-15",
+                  "x": -0.007,
+                  "y": -31.817664,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-16",
+                  "x": 0,
+                  "y": -17.712,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-17",
+                  "x": 0.012,
+                  "y": 37.943424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-18",
+                  "x": 0.325,
+                  "y": 14.9904,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-19",
+                  "x": 0.282,
+                  "y": 100.894464,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-20",
+                  "x": 0.307,
+                  "y": 40.803264,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-21",
+                  "x": 0.331,
+                  "y": -34.509888,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-22",
+                  "x": 0.387,
+                  "y": -85.824576,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-23",
+                  "x": 0.413,
+                  "y": 77.530176,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-24",
+                  "x": 0.425,
+                  "y": -112.1904,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-25",
+                  "x": 0.487,
+                  "y": 90.258624,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-26",
+                  "x": 0.795,
+                  "y": -23.49216,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-27",
+                  "x": 0.689,
+                  "y": 91.844928,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-28",
+                  "x": 0.863,
+                  "y": -8.783424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-29",
+                  "x": 0.875,
+                  "y": 12.312,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-30",
+                  "x": 0.888,
+                  "y": -49.866624,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-31",
+                  "x": 0.894,
+                  "y": 38.009088,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-32",
+                  "x": 0.9,
+                  "y": -36.5472,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-new-2024-01",
+                  "x": 2.164,
+                  "y": 123.424128,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-new-2024-02",
+                  "x": 2.189,
+                  "y": 185.156928,
+                  "included": true,
+                  "missingReason": null
+                }
+              ]
+            },
+            "uncertainty": {
+              "errorStructure": "uncorrelated",
+              "kind": "supplied-per-row",
+              "sigmaByRow": {
+                "hats18-01": 25.92,
+                "hats18-02": 34.56,
+                "hats18-03": 16.416,
+                "hats18-04": 54.432,
+                "hats18-05": 14.688,
+                "hats18-06": 15.552,
+                "hats18-07": 25.056,
+                "hats18-08": 18.144,
+                "hats18-09": 23.328,
+                "hats18-10": 15.552,
+                "hats18-11": 23.328,
+                "hats18-12": 58.752,
+                "hats18-13": 20.736,
+                "hats18-14": 37.152,
+                "hats18-15": 18.144,
+                "hats18-16": 38.88,
+                "hats18-17": 17.28,
+                "hats18-18": 31.104,
+                "hats18-19": 58.752,
+                "hats18-20": 41.472,
+                "hats18-21": 46.656,
+                "hats18-22": 76.032,
+                "hats18-23": 39.744,
+                "hats18-24": 67.392,
+                "hats18-25": 59.616,
+                "hats18-26": 25.056,
+                "hats18-27": 68.256,
+                "hats18-28": 17.28,
+                "hats18-29": 18.144,
+                "hats18-30": 34.56,
+                "hats18-31": 36.288,
+                "hats18-32": 50.112,
+                "hats18-new-2024-01": 70.848,
+                "hats18-new-2024-02": 74.304
+              },
+              "provenance": {
+                "kind": "user-asserted",
+                "description": "Table 3 quoted 1-sigma mid-transit timing uncertainties in days, multiplied by 86400 to obtain seconds; treated as absolute independent Gaussian uncertainties for conditional comparison. No residual-based rescaling. Two added unselected timings use the absolute uncertainties from Kutluay et al. (2026), Table 3, likewise converted from days to seconds."
+              }
+            }
+          },
+          "dataTable": {
+            "cells": [
+              [
+                "Orbit count / 1000",
+                "Transit O-C",
+                "Timing uncertainty",
+                "Orbit count",
+                "Mid-transit BJD(TDB)",
+                "Published timing uncertainty",
+                "Measurement source",
+                "Reference",
+                "Selected in session"
+              ],
+              [
+                "-1.451",
+                "21.411648000",
+                "25.92000",
+                "-1451",
+                "2457410.80009",
+                "0.00030",
+                "This work (Penev et al. 2016 transit)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.945",
+                "-31.544640000",
+                "34.56000",
+                "-945",
+                "2457834.74845",
+                "0.00040",
+                "Patra et al. (2020)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.864",
+                "23.801472000",
+                "16.41600",
+                "-864",
+                "2457902.61444",
+                "0.00019",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.845",
+                "11.482560000",
+                "54.43200",
+                "-845",
+                "2457918.53333",
+                "0.00063",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.839",
+                "-24.193728000",
+                "14.68800",
+                "-839",
+                "2457923.55998",
+                "0.00017",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.814",
+                "19.395072000",
+                "15.55200",
+                "-814",
+                "2457944.50658",
+                "0.00018",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.488",
+                "22.391424000",
+                "25.05600",
+                "-488",
+                "2458217.64370",
+                "0.00029",
+                "Patra et al. (2020)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.469",
+                "33.400512000",
+                "18.14400",
+                "-469",
+                "2458233.56286",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.463",
+                "-6.595776000",
+                "23.32800",
+                "-463",
+                "2458238.58946",
+                "0.00027",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.457",
+                "-30.176064000",
+                "15.55200",
+                "-457",
+                "2458243.61625",
+                "0.00018",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.438",
+                "-66.686976000",
+                "23.32800",
+                "-438",
+                "2458259.53486",
+                "0.00027",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.432",
+                "64.388736000",
+                "58.75200",
+                "-432",
+                "2458264.56344",
+                "0.00068",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.401",
+                "-21.874752000",
+                "20.73600",
+                "-401",
+                "2458290.53560",
+                "0.00024",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.054",
+                "32.942592000",
+                "37.15200",
+                "-54",
+                "2458581.26804",
+                "0.00043",
+                "This work (TESS)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.007",
+                "-31.817664000",
+                "18.14400",
+                "-7",
+                "2458620.64595",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.0",
+                "-17.712000000",
+                "38.88000",
+                "0",
+                "2458626.51102",
+                "0.00045",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.012",
+                "37.943424000",
+                "17.28000",
+                "12",
+                "2458636.56579",
+                "0.00020",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.325",
+                "14.990400000",
+                "31.10400",
+                "325",
+                "2458898.81064",
+                "0.00036",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.282",
+                "100.894464000",
+                "58.75200",
+                "282",
+                "2458862.78435",
+                "0.00068",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.307",
+                "40.803264000",
+                "41.47200",
+                "307",
+                "2458883.72975",
+                "0.00048",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.331",
+                "-34.509888000",
+                "46.65600",
+                "331",
+                "2458903.83713",
+                "0.00054",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.387",
+                "-85.824576000",
+                "76.03200",
+                "387",
+                "2458950.75579",
+                "0.00088",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.413",
+                "77.530176000",
+                "39.74400",
+                "413",
+                "2458972.54162",
+                "0.00046",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.425",
+                "-112.190400000",
+                "67.39200",
+                "425",
+                "2458982.59355",
+                "0.00078",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.487",
+                "90.258624000",
+                "59.61600",
+                "487",
+                "2459034.54221",
+                "0.00069",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.795",
+                "-23.492160000",
+                "25.05600",
+                "795",
+                "2459292.59679",
+                "0.00029",
+                "This work (TESS)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.689",
+                "91.844928000",
+                "68.25600",
+                "689",
+                "2459203.78668",
+                "0.00079",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.863",
+                "-8.783424000",
+                "17.28000",
+                "863",
+                "2459349.57034",
+                "0.00020",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.875",
+                "12.312000000",
+                "18.14400",
+                "875",
+                "2459359.62471",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.888",
+                "-49.866624000",
+                "34.56000",
+                "888",
+                "2459370.51596",
+                "0.00040",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.894",
+                "38.009088000",
+                "36.28800",
+                "894",
+                "2459375.54404",
+                "0.00042",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.9",
+                "-36.547200000",
+                "50.11200",
+                "900",
+                "2459380.57024",
+                "0.00058",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "2.164",
+                "123.42412800",
+                "70.84800",
+                "2164",
+                "2460439.60668",
+                "0.00082",
+                "Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-08",
+                "K2026",
+                "0"
+              ],
+              [
+                "2.189",
+                "185.15692800",
+                "74.30400",
+                "2189",
+                "2460460.55349",
+                "0.00086",
+                "Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-29",
+                "K2026",
+                "0"
+              ]
+            ],
+            "rowIds": [
+              "header",
+              "hats18-01",
+              "hats18-02",
+              "hats18-03",
+              "hats18-04",
+              "hats18-05",
+              "hats18-06",
+              "hats18-07",
+              "hats18-08",
+              "hats18-09",
+              "hats18-10",
+              "hats18-11",
+              "hats18-12",
+              "hats18-13",
+              "hats18-14",
+              "hats18-15",
+              "hats18-16",
+              "hats18-17",
+              "hats18-18",
+              "hats18-19",
+              "hats18-20",
+              "hats18-21",
+              "hats18-22",
+              "hats18-23",
+              "hats18-24",
+              "hats18-25",
+              "hats18-26",
+              "hats18-27",
+              "hats18-28",
+              "hats18-29",
+              "hats18-30",
+              "hats18-31",
+              "hats18-32",
+              "hats18-new-2024-01",
+              "hats18-new-2024-02"
+            ],
+            "headerRows": 1,
+            "x": 0,
+            "y": 1,
+            "sigma": 2,
+            "units": [
+              "1",
+              "s",
+              "s",
+              "1",
+              "d",
+              "d",
+              "",
+              "",
+              "1"
+            ]
+          },
+          "settings": {
+            "model": "line",
+            "parameters": [
+              {
+                "value": 0.0041262277923515426,
+                "fixed": false
+              },
+              {
+                "value": -0.3724245566437255,
+                "fixed": false
+              }
+            ],
+            "excludedIds": [
+              "hats18-new-2024-01",
+              "hats18-new-2024-02"
+            ],
+            "conditionalInference": true,
+            "physicalTimeConfirmed": false,
+            "selectionAfterInspection": false
+          },
+          "engine": "qr-vp-sine-2"
+        }
+      },
+      {
+        "label": "Quadratic · changing orbital period",
+        "analysis": {
+          "request": {
+            "format": "tracker-fit-request",
+            "version": 1,
+            "requestId": "bc0cd3bf-ca8a-4ebc-b95e-9d45c8a9d275",
+            "snapshotId": "89d1a244-0e8f-42be-9020-026579ed1132",
+            "source": {
+              "application": "Published literature example",
+              "version": "Data Tool 2027 example 2026-09-21",
+              "context": "Southworth et al. (2022), A search for transit timing variations in the HATS-18 planetary system, MNRAS 515, 3212; DOI 10.1093/mnras/stac1931; https://arxiv.org/abs/2207.05873. All 32 times and quoted uncertainties from Table 3 are retained, in published row order, including the two TESS sector timings. Original BJD(TDB), uncertainty in days, integer cycle E, and source are preserved in the source table. Plot x = E/1000 and y = 86400 * [T - 2458626.511225 - 0.83784382*E] seconds, using the fixed reference ephemeris in section 4.3. Decimal arithmetic was used for this transformation. Subtracting this fixed line is a change of coordinates: the fitted intercept and slope remain free in every candidate. Models: linear (constant period), quadratic (constant period change per orbit), cubic (changing period evolution). All observations are included; supplied absolute 1-sigma timing uncertainties are used, with Gaussian independence and model adequacy treated as conditional assumptions. Table 4 published AIC = 61.3, 63.1, 62.9 and BIC = 64.2, 67.5, 68.7 (linear, quadratic, cubic). The paper uses chi-squared + 2k and chi-squared + k*ln(n). Data Tool retains Gaussian normalization, so absolute AIC/BIC share a common offset; delta AIC = 0, 1.80685, 1.57571. Reduced chi-squared in Data Tool uses n-k: approximately 1.90983, 1.96903, 1.95967. The paper's linear value 1.79 appears to use chi-squared/n. Parameter uncertainties here retain the supplied absolute sigma scale; the paper inflates ephemeris uncertainties. Linear is preferred modestly by AIC; these rankings do not prove a constant orbital period. SECOND SESSION: Adds two independent El Sauce CDK20 transits observed on 2024-05-08 and 2024-05-29, published by Kutluay et al. (2026), Chasing the Tides, arXiv:2602.01446v1, Tables 2 and 3: https://arxiv.org/html/2602.01446v1 . BJD(TDB) 2460439.60668 +/- 0.00082 d and 2460460.55349 +/- 0.00086 d, corresponding to original ephemeris cycles 2164 and 2189. Both added observations are present and initially unchecked in every candidate; all three fits retain exactly the original 32 selected observations and original parameter values. The newer paper also reanalyses historical and TESS observations; those are not appended here to avoid duplicating or replacing the original sample. Check the two new rows to include them in a subsequent refit. The original sample was not used to estimate or rescale the new timing uncertainties. Companion CSV: hats18-model-comparison.csv. Complete references: [S2022] Southworth, John; Barker, A. J.; Hinse, T. C.; Jongen, Y.; Dominik, M.; Jørgensen, U. G.; Longa-Peña, P.; Sajadian, S.; Snodgrass, C.; Tregloan-Reed, J.; Bach-Møller, N.; Bonavita, M.; Bozza, V.; Burgdorf, M. J.; Jaimes, R. Figuera; Helling, Ch.; Hitchcock, J. A.; Hundertmark, M.; Khalouei, E.; Korhonen, H.; Mancini, L.; Peixinho, N.; Rahvar, S.; Rabus, M.; Skottfelt, J.; Spyratos, P. (2022). A search for transit timing variations in the HATS-18 planetary system. Monthly Notices of the Royal Astronomical Society, 515(3), 3212. DOI: 10.1093/mnras/stac1931. https://doi.org/10.1093/mnras/stac1931 . Data: Table 3; model comparison: Table 4; reference ephemeris: section 4.3. Exact manuscript used: https://arxiv.org/abs/2207.05873v1 . [K2026] Kutluay, A. C.; Baştürk, Ö.; Barker, Adrian J.; Yalçınkaya, S.; Southworth, J.; Selam, S. O.; Şimşir, Ö.; Kaplan, K.; Akar, F.; Ertürk, İ. A.; Zengin, Z.; Akalın, E.; Özsoy, V.; Yaldır, Ö.; İçöz, D.; Mancini, L.; Duru, B.; Tezcan, F.; Özfidan, A.; Umar, U.; Wünsche, A.; Burgdorf, M. J.; Cannon, R. E.; Jaimes, R. J. Figuera; Hinse, T. C.; Okoth, V.; Reed, J. T.; Buğday, E. S.; Akdere, U.; Turan, Y.; Aliş, S.; Tezcan, C. T.; Yelkenci, F. K.; Hajarat, S. (2026). Chasing the Tides: Searching for Orbital Decay Signatures in Transit Timing Data and Tidal Models for 20 Hot Jupiters. arXiv:2602.01446v1, submitted 1 February 2026 (manuscript reports accepted for publication in Publications of the Astronomical Society of the Pacific). DOI: 10.48550/arXiv.2602.01446. https://doi.org/10.48550/arXiv.2602.01446 . Data: Table 3; observing dates/instrument: Table 2 and section III.1.5. Exact manuscript used: https://arxiv.org/html/2602.01446v1 .",
+              "fileName": "hats18-model-comparison.csv"
+            },
+            "dataset": {
+              "id": "hats18-transit-timings-southworth-2022",
+              "label": "HATS-18: original comparison plus two unselected 2024 transits",
+              "xColumn": {
+                "id": "x",
+                "label": "Orbit count / 1000",
+                "unit": "1"
+              },
+              "yColumn": {
+                "id": "y",
+                "label": "Transit O-C",
+                "unit": "s"
+              },
+              "assumptions": {
+                "exactX": "asserted",
+                "gaussianIndependent": "unknown",
+                "correctModel": "unknown"
+              },
+              "rows": [
+                {
+                  "id": "hats18-01",
+                  "x": -1.451,
+                  "y": 21.411648,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-02",
+                  "x": -0.945,
+                  "y": -31.54464,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-03",
+                  "x": -0.864,
+                  "y": 23.801472,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-04",
+                  "x": -0.845,
+                  "y": 11.48256,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-05",
+                  "x": -0.839,
+                  "y": -24.193728,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-06",
+                  "x": -0.814,
+                  "y": 19.395072,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-07",
+                  "x": -0.488,
+                  "y": 22.391424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-08",
+                  "x": -0.469,
+                  "y": 33.400512,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-09",
+                  "x": -0.463,
+                  "y": -6.595776,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-10",
+                  "x": -0.457,
+                  "y": -30.176064,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-11",
+                  "x": -0.438,
+                  "y": -66.686976,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-12",
+                  "x": -0.432,
+                  "y": 64.388736,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-13",
+                  "x": -0.401,
+                  "y": -21.874752,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-14",
+                  "x": -0.054,
+                  "y": 32.942592,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-15",
+                  "x": -0.007,
+                  "y": -31.817664,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-16",
+                  "x": 0,
+                  "y": -17.712,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-17",
+                  "x": 0.012,
+                  "y": 37.943424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-18",
+                  "x": 0.325,
+                  "y": 14.9904,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-19",
+                  "x": 0.282,
+                  "y": 100.894464,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-20",
+                  "x": 0.307,
+                  "y": 40.803264,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-21",
+                  "x": 0.331,
+                  "y": -34.509888,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-22",
+                  "x": 0.387,
+                  "y": -85.824576,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-23",
+                  "x": 0.413,
+                  "y": 77.530176,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-24",
+                  "x": 0.425,
+                  "y": -112.1904,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-25",
+                  "x": 0.487,
+                  "y": 90.258624,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-26",
+                  "x": 0.795,
+                  "y": -23.49216,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-27",
+                  "x": 0.689,
+                  "y": 91.844928,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-28",
+                  "x": 0.863,
+                  "y": -8.783424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-29",
+                  "x": 0.875,
+                  "y": 12.312,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-30",
+                  "x": 0.888,
+                  "y": -49.866624,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-31",
+                  "x": 0.894,
+                  "y": 38.009088,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-32",
+                  "x": 0.9,
+                  "y": -36.5472,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-new-2024-01",
+                  "x": 2.164,
+                  "y": 123.424128,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-new-2024-02",
+                  "x": 2.189,
+                  "y": 185.156928,
+                  "included": true,
+                  "missingReason": null
+                }
+              ]
+            },
+            "uncertainty": {
+              "errorStructure": "uncorrelated",
+              "kind": "supplied-per-row",
+              "sigmaByRow": {
+                "hats18-01": 25.92,
+                "hats18-02": 34.56,
+                "hats18-03": 16.416,
+                "hats18-04": 54.432,
+                "hats18-05": 14.688,
+                "hats18-06": 15.552,
+                "hats18-07": 25.056,
+                "hats18-08": 18.144,
+                "hats18-09": 23.328,
+                "hats18-10": 15.552,
+                "hats18-11": 23.328,
+                "hats18-12": 58.752,
+                "hats18-13": 20.736,
+                "hats18-14": 37.152,
+                "hats18-15": 18.144,
+                "hats18-16": 38.88,
+                "hats18-17": 17.28,
+                "hats18-18": 31.104,
+                "hats18-19": 58.752,
+                "hats18-20": 41.472,
+                "hats18-21": 46.656,
+                "hats18-22": 76.032,
+                "hats18-23": 39.744,
+                "hats18-24": 67.392,
+                "hats18-25": 59.616,
+                "hats18-26": 25.056,
+                "hats18-27": 68.256,
+                "hats18-28": 17.28,
+                "hats18-29": 18.144,
+                "hats18-30": 34.56,
+                "hats18-31": 36.288,
+                "hats18-32": 50.112,
+                "hats18-new-2024-01": 70.848,
+                "hats18-new-2024-02": 74.304
+              },
+              "provenance": {
+                "kind": "user-asserted",
+                "description": "Table 3 quoted 1-sigma mid-transit timing uncertainties in days, multiplied by 86400 to obtain seconds; treated as absolute independent Gaussian uncertainties for conditional comparison. No residual-based rescaling. Two added unselected timings use the absolute uncertainties from Kutluay et al. (2026), Table 3, likewise converted from days to seconds."
+              }
+            }
+          },
+          "dataTable": {
+            "cells": [
+              [
+                "Orbit count / 1000",
+                "Transit O-C",
+                "Timing uncertainty",
+                "Orbit count",
+                "Mid-transit BJD(TDB)",
+                "Published timing uncertainty",
+                "Measurement source",
+                "Reference",
+                "Selected in session"
+              ],
+              [
+                "-1.451",
+                "21.411648000",
+                "25.92000",
+                "-1451",
+                "2457410.80009",
+                "0.00030",
+                "This work (Penev et al. 2016 transit)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.945",
+                "-31.544640000",
+                "34.56000",
+                "-945",
+                "2457834.74845",
+                "0.00040",
+                "Patra et al. (2020)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.864",
+                "23.801472000",
+                "16.41600",
+                "-864",
+                "2457902.61444",
+                "0.00019",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.845",
+                "11.482560000",
+                "54.43200",
+                "-845",
+                "2457918.53333",
+                "0.00063",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.839",
+                "-24.193728000",
+                "14.68800",
+                "-839",
+                "2457923.55998",
+                "0.00017",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.814",
+                "19.395072000",
+                "15.55200",
+                "-814",
+                "2457944.50658",
+                "0.00018",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.488",
+                "22.391424000",
+                "25.05600",
+                "-488",
+                "2458217.64370",
+                "0.00029",
+                "Patra et al. (2020)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.469",
+                "33.400512000",
+                "18.14400",
+                "-469",
+                "2458233.56286",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.463",
+                "-6.595776000",
+                "23.32800",
+                "-463",
+                "2458238.58946",
+                "0.00027",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.457",
+                "-30.176064000",
+                "15.55200",
+                "-457",
+                "2458243.61625",
+                "0.00018",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.438",
+                "-66.686976000",
+                "23.32800",
+                "-438",
+                "2458259.53486",
+                "0.00027",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.432",
+                "64.388736000",
+                "58.75200",
+                "-432",
+                "2458264.56344",
+                "0.00068",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.401",
+                "-21.874752000",
+                "20.73600",
+                "-401",
+                "2458290.53560",
+                "0.00024",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.054",
+                "32.942592000",
+                "37.15200",
+                "-54",
+                "2458581.26804",
+                "0.00043",
+                "This work (TESS)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.007",
+                "-31.817664000",
+                "18.14400",
+                "-7",
+                "2458620.64595",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.0",
+                "-17.712000000",
+                "38.88000",
+                "0",
+                "2458626.51102",
+                "0.00045",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.012",
+                "37.943424000",
+                "17.28000",
+                "12",
+                "2458636.56579",
+                "0.00020",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.325",
+                "14.990400000",
+                "31.10400",
+                "325",
+                "2458898.81064",
+                "0.00036",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.282",
+                "100.894464000",
+                "58.75200",
+                "282",
+                "2458862.78435",
+                "0.00068",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.307",
+                "40.803264000",
+                "41.47200",
+                "307",
+                "2458883.72975",
+                "0.00048",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.331",
+                "-34.509888000",
+                "46.65600",
+                "331",
+                "2458903.83713",
+                "0.00054",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.387",
+                "-85.824576000",
+                "76.03200",
+                "387",
+                "2458950.75579",
+                "0.00088",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.413",
+                "77.530176000",
+                "39.74400",
+                "413",
+                "2458972.54162",
+                "0.00046",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.425",
+                "-112.190400000",
+                "67.39200",
+                "425",
+                "2458982.59355",
+                "0.00078",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.487",
+                "90.258624000",
+                "59.61600",
+                "487",
+                "2459034.54221",
+                "0.00069",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.795",
+                "-23.492160000",
+                "25.05600",
+                "795",
+                "2459292.59679",
+                "0.00029",
+                "This work (TESS)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.689",
+                "91.844928000",
+                "68.25600",
+                "689",
+                "2459203.78668",
+                "0.00079",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.863",
+                "-8.783424000",
+                "17.28000",
+                "863",
+                "2459349.57034",
+                "0.00020",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.875",
+                "12.312000000",
+                "18.14400",
+                "875",
+                "2459359.62471",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.888",
+                "-49.866624000",
+                "34.56000",
+                "888",
+                "2459370.51596",
+                "0.00040",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.894",
+                "38.009088000",
+                "36.28800",
+                "894",
+                "2459375.54404",
+                "0.00042",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.9",
+                "-36.547200000",
+                "50.11200",
+                "900",
+                "2459380.57024",
+                "0.00058",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "2.164",
+                "123.42412800",
+                "70.84800",
+                "2164",
+                "2460439.60668",
+                "0.00082",
+                "Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-08",
+                "K2026",
+                "0"
+              ],
+              [
+                "2.189",
+                "185.15692800",
+                "74.30400",
+                "2189",
+                "2460460.55349",
+                "0.00086",
+                "Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-29",
+                "K2026",
+                "0"
+              ]
+            ],
+            "rowIds": [
+              "header",
+              "hats18-01",
+              "hats18-02",
+              "hats18-03",
+              "hats18-04",
+              "hats18-05",
+              "hats18-06",
+              "hats18-07",
+              "hats18-08",
+              "hats18-09",
+              "hats18-10",
+              "hats18-11",
+              "hats18-12",
+              "hats18-13",
+              "hats18-14",
+              "hats18-15",
+              "hats18-16",
+              "hats18-17",
+              "hats18-18",
+              "hats18-19",
+              "hats18-20",
+              "hats18-21",
+              "hats18-22",
+              "hats18-23",
+              "hats18-24",
+              "hats18-25",
+              "hats18-26",
+              "hats18-27",
+              "hats18-28",
+              "hats18-29",
+              "hats18-30",
+              "hats18-31",
+              "hats18-32",
+              "hats18-new-2024-01",
+              "hats18-new-2024-02"
+            ],
+            "headerRows": 1,
+            "x": 0,
+            "y": 1,
+            "sigma": 2,
+            "units": [
+              "1",
+              "s",
+              "s",
+              "1",
+              "d",
+              "d",
+              "",
+              "",
+              "1"
+            ]
+          },
+          "settings": {
+            "model": "quadratic",
+            "parameters": [
+              {
+                "value": -2.0832159142523676,
+                "fixed": false
+              },
+              {
+                "value": 0.2212376582167474,
+                "fixed": false
+              },
+              {
+                "value": 4.771206962619232,
+                "fixed": false
+              }
+            ],
+            "excludedIds": [
+              "hats18-new-2024-01",
+              "hats18-new-2024-02"
+            ],
+            "conditionalInference": true,
+            "physicalTimeConfirmed": false,
+            "selectionAfterInspection": false
+          },
+          "engine": "qr-vp-sine-2"
+        }
+      },
+      {
+        "label": "Cubic · evolving period change",
+        "analysis": {
+          "request": {
+            "format": "tracker-fit-request",
+            "version": 1,
+            "requestId": "bc0cd3bf-ca8a-4ebc-b95e-9d45c8a9d275",
+            "snapshotId": "89d1a244-0e8f-42be-9020-026579ed1132",
+            "source": {
+              "application": "Published literature example",
+              "version": "Data Tool 2027 example 2026-09-21",
+              "context": "Southworth et al. (2022), A search for transit timing variations in the HATS-18 planetary system, MNRAS 515, 3212; DOI 10.1093/mnras/stac1931; https://arxiv.org/abs/2207.05873. All 32 times and quoted uncertainties from Table 3 are retained, in published row order, including the two TESS sector timings. Original BJD(TDB), uncertainty in days, integer cycle E, and source are preserved in the source table. Plot x = E/1000 and y = 86400 * [T - 2458626.511225 - 0.83784382*E] seconds, using the fixed reference ephemeris in section 4.3. Decimal arithmetic was used for this transformation. Subtracting this fixed line is a change of coordinates: the fitted intercept and slope remain free in every candidate. Models: linear (constant period), quadratic (constant period change per orbit), cubic (changing period evolution). All observations are included; supplied absolute 1-sigma timing uncertainties are used, with Gaussian independence and model adequacy treated as conditional assumptions. Table 4 published AIC = 61.3, 63.1, 62.9 and BIC = 64.2, 67.5, 68.7 (linear, quadratic, cubic). The paper uses chi-squared + 2k and chi-squared + k*ln(n). Data Tool retains Gaussian normalization, so absolute AIC/BIC share a common offset; delta AIC = 0, 1.80685, 1.57571. Reduced chi-squared in Data Tool uses n-k: approximately 1.90983, 1.96903, 1.95967. The paper's linear value 1.79 appears to use chi-squared/n. Parameter uncertainties here retain the supplied absolute sigma scale; the paper inflates ephemeris uncertainties. Linear is preferred modestly by AIC; these rankings do not prove a constant orbital period. SECOND SESSION: Adds two independent El Sauce CDK20 transits observed on 2024-05-08 and 2024-05-29, published by Kutluay et al. (2026), Chasing the Tides, arXiv:2602.01446v1, Tables 2 and 3: https://arxiv.org/html/2602.01446v1 . BJD(TDB) 2460439.60668 +/- 0.00082 d and 2460460.55349 +/- 0.00086 d, corresponding to original ephemeris cycles 2164 and 2189. Both added observations are present and initially unchecked in every candidate; all three fits retain exactly the original 32 selected observations and original parameter values. The newer paper also reanalyses historical and TESS observations; those are not appended here to avoid duplicating or replacing the original sample. Check the two new rows to include them in a subsequent refit. The original sample was not used to estimate or rescale the new timing uncertainties. Companion CSV: hats18-model-comparison.csv. Complete references: [S2022] Southworth, John; Barker, A. J.; Hinse, T. C.; Jongen, Y.; Dominik, M.; Jørgensen, U. G.; Longa-Peña, P.; Sajadian, S.; Snodgrass, C.; Tregloan-Reed, J.; Bach-Møller, N.; Bonavita, M.; Bozza, V.; Burgdorf, M. J.; Jaimes, R. Figuera; Helling, Ch.; Hitchcock, J. A.; Hundertmark, M.; Khalouei, E.; Korhonen, H.; Mancini, L.; Peixinho, N.; Rahvar, S.; Rabus, M.; Skottfelt, J.; Spyratos, P. (2022). A search for transit timing variations in the HATS-18 planetary system. Monthly Notices of the Royal Astronomical Society, 515(3), 3212. DOI: 10.1093/mnras/stac1931. https://doi.org/10.1093/mnras/stac1931 . Data: Table 3; model comparison: Table 4; reference ephemeris: section 4.3. Exact manuscript used: https://arxiv.org/abs/2207.05873v1 . [K2026] Kutluay, A. C.; Baştürk, Ö.; Barker, Adrian J.; Yalçınkaya, S.; Southworth, J.; Selam, S. O.; Şimşir, Ö.; Kaplan, K.; Akar, F.; Ertürk, İ. A.; Zengin, Z.; Akalın, E.; Özsoy, V.; Yaldır, Ö.; İçöz, D.; Mancini, L.; Duru, B.; Tezcan, F.; Özfidan, A.; Umar, U.; Wünsche, A.; Burgdorf, M. J.; Cannon, R. E.; Jaimes, R. J. Figuera; Hinse, T. C.; Okoth, V.; Reed, J. T.; Buğday, E. S.; Akdere, U.; Turan, Y.; Aliş, S.; Tezcan, C. T.; Yelkenci, F. K.; Hajarat, S. (2026). Chasing the Tides: Searching for Orbital Decay Signatures in Transit Timing Data and Tidal Models for 20 Hot Jupiters. arXiv:2602.01446v1, submitted 1 February 2026 (manuscript reports accepted for publication in Publications of the Astronomical Society of the Pacific). DOI: 10.48550/arXiv.2602.01446. https://doi.org/10.48550/arXiv.2602.01446 . Data: Table 3; observing dates/instrument: Table 2 and section III.1.5. Exact manuscript used: https://arxiv.org/html/2602.01446v1 .",
+              "fileName": "hats18-model-comparison.csv"
+            },
+            "dataset": {
+              "id": "hats18-transit-timings-southworth-2022",
+              "label": "HATS-18: original comparison plus two unselected 2024 transits",
+              "xColumn": {
+                "id": "x",
+                "label": "Orbit count / 1000",
+                "unit": "1"
+              },
+              "yColumn": {
+                "id": "y",
+                "label": "Transit O-C",
+                "unit": "s"
+              },
+              "assumptions": {
+                "exactX": "asserted",
+                "gaussianIndependent": "unknown",
+                "correctModel": "unknown"
+              },
+              "rows": [
+                {
+                  "id": "hats18-01",
+                  "x": -1.451,
+                  "y": 21.411648,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-02",
+                  "x": -0.945,
+                  "y": -31.54464,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-03",
+                  "x": -0.864,
+                  "y": 23.801472,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-04",
+                  "x": -0.845,
+                  "y": 11.48256,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-05",
+                  "x": -0.839,
+                  "y": -24.193728,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-06",
+                  "x": -0.814,
+                  "y": 19.395072,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-07",
+                  "x": -0.488,
+                  "y": 22.391424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-08",
+                  "x": -0.469,
+                  "y": 33.400512,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-09",
+                  "x": -0.463,
+                  "y": -6.595776,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-10",
+                  "x": -0.457,
+                  "y": -30.176064,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-11",
+                  "x": -0.438,
+                  "y": -66.686976,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-12",
+                  "x": -0.432,
+                  "y": 64.388736,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-13",
+                  "x": -0.401,
+                  "y": -21.874752,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-14",
+                  "x": -0.054,
+                  "y": 32.942592,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-15",
+                  "x": -0.007,
+                  "y": -31.817664,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-16",
+                  "x": 0,
+                  "y": -17.712,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-17",
+                  "x": 0.012,
+                  "y": 37.943424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-18",
+                  "x": 0.325,
+                  "y": 14.9904,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-19",
+                  "x": 0.282,
+                  "y": 100.894464,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-20",
+                  "x": 0.307,
+                  "y": 40.803264,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-21",
+                  "x": 0.331,
+                  "y": -34.509888,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-22",
+                  "x": 0.387,
+                  "y": -85.824576,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-23",
+                  "x": 0.413,
+                  "y": 77.530176,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-24",
+                  "x": 0.425,
+                  "y": -112.1904,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-25",
+                  "x": 0.487,
+                  "y": 90.258624,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-26",
+                  "x": 0.795,
+                  "y": -23.49216,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-27",
+                  "x": 0.689,
+                  "y": 91.844928,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-28",
+                  "x": 0.863,
+                  "y": -8.783424,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-29",
+                  "x": 0.875,
+                  "y": 12.312,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-30",
+                  "x": 0.888,
+                  "y": -49.866624,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-31",
+                  "x": 0.894,
+                  "y": 38.009088,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-32",
+                  "x": 0.9,
+                  "y": -36.5472,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-new-2024-01",
+                  "x": 2.164,
+                  "y": 123.424128,
+                  "included": true,
+                  "missingReason": null
+                },
+                {
+                  "id": "hats18-new-2024-02",
+                  "x": 2.189,
+                  "y": 185.156928,
+                  "included": true,
+                  "missingReason": null
+                }
+              ]
+            },
+            "uncertainty": {
+              "errorStructure": "uncorrelated",
+              "kind": "supplied-per-row",
+              "sigmaByRow": {
+                "hats18-01": 25.92,
+                "hats18-02": 34.56,
+                "hats18-03": 16.416,
+                "hats18-04": 54.432,
+                "hats18-05": 14.688,
+                "hats18-06": 15.552,
+                "hats18-07": 25.056,
+                "hats18-08": 18.144,
+                "hats18-09": 23.328,
+                "hats18-10": 15.552,
+                "hats18-11": 23.328,
+                "hats18-12": 58.752,
+                "hats18-13": 20.736,
+                "hats18-14": 37.152,
+                "hats18-15": 18.144,
+                "hats18-16": 38.88,
+                "hats18-17": 17.28,
+                "hats18-18": 31.104,
+                "hats18-19": 58.752,
+                "hats18-20": 41.472,
+                "hats18-21": 46.656,
+                "hats18-22": 76.032,
+                "hats18-23": 39.744,
+                "hats18-24": 67.392,
+                "hats18-25": 59.616,
+                "hats18-26": 25.056,
+                "hats18-27": 68.256,
+                "hats18-28": 17.28,
+                "hats18-29": 18.144,
+                "hats18-30": 34.56,
+                "hats18-31": 36.288,
+                "hats18-32": 50.112,
+                "hats18-new-2024-01": 70.848,
+                "hats18-new-2024-02": 74.304
+              },
+              "provenance": {
+                "kind": "user-asserted",
+                "description": "Table 3 quoted 1-sigma mid-transit timing uncertainties in days, multiplied by 86400 to obtain seconds; treated as absolute independent Gaussian uncertainties for conditional comparison. No residual-based rescaling. Two added unselected timings use the absolute uncertainties from Kutluay et al. (2026), Table 3, likewise converted from days to seconds."
+              }
+            }
+          },
+          "dataTable": {
+            "cells": [
+              [
+                "Orbit count / 1000",
+                "Transit O-C",
+                "Timing uncertainty",
+                "Orbit count",
+                "Mid-transit BJD(TDB)",
+                "Published timing uncertainty",
+                "Measurement source",
+                "Reference",
+                "Selected in session"
+              ],
+              [
+                "-1.451",
+                "21.411648000",
+                "25.92000",
+                "-1451",
+                "2457410.80009",
+                "0.00030",
+                "This work (Penev et al. 2016 transit)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.945",
+                "-31.544640000",
+                "34.56000",
+                "-945",
+                "2457834.74845",
+                "0.00040",
+                "Patra et al. (2020)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.864",
+                "23.801472000",
+                "16.41600",
+                "-864",
+                "2457902.61444",
+                "0.00019",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.845",
+                "11.482560000",
+                "54.43200",
+                "-845",
+                "2457918.53333",
+                "0.00063",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.839",
+                "-24.193728000",
+                "14.68800",
+                "-839",
+                "2457923.55998",
+                "0.00017",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.814",
+                "19.395072000",
+                "15.55200",
+                "-814",
+                "2457944.50658",
+                "0.00018",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.488",
+                "22.391424000",
+                "25.05600",
+                "-488",
+                "2458217.64370",
+                "0.00029",
+                "Patra et al. (2020)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.469",
+                "33.400512000",
+                "18.14400",
+                "-469",
+                "2458233.56286",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.463",
+                "-6.595776000",
+                "23.32800",
+                "-463",
+                "2458238.58946",
+                "0.00027",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.457",
+                "-30.176064000",
+                "15.55200",
+                "-457",
+                "2458243.61625",
+                "0.00018",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.438",
+                "-66.686976000",
+                "23.32800",
+                "-438",
+                "2458259.53486",
+                "0.00027",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.432",
+                "64.388736000",
+                "58.75200",
+                "-432",
+                "2458264.56344",
+                "0.00068",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.401",
+                "-21.874752000",
+                "20.73600",
+                "-401",
+                "2458290.53560",
+                "0.00024",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.054",
+                "32.942592000",
+                "37.15200",
+                "-54",
+                "2458581.26804",
+                "0.00043",
+                "This work (TESS)",
+                "S2022",
+                "1"
+              ],
+              [
+                "-0.007",
+                "-31.817664000",
+                "18.14400",
+                "-7",
+                "2458620.64595",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.0",
+                "-17.712000000",
+                "38.88000",
+                "0",
+                "2458626.51102",
+                "0.00045",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.012",
+                "37.943424000",
+                "17.28000",
+                "12",
+                "2458636.56579",
+                "0.00020",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.325",
+                "14.990400000",
+                "31.10400",
+                "325",
+                "2458898.81064",
+                "0.00036",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.282",
+                "100.894464000",
+                "58.75200",
+                "282",
+                "2458862.78435",
+                "0.00068",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.307",
+                "40.803264000",
+                "41.47200",
+                "307",
+                "2458883.72975",
+                "0.00048",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.331",
+                "-34.509888000",
+                "46.65600",
+                "331",
+                "2458903.83713",
+                "0.00054",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.387",
+                "-85.824576000",
+                "76.03200",
+                "387",
+                "2458950.75579",
+                "0.00088",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.413",
+                "77.530176000",
+                "39.74400",
+                "413",
+                "2458972.54162",
+                "0.00046",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.425",
+                "-112.190400000",
+                "67.39200",
+                "425",
+                "2458982.59355",
+                "0.00078",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.487",
+                "90.258624000",
+                "59.61600",
+                "487",
+                "2459034.54221",
+                "0.00069",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.795",
+                "-23.492160000",
+                "25.05600",
+                "795",
+                "2459292.59679",
+                "0.00029",
+                "This work (TESS)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.689",
+                "91.844928000",
+                "68.25600",
+                "689",
+                "2459203.78668",
+                "0.00079",
+                "This work (Jongen telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.863",
+                "-8.783424000",
+                "17.28000",
+                "863",
+                "2459349.57034",
+                "0.00020",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.875",
+                "12.312000000",
+                "18.14400",
+                "875",
+                "2459359.62471",
+                "0.00021",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.888",
+                "-49.866624000",
+                "34.56000",
+                "888",
+                "2459370.51596",
+                "0.00040",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.894",
+                "38.009088000",
+                "36.28800",
+                "894",
+                "2459375.54404",
+                "0.00042",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "0.9",
+                "-36.547200000",
+                "50.11200",
+                "900",
+                "2459380.57024",
+                "0.00058",
+                "This work (Danish telescope)",
+                "S2022",
+                "1"
+              ],
+              [
+                "2.164",
+                "123.42412800",
+                "70.84800",
+                "2164",
+                "2460439.60668",
+                "0.00082",
+                "Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-08",
+                "K2026",
+                "0"
+              ],
+              [
+                "2.189",
+                "185.15692800",
+                "74.30400",
+                "2189",
+                "2460460.55349",
+                "0.00086",
+                "Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-29",
+                "K2026",
+                "0"
+              ]
+            ],
+            "rowIds": [
+              "header",
+              "hats18-01",
+              "hats18-02",
+              "hats18-03",
+              "hats18-04",
+              "hats18-05",
+              "hats18-06",
+              "hats18-07",
+              "hats18-08",
+              "hats18-09",
+              "hats18-10",
+              "hats18-11",
+              "hats18-12",
+              "hats18-13",
+              "hats18-14",
+              "hats18-15",
+              "hats18-16",
+              "hats18-17",
+              "hats18-18",
+              "hats18-19",
+              "hats18-20",
+              "hats18-21",
+              "hats18-22",
+              "hats18-23",
+              "hats18-24",
+              "hats18-25",
+              "hats18-26",
+              "hats18-27",
+              "hats18-28",
+              "hats18-29",
+              "hats18-30",
+              "hats18-31",
+              "hats18-32",
+              "hats18-new-2024-01",
+              "hats18-new-2024-02"
+            ],
+            "headerRows": 1,
+            "x": 0,
+            "y": 1,
+            "sigma": 2,
+            "units": [
+              "1",
+              "s",
+              "s",
+              "1",
+              "d",
+              "d",
+              "",
+              "",
+              "1"
+            ]
+          },
+          "settings": {
+            "model": "cubic",
+            "parameters": [
+              {
+                "value": 5.212361884355172,
+                "fixed": false
+              },
+              {
+                "value": 19.372335897833747,
+                "fixed": false
+              },
+              {
+                "value": -10.533413333773664,
+                "fixed": false
+              },
+              {
+                "value": -25.034737944383764,
+                "fixed": false
+              }
+            ],
+            "excludedIds": [
+              "hats18-new-2024-01",
+              "hats18-new-2024-02"
+            ],
+            "conditionalInference": true,
+            "physicalTimeConfirmed": false,
+            "selectionAfterInspection": false
+          },
+          "engine": "qr-vp-sine-2"
+        }
+      }
+    ],
+    "activeCandidate": 0
+  },
+  "view": {
+    "showResiduals": true,
+    "showGuides": false,
+    "showErrorBars": true
+  }
+}

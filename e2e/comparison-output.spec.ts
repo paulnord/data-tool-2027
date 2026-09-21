@@ -56,6 +56,21 @@ test("comparison toolbar copies reduced chi-squared, shows supplied errors, and 
     exact: true,
   });
   await expect(graph.locator(".comparison-error-bar")).toHaveCount(61);
+  const firstPoint = graph.locator(".comparison-point").first();
+  const rowId = await firstPoint.getAttribute("data-row-id");
+  await page.locator(".comparison-observations summary").click();
+  await page.getByLabel(`Include ${rowId}`, { exact: true }).uncheck();
+  await page
+    .getByRole("button", { name: "Refit and compare", exact: true })
+    .click();
+  await expect(
+    page.locator(".model-comparison").getByRole("status"),
+  ).toHaveText("Comparison complete");
+  await expect(firstPoint).toHaveAttribute("data-included", "false");
+  await expect(graph.locator(".comparison-error-bar")).toHaveCount(61);
+  await expect(
+    table.locator("tbody tr").first().locator("td").first(),
+  ).toHaveText("60");
   const before = await table.innerText();
   await page
     .getByRole("checkbox", { name: "Show y error bars (±1σ)", exact: true })

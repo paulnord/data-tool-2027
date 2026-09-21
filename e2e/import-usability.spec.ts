@@ -91,12 +91,11 @@ test("Data actions remain visible while editing at 200 percent and Examples need
   await expect(
     data.getByRole("tab", { name: "Synthetic data (14)", exact: true }),
   ).toBeVisible();
-  await expect(
-    data.getByRole("tab", {
-      name: `Published studies (${publishedStudyCatalog.length})`,
-      exact: true,
-    }),
-  ).toBeVisible();
+  const publishedTab = data.getByRole("tab", {
+    name: `Published studies (${publishedStudyCatalog.length})`,
+    exact: true,
+  });
+  await expect(publishedTab).toBeVisible();
   await expect(
     data.getByText("Scroll for more examples ↓", { exact: true }),
   ).toBeVisible();
@@ -117,9 +116,7 @@ test("Data actions remain visible while editing at 200 percent and Examples need
   await expect(
     data.getByText("Scroll for more examples ↓", { exact: true }),
   ).toBeHidden();
-  await data
-    .getByRole("tab", { name: "Published studies (15)", exact: true })
-    .click();
+  await publishedTab.click();
   await expect(
     data.getByText(
       "Badges compare the documented calculation with the publication.",
@@ -131,19 +128,16 @@ test("Data actions remain visible while editing at 200 percent and Examples need
     data.getByRole("tab", { name: "Synthetic data (14)", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("ArrowRight");
+  await expect(publishedTab).toBeFocused();
   await expect(
-    data.getByRole("tab", { name: "Published studies (15)", exact: true }),
-  ).toBeFocused();
-  await expect(popover.getByRole("menuitem").first()).toContainText(
-    "BESIII continuum",
-  );
-  await expect(popover.getByRole("menuitem").first()).toContainText(
-    "Reproduced",
-  );
-  await expect(popover.getByRole("menuitem").nth(1)).toContainText(
-    "ASASSN-14li radio",
-  );
-  await expect(popover.getByRole("menuitem").nth(1)).toContainText("Close");
+    popover.getByRole("menuitem", { name: /HATS-18 transit timing/ }),
+  ).toContainText("Comparison");
+  await expect(
+    popover.getByRole("menuitem", { name: /BESIII continuum/ }),
+  ).toContainText("Reproduced");
+  await expect(
+    popover.getByRole("menuitem", { name: /ASASSN-14li radio/ }),
+  ).toContainText("Close");
   await expect(
     popover.getByRole("menuitem", { name: /ASASSN-14li X-ray/ }),
   ).toContainText("Not reproduced");

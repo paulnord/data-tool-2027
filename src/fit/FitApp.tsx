@@ -157,6 +157,7 @@ import pwnEdotExample from "../../examples/data/published/pwn-luminosity-vs-edot
 import supercooledWaterExample from "../../examples/data/published/supercooled-water-viscosity.trksess?raw";
 import ymno3Example from "../../examples/data/published/ymno3-spin-precession.trksess?raw";
 import dyfeo3Example from "../../examples/data/published/dyfeo3-spin-wave.trksess?raw";
+import eotwashExample from "../../examples/data/published/eotwash-model-comparison.trksess?raw";
 import { publishedStudyCatalog } from "./publishedCatalog";
 
 const examples = [
@@ -189,6 +190,7 @@ const publishedExampleContents: Record<
   "besiii-ppbarpi0-continuum.trksess": besiiiExample,
   "cri-rydberg.trksess": chromiumExample,
   "dyfeo3-spin-wave.trksess": dyfeo3Example,
+  "eotwash-model-comparison.trksess": eotwashExample,
   "ion-chamber-wall-thick.trksess": ionChamberThickExample,
   "ion-chamber-wall-thin.trksess": ionChamberThinExample,
   "pulsar-luminosity-vs-blc.trksess": pulsarBlcExample,

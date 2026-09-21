@@ -2,7 +2,7 @@
 
 These examples connect ordinary CSV files with published measurements and documented calculations. The application groups them as **Published studies**; “published” describes the provenance of the observations, not a claim that every Data Tool result reproduces the publication. Each study is assigned one of the five statuses below so that a close comparison, a deliberately different calculation and an unresolved discrepancy are not presented as equivalent validation evidence.
 
-This directory contains 15 studies. Fourteen have a CSV, a configured `.trksess` companion and an individual documentation page. The photon-index/temperature study has a CSV and documentation but no configured fit session because the publication used a method that Data Tool does not implement. The files accompany the downloadable example archive and desktop Examples directory.
+This directory contains 16 studies. Fifteen have a CSV, a configured `.trksess` companion and an individual documentation page. The Eöt-Wash session opens a four-candidate model comparison directly. The photon-index/temperature study has a CSV and documentation but no configured fit session because the publication used a method that Data Tool does not implement. The files accompany the downloadable example archive and desktop Examples directory.
 
 ## Reproduction statuses
 
@@ -14,6 +14,7 @@ This directory contains 15 studies. Fourteen have a CSV, a configured `.trksess`
 
 | Status | Dataset | Review result | Documentation or data |
 | --- | --- | --- | --- |
+| Comparison | Eöt-Wash residual torques | Four-model comparison; three published AICc entries agree after applying the paper's correction, with documented free-phase and exponential-parameter discrepancies | [Gravity comparison](eotwash-model-comparison.md) |
 | Reproduced | BESIII p pbar pi0 continuum | Nonlinear power-law parameters, errors and chi-square agree within published precision | [BESIII continuum](besiii-ppbarpi0-continuum.md) |
 | Close | ASASSN-14li radio | Parameters are close; statistics and standard-error scaling conventions differ slightly | [Radio](asassn14li-radio.md) |
 | Close | Chromium Rydberg series | Parameters and statistic are close with the precise fixed Rydberg constant; common systematic error remains separate | [Chromium](cri-rydberg.md) |

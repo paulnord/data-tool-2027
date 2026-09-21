@@ -12,6 +12,11 @@ export type PublishedStudy = {
 // independent solver; the other labels describe comparison with the paper.
 export const publishedStudyCatalog = [
   {
+    label: "Eöt-Wash gravity · model comparison",
+    fileName: "eotwash-model-comparison.trksess",
+    status: "Comparison",
+  },
+  {
     label: "BESIII continuum",
     fileName: "besiii-ppbarpi0-continuum.trksess",
     status: "Reproduced",

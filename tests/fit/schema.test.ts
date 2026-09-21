@@ -116,7 +116,7 @@ it("every bundled example is a valid current session, including independent JSON
     recursive: true,
     encoding: "utf8",
   }).filter((p) => p.endsWith(".trksess"));
-  expect(paths).toHaveLength(40);
+  expect(paths).toHaveLength(41);
   for (const path of paths) {
     const session = file(`examples/${path}`);
     expect(sessionSchema.safeParse(session).success, path).toBe(true);

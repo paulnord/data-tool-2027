@@ -12,6 +12,11 @@ export type PublishedStudy = {
 // independent solver; the other labels describe comparison with the paper.
 export const publishedStudyCatalog = [
   {
+    label: "HATS-18 transit timing · model comparison",
+    fileName: "hats18-model-comparison.trksess",
+    status: "Comparison",
+  },
+  {
     label: "Eöt-Wash gravity · model comparison",
     fileName: "eotwash-model-comparison.trksess",
     status: "Comparison",

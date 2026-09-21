@@ -1,0 +1,51 @@
+# HATS-18 transit timing model comparison: 32 original observations plus 2 later observations.
+# [S2022] Southworth, John; Barker, A. J.; Hinse, T. C.; Jongen, Y.; Dominik, M.; Jørgensen, U. G.; Longa-Peña, P.; Sajadian, S.; Snodgrass, C.; Tregloan-Reed, J.; Bach-Møller, N.; Bonavita, M.; Bozza, V.; Burgdorf, M. J.; Jaimes, R. Figuera; Helling, Ch.; Hitchcock, J. A.; Hundertmark, M.; Khalouei, E.; Korhonen, H.; Mancini, L.; Peixinho, N.; Rahvar, S.; Rabus, M.; Skottfelt, J.; Spyratos, P. (2022). A search for transit timing variations in the HATS-18 planetary system. Monthly Notices of the Royal Astronomical Society, 515(3), 3212. DOI: 10.1093/mnras/stac1931. https://doi.org/10.1093/mnras/stac1931 . Data: Table 3; model comparison: Table 4; reference ephemeris: section 4.3. Exact manuscript used: https://arxiv.org/abs/2207.05873v1 .
+# [K2026] Kutluay, A. C.; Baştürk, Ö.; Barker, Adrian J.; Yalçınkaya, S.; Southworth, J.; Selam, S. O.; Şimşir, Ö.; Kaplan, K.; Akar, F.; Ertürk, İ. A.; Zengin, Z.; Akalın, E.; Özsoy, V.; Yaldır, Ö.; İçöz, D.; Mancini, L.; Duru, B.; Tezcan, F.; Özfidan, A.; Umar, U.; Wünsche, A.; Burgdorf, M. J.; Cannon, R. E.; Jaimes, R. J. Figuera; Hinse, T. C.; Okoth, V.; Reed, J. T.; Buğday, E. S.; Akdere, U.; Turan, Y.; Aliş, S.; Tezcan, C. T.; Yelkenci, F. K.; Hajarat, S. (2026). Chasing the Tides: Searching for Orbital Decay Signatures in Transit Timing Data and Tidal Models for 20 Hot Jupiters. arXiv:2602.01446v1, submitted 1 February 2026 (manuscript reports accepted for publication in Publications of the Astronomical Society of the Pacific). DOI: 10.48550/arXiv.2602.01446. https://doi.org/10.48550/arXiv.2602.01446 . Data: Table 3; observing dates/instrument: Table 2 and section III.1.5. Exact manuscript used: https://arxiv.org/html/2602.01446v1 .
+# Accessed 2026-09-21. Published mid-transit times and 1-sigma uncertainties, not raw light-curve photometry.
+# S2022: all 32 rows of Table 3, in printed order. 18 Danish, 9 Jongen, 2 TESS sector timings, 2 Patra (2020), and 1 reanalysed Penev (2016) transit.
+# K2026: two El Sauce 50 cm CDK20 observations, 2024-05-08 and 2024-05-29. No historical or TESS reanalyses appended.
+# All original times are BJD(TDB), uncertainties in days. Original decimal tokens preserved in columns 5 and 6.
+# Plot coordinates: x=E/1000; y=86400*(BJD_TDB-2458626.511225-0.83784382*E) seconds; sigma_y=86400*sigma_days.
+# E is the S2022 orbit count. New cycles 2164 and 2189 are calculated by rounding (BJD_TDB-2458626.511225)/0.83784382.
+# The fixed reference line is a coordinate transformation. Intercept and slope remain free in all fitted candidates.
+# The companion .trksess opens linear/quadratic/cubic comparison; original 32 selected, the final 2 unchecked in every candidate.
+# Selected in session is descriptive metadata. Importing this CSV alone does not restore selection or model comparison; open the .trksess.
+# Known absolute sigma; Gaussian independence and candidate adequacy are conditional assumptions. No residual-based sigma rescaling.
+# S2022 AIC=61.3,63.1,62.9 and BIC=64.2,67.5,68.7 use chi2+penalty. Data Tool includes Gaussian normalization, a common offset.
+# Reduced chi2 uses n-k. S2022 reports 1.79 for the line, apparently chi2/n; this session gives 1.909834.
+# See hats18-model-comparison.md for numerical targets, assumptions, and source details.
+Orbit count / 1000,Transit O-C,Timing uncertainty,Orbit count,Mid-transit BJD(TDB),Published timing uncertainty,Measurement source,Reference,Selected in session
+-1.451,21.411648000,25.92000,-1451,2457410.80009,0.00030,This work (Penev et al. 2016 transit),S2022,1
+-0.945,-31.544640000,34.56000,-945,2457834.74845,0.00040,Patra et al. (2020),S2022,1
+-0.864,23.801472000,16.41600,-864,2457902.61444,0.00019,This work (Danish telescope),S2022,1
+-0.845,11.482560000,54.43200,-845,2457918.53333,0.00063,This work (Danish telescope),S2022,1
+-0.839,-24.193728000,14.68800,-839,2457923.55998,0.00017,This work (Danish telescope),S2022,1
+-0.814,19.395072000,15.55200,-814,2457944.50658,0.00018,This work (Danish telescope),S2022,1
+-0.488,22.391424000,25.05600,-488,2458217.64370,0.00029,Patra et al. (2020),S2022,1
+-0.469,33.400512000,18.14400,-469,2458233.56286,0.00021,This work (Danish telescope),S2022,1
+-0.463,-6.595776000,23.32800,-463,2458238.58946,0.00027,This work (Danish telescope),S2022,1
+-0.457,-30.176064000,15.55200,-457,2458243.61625,0.00018,This work (Danish telescope),S2022,1
+-0.438,-66.686976000,23.32800,-438,2458259.53486,0.00027,This work (Danish telescope),S2022,1
+-0.432,64.388736000,58.75200,-432,2458264.56344,0.00068,This work (Danish telescope),S2022,1
+-0.401,-21.874752000,20.73600,-401,2458290.53560,0.00024,This work (Danish telescope),S2022,1
+-0.054,32.942592000,37.15200,-54,2458581.26804,0.00043,This work (TESS),S2022,1
+-0.007,-31.817664000,18.14400,-7,2458620.64595,0.00021,This work (Danish telescope),S2022,1
+0.0,-17.712000000,38.88000,0,2458626.51102,0.00045,This work (Danish telescope),S2022,1
+0.012,37.943424000,17.28000,12,2458636.56579,0.00020,This work (Danish telescope),S2022,1
+0.325,14.990400000,31.10400,325,2458898.81064,0.00036,This work (Jongen telescope),S2022,1
+0.282,100.894464000,58.75200,282,2458862.78435,0.00068,This work (Jongen telescope),S2022,1
+0.307,40.803264000,41.47200,307,2458883.72975,0.00048,This work (Jongen telescope),S2022,1
+0.331,-34.509888000,46.65600,331,2458903.83713,0.00054,This work (Jongen telescope),S2022,1
+0.387,-85.824576000,76.03200,387,2458950.75579,0.00088,This work (Jongen telescope),S2022,1
+0.413,77.530176000,39.74400,413,2458972.54162,0.00046,This work (Jongen telescope),S2022,1
+0.425,-112.190400000,67.39200,425,2458982.59355,0.00078,This work (Jongen telescope),S2022,1
+0.487,90.258624000,59.61600,487,2459034.54221,0.00069,This work (Jongen telescope),S2022,1
+0.795,-23.492160000,25.05600,795,2459292.59679,0.00029,This work (TESS),S2022,1
+0.689,91.844928000,68.25600,689,2459203.78668,0.00079,This work (Jongen telescope),S2022,1
+0.863,-8.783424000,17.28000,863,2459349.57034,0.00020,This work (Danish telescope),S2022,1
+0.875,12.312000000,18.14400,875,2459359.62471,0.00021,This work (Danish telescope),S2022,1
+0.888,-49.866624000,34.56000,888,2459370.51596,0.00040,This work (Danish telescope),S2022,1
+0.894,38.009088000,36.28800,894,2459375.54404,0.00042,This work (Danish telescope),S2022,1
+0.9,-36.547200000,50.11200,900,2459380.57024,0.00058,This work (Danish telescope),S2022,1
+2.164,123.42412800,70.84800,2164,2460439.60668,0.00082,"Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-08",K2026,0
+2.189,185.15692800,74.30400,2189,2460460.55349,0.00086,"Kutluay et al. (2026), Table 3; El Sauce CDK20; 2024-05-29",K2026,0

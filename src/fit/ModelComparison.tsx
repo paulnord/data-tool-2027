@@ -246,7 +246,8 @@ function ComparisonPlot({
   const errorBars = showErrorBars
     ? suppliedYErrorBars(candidates[0].request)
     : { bars: [], unavailable: 0 };
-  const bars = errorBars.bars.filter((bar) => includedIds.has(bar.id));
+  // Measurement uncertainties remain meaningful when a row is excluded from fitting.
+  const bars = errorBars.bars;
   const { logX, logY } = axes;
   const visibleObservations = observations.filter(
     (row) => (!logX || row.x > 0) && (!logY || row.y > 0),

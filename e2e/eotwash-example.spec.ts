@@ -50,7 +50,10 @@ test("gravity session opens all four comparison models with Advanced off", async
     .click();
   await expect(plot).toHaveAttribute("data-x-min", "0.06");
   await expect(plot).toHaveAttribute("data-x-max", "0.5");
-  await page.getByLabel("Log X", { exact: true }).check();
+  await page
+    .locator(".comparison-workspace > .comparison-plot-wrap")
+    .getByLabel("Log X", { exact: true })
+    .check();
   await expect(plot).toHaveAttribute("data-x-scale", "log");
   await page.getByLabel("Comparison Y axis", { exact: true }).click();
   await page.getByLabel("Comparison Y minimum", { exact: true }).fill("-0.02");
@@ -61,7 +64,10 @@ test("gravity session opens all four comparison models with Advanced off", async
     .click();
   await expect(plot).toHaveAttribute("data-y-min", "-0.02");
   await expect(plot).toHaveAttribute("data-y-max", "0.02");
-  await page.getByLabel("Log Y", { exact: true }).check();
+  await page
+    .locator(".comparison-workspace > .comparison-plot-wrap")
+    .getByLabel("Log Y", { exact: true })
+    .check();
   await expect(plot).toHaveAttribute("data-y-scale", "log");
   await expect(
     page.getByText(/nonpositive observation\(s\) cannot be shown/),

@@ -1,4 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
+import { publishedStudyCatalog } from "../src/fit/publishedCatalog";
 
 async function paste(cell: Locator, text: string) {
   await cell.evaluate((input, value) => {
@@ -91,7 +92,10 @@ test("Data actions remain visible while editing at 200 percent and Examples need
     data.getByRole("tab", { name: "Synthetic data (14)", exact: true }),
   ).toBeVisible();
   await expect(
-    data.getByRole("tab", { name: "Published studies (15)", exact: true }),
+    data.getByRole("tab", {
+      name: `Published studies (${publishedStudyCatalog.length})`,
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     data.getByText("Scroll for more examples ↓", { exact: true }),

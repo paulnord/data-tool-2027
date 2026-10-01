@@ -436,6 +436,8 @@ export const multiIntervalWorkspaceSchema = workspaceDisplaySchema.extend({
   x: columnIndexSchema,
   columns: z.array(columnIndexSchema).min(1).max(4),
   ...workspaceUncertainty,
+  uncertainty: z.enum(["estimate", "supplied", "column"]),
+  sigmaColumns: z.array(columnIndexSchema.nullable()).min(1).max(4).optional(),
   intervals: z
     .array(
       z
@@ -556,6 +558,48 @@ export const sessionSchema = sessionObjectSchema.superRefine((s, ctx) => {
     if (w.before[1] >= w.after[0])
       fail("Collision intervals must be separated and ordered");
     return;
+  }
+  if (
+    w.sigmaColumns &&
+    (w.sigmaColumns.length !== w.columns.length ||
+      w.sigmaColumns.some((column) => column !== null && column >= width))
+  )
+    fail(
+      "Each data series requires an available uncertainty column assignment",
+    );
+  if (w.uncertainty === "column") {
+    if (
+      !w.sigmaColumns ||
+      w.sigmaColumns.some(
+        (column) =>
+          column === null ||
+          selected.includes(column) ||
+          column === s.dataTable!.label,
+      )
+    )
+      fail(
+        "Choose an uncertainty column separate from X and Y for every data series",
+      );
+    else {
+      try {
+        for (const row of s.dataTable.cells.slice(s.dataTable.headerRows)) {
+          w.columns.forEach((column, i) => {
+            const sigma = numericCell(row[w.sigmaColumns![i]!] ?? "");
+            if (
+              (sigma !== null && sigma <= 0) ||
+              (sigma === null &&
+                numericCell(row[x] ?? "") !== null &&
+                numericCell(row[column] ?? "") !== null)
+            )
+              throw Error("Invalid uncertainty");
+          });
+        }
+      } catch {
+        fail(
+          "Uncertainty columns require finite positive values for complete observations",
+        );
+      }
+    }
   }
   if (
     w.intervalCount > w.intervals.length ||

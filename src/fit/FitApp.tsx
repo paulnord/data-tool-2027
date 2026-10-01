@@ -3067,6 +3067,11 @@ export default function FitApp() {
               }
               open={multiOpen}
               showGuides={showGuides}
+              showErrorBars={showErrorBars}
+              onErrorBarsChange={(show) => {
+                viewChanged();
+                setShowErrorBars(show);
+              }}
               showResiduals={showResiduals}
               exportSizes={multiOpen ? exportRender?.sizes : undefined}
               ref={multiActions}

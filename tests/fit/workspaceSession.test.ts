@@ -258,3 +258,29 @@ it("collision sessions validate channel assignments and ordered separated window
   collision.workspace.after = [0.5, 3];
   expect(sessionSchema.safeParse(collision).success).toBe(false);
 });
+
+it("round trips active and retained interval uncertainty columns and rejects invalid active data", () => {
+  const s = multiSession();
+  if (s.workspace.kind !== "multi-interval") throw Error("Wrong workspace");
+  const w = s.workspace;
+  s.dataTable!.cells.forEach((row, i) =>
+    row.push(i ? String(i / 1000) : "sigma"),
+  );
+  s.dataTable!.units.push("m");
+  w.uncertainty = "column";
+  w.sigmaColumns = [2];
+  expect(sessionSchema.parse(JSON.parse(JSON.stringify(s)))).toEqual(s);
+  for (const sigmaColumns of [undefined, [null], [0], [1], [99], []]) {
+    expect(
+      sessionSchema.safeParse({ ...s, workspace: { ...w, sigmaColumns } })
+        .success,
+    ).toBe(false);
+  }
+  for (const value of ["", "0", "-1", "bad"]) {
+    const invalid = structuredClone(s);
+    invalid.dataTable!.cells[1][2] = value;
+    expect(sessionSchema.safeParse(invalid).success).toBe(false);
+  }
+  w.uncertainty = "estimate";
+  expect(sessionSchema.parse(JSON.parse(JSON.stringify(s)))).toEqual(s);
+});

@@ -471,3 +471,88 @@ test("canceling session review or keeping unsaved intervals preserves their setu
     "2.6",
   );
 });
+
+test("multi-interval column errors control fits, reports, error bars and saved sessions", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/");
+  await page
+    .locator('input[type="file"]')
+    .first()
+    .setInputFiles({
+      name: "weighted-intervals.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        "x,y,sigma\n0,1,0.1\n1,4,1\n2,5,0.2\n3,7,0.3\n4,12,2\n5,11,0.1\n",
+      ),
+    });
+  await page
+    .getByRole("button", { name: "Use these data", exact: true })
+    .click();
+  await page
+    .getByLabel("Analysis tools", { exact: true })
+    .selectOption("multi-interval");
+  const workspace = page.getByRole("region", {
+    name: "Multi-interval analysis",
+    exact: true,
+  });
+  await page
+    .getByLabel("Interval uncertainty model", { exact: true })
+    .selectOption("column");
+  const selector = page.getByLabel("Interval Y uncertainty column", {
+    exact: true,
+  });
+  await selector.selectOption("2");
+  const bars = workspace.locator('.interval-graphs [data-error-bar="true"]');
+  await expect(bars).toHaveCount(6);
+  await expect(bars.locator("title").first()).toContainText("±0.1");
+  await page.getByLabel("Interval from", { exact: true }).fill("0");
+  await page.getByLabel("Interval to", { exact: true }).fill("2");
+  await page
+    .getByRole("button", { name: "Fit Interval 1", exact: true })
+    .click();
+  await expect(workspace.getByRole("status")).toHaveText(
+    "Interval 1: fit complete",
+  );
+  await expect(bars).toHaveCount(6);
+  const toggle = workspace.getByRole("checkbox", {
+    name: "Show supplied error bars (±1σ)",
+    exact: true,
+  });
+  await toggle.uncheck();
+  await expect(bars).toHaveCount(0);
+  await toggle.check();
+  await page.getByRole("button", { name: "Copy report", exact: true }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(
+    "sigma_y\tweight (1/sigma_y^2)",
+  );
+  const saved = await save(page);
+  expect(saved.workspace.uncertainty).toBe("column");
+  expect(saved.workspace.sigmaColumns).toEqual([2]);
+  await load(page, saved);
+  await expect(
+    page.getByLabel("Interval uncertainty model", { exact: true }),
+  ).toHaveValue("column");
+  await expect(selector).toHaveValue("2");
+  await expect(bars).toHaveCount(6);
+  expect(await save(page)).toEqual(saved);
+  await page
+    .getByLabel("Interval uncertainty model", { exact: true })
+    .selectOption("estimate");
+  await expect(bars).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Fit Interval 1", exact: true })
+    .click();
+  await expect(workspace.getByRole("status")).toHaveText(
+    "Interval 1: fit complete",
+  );
+  await page.getByRole("button", { name: "Copy report", exact: true }).click();
+  expect(
+    await page.evaluate(() => navigator.clipboard.readText()),
+  ).not.toContain("sigma_y");
+  const inactive = await save(page);
+  expect(inactive.workspace.sigmaColumns).toEqual([2]);
+  expect(inactive.workspace.uncertainty).toBe("estimate");
+});

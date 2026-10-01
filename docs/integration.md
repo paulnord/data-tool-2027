@@ -67,8 +67,10 @@ open:
   fixed-center Taylor, or fixed-center/fixed-scale Chebyshev representation;
   a fixed-period Fourier model declares its harmonic count, period, and origin.
   All built-in and custom equations use the same settings schema and file version.
-- `multi-interval`: X/Y assignments, uncertainty mode and retained common sigmas,
-  assumption acceptance, interval names/ranges, and fit settings. New workspaces
+- `multi-interval`: X/Y assignments, uncertainty mode, retained common sigmas and optional uncertainty-column assignments,
+  assumption acceptance, interval names/ranges, and fit settings. `uncertainty: "column"`
+  uses one `sigmaColumns` entry per Y series as absolute per-row standard deviations;
+  common and estimated modes do not use the retained column assignments. New workspaces
   contain one Y series. Existing v7 multi-series arrays and their active series
   index remain valid and are preserved on import/save. Hidden interval slots are
   retained; the active interval restores its selected controls.

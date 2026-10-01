@@ -46,9 +46,17 @@ it("retains rectangular parameter and observation tables around the statistics b
   expect(Number(sections[1][3][1])).toBe(f.coefficients[2]);
   expect(sections[2][0]).toEqual(["Statistic", "Value"]);
   expect(sections[2].every((row) => row.length === 2)).toBe(true);
-  expect(sections[3][0]).toEqual(["Row", "x", "y", "predicted", "residual"]);
+  expect(sections[3][0]).toEqual([
+    "Row",
+    "x",
+    "y",
+    "predicted",
+    "residual",
+    "sigma_y",
+    "weight (1/sigma_y^2)",
+  ]);
   expect(sections[3]).toHaveLength(62);
-  expect(sections[3].every((row) => row.length === 5)).toBe(true);
+  expect(sections[3].every((row) => row.length === 7)).toBe(true);
   expect(Number(sections[3][1][4])).toBe(f.residuals[0].residual);
   expect(tsv).not.toContain("observation.");
   expect(tsv).not.toContain("parameter.a.value");
@@ -92,6 +100,8 @@ it("numbers observations by original input position while preserving stable iden
     result.residuals[1].y,
     result.residuals[1].predicted,
     result.residuals[1].residual,
+    0.02,
+    2500,
   ]);
   expect(result.residuals[1].id).toBe("specimen-A");
   expect(JSON.stringify({ session, result })).toBe(before);
@@ -109,7 +119,15 @@ it("uses imported row labels in the observation report without exposing stable I
   const result = fit(request, s);
   const table = fitReportTable(request, s, result);
   const start = table.findIndex((row) => row[0] === "Label");
-  expect(table[start]).toEqual(["Label", "x", "y", "predicted", "residual"]);
+  expect(table[start]).toEqual([
+    "Label",
+    "x",
+    "y",
+    "predicted",
+    "residual",
+    "sigma_y",
+    "weight (1/sigma_y^2)",
+  ]);
   expect(table[start + 1][0]).toBe("Trial A");
   expect(JSON.stringify(table)).not.toContain(request.dataset.rows[0].id);
 });
@@ -130,6 +148,8 @@ it("does not invent an input association for an unknown residual identity", () =
     unmatched.residuals[0].y,
     unmatched.residuals[0].predicted,
     unmatched.residuals[0].residual,
+    0.02,
+    2500,
   ]);
 });
 it("keeps unavailable statistics empty with separate explanations and quotes cell text", () => {
@@ -213,7 +233,7 @@ it("copies filename and multiline provenance into adjacent spreadsheet cells", (
     );
 
   expect(
-    rows.slice(start + 1, start + 62).every((row) => row.length === 5),
+    rows.slice(start + 1, start + 62).every((row) => row.length === 7),
   ).toBe(true);
   expect(Number(rows[start + 1][4])).toBe(result.residuals[0].residual);
   r.source.context = '=HYPERLINK("example")';
@@ -264,4 +284,51 @@ it("uses the saved session basename only for generically named pasted datasets",
       "another.trksess",
     ).request.dataset.label,
   ).toBe("Pasted data");
+});
+
+it("exports active per-row weights by identity after exclusions and omits retained inactive weights", () => {
+  const request = syntheticRequest();
+  const s = settings();
+  const uncertainty = {
+    kind: "supplied-per-row" as const,
+    errorStructure: "uncorrelated" as const,
+    provenance: {
+      kind: "user-asserted" as const,
+      description: "Measured uncertainties",
+    },
+    sigmaByRow: Object.fromEntries(
+      request.dataset.rows.map((row, i) => [row.id, (i + 1) / 8]),
+    ),
+  };
+  request.uncertainty = uncertainty;
+  request.dataset.rows[0].included = false;
+  s.excludedIds = [request.dataset.rows[2].id];
+  const result = fit(request, s);
+  const rows = parseDelimited(fitReportTsv(request, s, result), "\t");
+  const start = rows.findIndex((row) => row[0] === "Row");
+  expect(rows[start + 1].slice(5)).toEqual(["0.25", "16"]);
+  expect(rows[start + 2].slice(5)).toEqual(["0.5", "4"]);
+  const objective = rows
+    .slice(start + 1, start + 1 + result.n)
+    .reduce((sum, row) => sum + Number(row[6]) * Number(row[4]) ** 2, 0);
+  expect(objective).toBeCloseTo(result.weightedObjective.value!, 10);
+  expect(
+    fitReportTsv(request, s, result, { observations: false }),
+  ).not.toContain("sigma_y");
+
+  s.retainedPerRowUncertainty = uncertainty;
+  request.uncertainty = {
+    kind: "unknown-equal",
+    errorStructure: "uncorrelated",
+  };
+  const unweighted = fitReportTable(request, s, fit(request, s));
+  const header = unweighted.findIndex((row) => row[0] === "Row");
+  expect(unweighted[header]).toEqual([
+    "Row",
+    "x",
+    "y",
+    "predicted",
+    "residual",
+  ]);
+  expect(unweighted[header + 1]).toHaveLength(5);
 });

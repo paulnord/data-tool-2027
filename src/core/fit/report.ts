@@ -111,6 +111,18 @@ export function fitReportTable(
   const hasRowLabels = request.dataset.rows.some(
     (row) => row.label !== undefined,
   );
+  const uncertainty = request.uncertainty;
+  const hasWeights = uncertainty.kind !== "unknown-equal";
+  const weightingCells = (id: string): Cell[] => {
+    if (!hasWeights) return [];
+    const sigma =
+      uncertainty.kind === "supplied-common"
+        ? uncertainty.sigmaY
+        : uncertainty.kind === "supplied-per-row"
+          ? uncertainty.sigmaByRow[id]
+          : undefined;
+    return [sigma ?? null, sigma === undefined ? null : (1 / sigma) ** 2];
+  };
   const derived = fitDerivedQuantities(request, settings, result);
   const equations: Record<string, string> = {
     ...(Object.fromEntries(
@@ -287,13 +299,21 @@ export function fitReportTable(
     ["Statistic", "Value"],
     ...fitReportRows(request, settings, result).map((row) => [...row]),
     [],
-    [hasRowLabels ? "Label" : "Row", "x", "y", "predicted", "residual"],
+    [
+      hasRowLabels ? "Label" : "Row",
+      "x",
+      "y",
+      "predicted",
+      "residual",
+      ...(hasWeights ? ["sigma_y", "weight (1/sigma_y^2)"] : []),
+    ],
     ...result.residuals.map((row) => [
       rowLabels.get(row.id) ?? rowNumbers.get(row.id) ?? null,
       row.x,
       row.y,
       row.predicted,
       row.residual,
+      ...weightingCells(row.id),
     ]),
     [],
     ...fitCorrelationMatrix(settings, result),

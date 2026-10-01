@@ -254,3 +254,81 @@ it("copies full reports side by side with blank columns and intact quoted metada
     "Unavailable",
   );
 });
+
+it("fits each interval with column uncertainties matched by stable row identity", () => {
+  const t: DataTable = {
+    cells: [
+      ["x", "y", "sigma"],
+      ["0", "1", "0.1"],
+      ["1", "4", "1"],
+      ["2", "5", "0.2"],
+      ["3", "7", "0.3"],
+      ["4", "12", "2"],
+      ["5", "11", "0.1"],
+    ],
+    rowIds: ["header", "a", "b", "c", "d", "e", "f"],
+    headerRows: 1,
+    x: 0,
+    y: 1,
+    sigma: null,
+    units: ["s", "m", "m"],
+  };
+  const source = analysisFromTable(t, "Weighted intervals");
+  const c = config();
+  c.sigmaColumns = [2];
+  c.intervals[0].range = [0, 2];
+  c.intervals[1].range = [3, 5];
+  const before = JSON.stringify({ source, c });
+  for (const i of [0, 1]) {
+    const entry = fitInterval(source, c, i)[0];
+    expect(entry.error).toBeNull();
+    expect(entry.request.uncertainty).toMatchObject({
+      kind: "supplied-per-row",
+      sigmaByRow: { a: 0.1, b: 1, c: 0.2, d: 0.3, e: 2, f: 0.1 },
+    });
+    const rows = t.cells
+      .slice(1 + i * 3, 4 + i * 3)
+      .map((row) => row.map(Number));
+    const sum = (fn: (x: number, y: number, w: number) => number) =>
+      rows.reduce(
+        (total, [x, y, sigma]) => total + fn(x, y, 1 / sigma ** 2),
+        0,
+      );
+    const sw = sum((_x, _y, w) => w),
+      sx = sum((x, _y, w) => w * x),
+      sy = sum((_x, y, w) => w * y);
+    const slope =
+      (sw * sum((x, y, w) => w * x * y) - sx * sy) /
+      (sw * sum((x, _y, w) => w * x * x) - sx * sx);
+    expect(entry.result!.coefficients[1]).toBeCloseTo(slope, 10);
+    expect(entry.result!.coefficients[0]).toBeCloseTo(
+      (sy - slope * sx) / sw,
+      10,
+    );
+    expect(entry.result!.n).toBe(3);
+    const unweighted = fitInterval(
+      source,
+      { ...c, sigmaColumns: undefined },
+      i,
+    )[0];
+    expect(entry.result!.coefficients[1]).not.toBeCloseTo(
+      unweighted.result!.coefficients[1],
+      3,
+    );
+  }
+  const report = intervalReport(c, [
+    fitInterval(source, c, 0),
+    fitInterval(source, c, 1),
+  ]);
+  expect(report).toContain("sigma_y\tweight (1/sigma_y^2)");
+  expect(JSON.stringify({ source, c })).toBe(before);
+  for (const sigmaColumns of [[null], [0], [1], [99], []])
+    expect(() => intervalRequests(source, { ...c, sigmaColumns })).toThrow(
+      /uncertainty column/,
+    );
+  for (const invalid of ["", "0", "-1", "not a number"]) {
+    const bad = structuredClone(source);
+    bad.dataTable!.cells[1][2] = invalid;
+    expect(() => intervalRequests(bad, c)).toThrow();
+  }
+});

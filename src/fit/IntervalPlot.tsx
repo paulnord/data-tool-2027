@@ -4,6 +4,7 @@ import { modelGuideValues } from "../core/fit/modelGuides";
 import { AxisControls, YAxisControls, useYRange } from "./YAxisControls";
 import { useId, useRef, useState } from "react";
 import type { FitRequest } from "../core/fit/schema";
+import { suppliedYErrorBars } from "../core/fit/errorBars";
 import type {
   IntervalDefinition,
   IntervalFit,
@@ -28,6 +29,7 @@ export function IntervalPlot({
   dataDomain = domain,
   residual = false,
   showGuides = false,
+  showErrorBars = true,
   height: requestedHeight,
   colors: requestedColors,
   onRange,
@@ -47,6 +49,7 @@ export function IntervalPlot({
   dataDomain?: IntervalRange;
   residual?: boolean;
   showGuides?: boolean;
+  showErrorBars?: boolean;
   height?: number;
   colors?: string[];
   onRange?: (range: IntervalRange) => void;
@@ -80,12 +83,19 @@ export function IntervalPlot({
       null,
     );
   const [selection, setSelection] = useState<IntervalRange | null>(null);
+  const errorBars = new Map(
+    (residual || !showErrorBars ? [] : suppliedYErrorBars(request).bars).map(
+      (bar) => [bar.id, bar],
+    ),
+  );
   const points = residual
     ? results.flatMap(
         (r, i) =>
           r?.result?.residuals.map((p) => ({
+            id: p.id,
             x: p.x,
             y: p.residual,
+            sigma: 0,
             interval: i,
           })) ?? [],
       )
@@ -94,8 +104,10 @@ export function IntervalPlot({
           ? []
           : [
               {
+                id: r.id,
                 x: r.x,
                 y: r.y,
+                sigma: errorBars.get(r.id)?.sigma ?? 0,
                 interval: intervals.findIndex(
                   (s) => s.range && r.x! >= s.range[0] && r.x! <= s.range[1],
                 ),
@@ -169,12 +181,8 @@ export function IntervalPlot({
         ),
       )
     : 6;
-  const sigma =
-    !residual && request.uncertainty.kind === "supplied-common"
-      ? request.uncertainty.sigmaY
-      : 0;
   const values = [
-    ...points.flatMap((p) => [p.y - sigma, p.y + sigma]),
+    ...points.flatMap((p) => [p.y - p.sigma, p.y + p.sigma]),
     ...curves.flatMap((curve) =>
       curve
         ? [
@@ -482,15 +490,20 @@ export function IntervalPlot({
               fill={colors[p.interval] ?? "var(--plot-outside-color, #9baab6)"}
               color={colors[p.interval] ?? "var(--plot-outside-color, #9baab6)"}
             >
-              {sigma > 0 && (
-                <line
-                  x1={x(p.x)}
-                  x2={x(p.x)}
-                  y1={y(p.y - sigma)}
-                  y2={y(p.y + sigma)}
+              {p.sigma > 0 && (
+                <path
+                  data-error-bar="true"
+                  data-row-id={p.id}
+                  className="interval-error-bar"
+                  d={`M${x(p.x)},${y(p.y - p.sigma)}V${y(p.y + p.sigma)} M${x(p.x) - 3},${y(p.y - p.sigma)}h6 M${x(p.x) - 3},${y(p.y + p.sigma)}h6`}
+                  fill="none"
                   stroke="currentColor"
-                  opacity=".4"
-                />
+                  strokeWidth={1.2}
+                  opacity={p.interval < 0 ? 0.6 : 1}
+                  style={{ pointerEvents: "none" }}
+                >
+                  <title>{`Supplied y uncertainty: ±${formatNumber(p.sigma)} ${request.dataset.yColumn.unit ?? ""}`}</title>
+                </path>
               )}
               <PlotMarker x={x(p.x)} y={y(p.y)} r={renderSize ? 1.5 : 2.7} />
             </g>

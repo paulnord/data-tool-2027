@@ -25,6 +25,8 @@ export interface IntervalConfig {
   x: number;
   columns: number[];
   sigmas: (number | null)[];
+  /** Active per-row uncertainty columns; omitted for common/estimated noise. */
+  sigmaColumns?: (number | null)[];
   intervals: IntervalDefinition[];
   conditional: boolean;
 }
@@ -76,7 +78,7 @@ export function updateSharedSeriesModelMetadata(
 /** Independent numerical snapshots. No event finding, automatic range selection or derived mechanics. */
 export function intervalRequests(
   source: TableAnalysis,
-  config: Pick<IntervalConfig, "x" | "columns" | "sigmas">,
+  config: Pick<IntervalConfig, "x" | "columns" | "sigmas" | "sigmaColumns">,
 ): FitRequest[] {
   const table = tableForAnalysis(source);
   const width = table.cells.reduce((n, r) => Math.max(n, r.length), 0);
@@ -91,13 +93,35 @@ export function intervalRequests(
     throw Error(
       "Choose an X column and a different column for each data series.",
     );
+  if (
+    config.sigmaColumns &&
+    (config.sigmaColumns.length !== config.columns.length ||
+      config.sigmaColumns.some(
+        (column) =>
+          column === null ||
+          !Number.isInteger(column) ||
+          column < 0 ||
+          column >= width ||
+          column === table.label ||
+          column === config.x ||
+          config.columns.includes(column),
+      ))
+  )
+    throw Error(
+      "Choose an available uncertainty column separate from X and Y.",
+    );
   if (config.sigmas.some((s) => s !== null && (!Number.isFinite(s) || s <= 0)))
     throw Error(
       "Enter a positive uncertainty for every data series, or choose Estimate scatter.",
     );
   return config.columns.map((column, i) => {
     const mapped = analysisFromTable(
-      { ...table, x: config.x, y: column, sigma: null },
+      {
+        ...table,
+        x: config.x,
+        y: column,
+        sigma: config.sigmaColumns?.[i] ?? null,
+      },
       source.request.dataset.label,
     );
     const sameY = column === table.y,
@@ -123,22 +147,24 @@ export function intervalRequests(
         },
       },
       uncertainty: {
-        kind: sigma === null ? "unknown-equal" : "supplied-common",
+        ...(config.sigmaColumns
+          ? mapped.request.uncertainty
+          : sigma === null
+            ? { kind: "unknown-equal" }
+            : {
+                kind: "supplied-common",
+                sigmaY: sigma,
+                provenance: {
+                  kind: "user-asserted",
+                  description:
+                    "Common Y uncertainty entered for multi-interval fitting",
+                },
+              }),
         errorStructure:
           sameY &&
           source.request.uncertainty.errorStructure === "known-correlated"
             ? "known-correlated"
             : "unknown",
-        ...(sigma === null
-          ? {}
-          : {
-              sigmaY: sigma,
-              provenance: {
-                kind: "user-asserted",
-                description:
-                  "Common Y uncertainty entered for multi-interval fitting",
-              },
-            }),
       },
     });
   });

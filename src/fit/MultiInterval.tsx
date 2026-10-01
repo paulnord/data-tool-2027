@@ -101,6 +101,8 @@ export default forwardRef<
     open: boolean;
     showResiduals?: boolean;
     showGuides?: boolean;
+    showErrorBars?: boolean;
+    onErrorBarsChange?: (show: boolean) => void;
     exportSizes?: ExportPlotSize[];
     analysisControl: ReactNode;
     advancedFeatures?: boolean;
@@ -114,6 +116,8 @@ export default forwardRef<
     open,
     showResiduals = true,
     showGuides = false,
+    showErrorBars = true,
+    onErrorBarsChange,
     exportSizes,
     analysisControl,
     advancedFeatures = false,
@@ -138,7 +142,17 @@ export default forwardRef<
   const [sigmas, setSigmas] = useState(
       saved?.sigmas.map((v) => (v === null ? "" : String(v))) ?? [""],
     ),
-    [noise, setNoise] = useState(saved?.uncertainty ?? "estimate");
+    [noise, setNoise] = useState<MultiIntervalWorkspace["uncertainty"]>(
+      saved?.uncertainty ??
+        (source.request.uncertainty.kind === "supplied-per-row" &&
+        table.sigma !== null
+          ? "column"
+          : "estimate"),
+    );
+  const [sigmaColumns, setSigmaColumns] = useState<(number | null)[]>(
+    saved?.sigmaColumns ??
+      (saved ? saved.columns.map(() => null) : [table.sigma]),
+  );
   const [intervalCount, setIntervalCount] = useState(saved?.intervalCount ?? 2);
   const [intervalSlots, setIntervals] = useState<IntervalDefinition[]>(
     () => saved?.intervals ?? [newInterval(0, 1), newInterval(1, 1)],
@@ -196,8 +210,12 @@ export default forwardRef<
     x: xColumn,
     columns,
     sigmas: sigmas.map((s) =>
-      noise === "estimate" ? null : s.trim() ? Number(s) : NaN,
+      noise !== "supplied" ? null : s.trim() ? Number(s) : NaN,
     ),
+    sigmaColumns:
+      noise === "column"
+        ? sigmaColumns.map((column) => column ?? -1)
+        : undefined,
     intervals,
     conditional,
   };
@@ -211,6 +229,7 @@ export default forwardRef<
           requests: intervalRequests(source, {
             ...config,
             sigmas: columns.map(() => null),
+            sigmaColumns: undefined,
           }),
           error: (e as Error).message,
         };
@@ -218,7 +237,7 @@ export default forwardRef<
         return { requests: [], error: (e as Error).message };
       }
     }
-  }, [source, xColumn, columns, sigmas, noise]);
+  }, [source, xColumn, columns, sigmas, sigmaColumns, noise]);
   function suggestIntervalStarts(
     item: IntervalDefinition,
     requests: FitRequest[],
@@ -348,6 +367,9 @@ export default forwardRef<
         columns,
         uncertainty: noise,
         sigmas: sigmas.map((v) => (v.trim() ? Number(v) : null)),
+        ...(sigmaColumns.some((column) => column !== null)
+          ? { sigmaColumns }
+          : {}),
         conditional,
         intervals: intervalSlots,
         intervalCount,
@@ -636,7 +658,7 @@ export default forwardRef<
             value={noise}
             onChange={(e) => {
               invalidate();
-              setNoise(e.target.value as "estimate" | "supplied");
+              setNoise(e.target.value as MultiIntervalWorkspace["uncertainty"]);
             }}
           >
             <option value="estimate">
@@ -649,8 +671,49 @@ export default forwardRef<
                 ? "Enter common uncertainty"
                 : "Enter uncertainty for each data series"}
             </option>
+            <option value="column">Use uncertainty column</option>
           </select>
         </label>
+        {noise === "column" &&
+          columns.map((_, i) => (
+            <label key={i}>
+              {columns.length === 1
+                ? "Y uncertainty column"
+                : `Data series ${i + 1} uncertainty column`}
+              <select
+                aria-label={
+                  columns.length === 1
+                    ? "Interval Y uncertainty column"
+                    : `Data series ${i + 1} uncertainty column`
+                }
+                value={sigmaColumns[i] ?? -1}
+                onChange={(event) => {
+                  invalidate();
+                  const column = Number(event.target.value);
+                  setSigmaColumns((old) =>
+                    old.map((value, j) =>
+                      i === j ? (column < 0 ? null : column) : value,
+                    ),
+                  );
+                }}
+              >
+                <option value={-1}>Choose column…</option>
+                {Array.from({ length: width }, (_, column) => column)
+                  .filter(
+                    (column) =>
+                      column !== table.label &&
+                      column !== xColumn &&
+                      !columns.includes(column),
+                  )
+                  .map((column) => (
+                    <option key={column} value={column}>
+                      {heading(column).label}
+                      {heading(column).unit ? ` [${heading(column).unit}]` : ""}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          ))}
         {noise === "supplied" &&
           columns.map((_, i) => (
             <label key={i}>
@@ -1038,6 +1101,17 @@ export default forwardRef<
               "Select an interval on the graph, choose its equation, then fit."}
         </p>
         <div className="interval-overview">
+          <label className="fit-check">
+            <input
+              type="checkbox"
+              checked={showErrorBars && noise !== "estimate"}
+              disabled={noise === "estimate"}
+              onChange={(event) => onErrorBarsChange?.(event.target.checked)}
+            />
+            {noise === "estimate"
+              ? "Error bars unavailable · σ unknown"
+              : "Show supplied error bars (±1σ)"}
+          </label>
           <div className="interval-legend">
             {intervals.map((s, i) => (
               <span key={i} style={{ color: intervalColors[i] }}>
@@ -1083,6 +1157,7 @@ export default forwardRef<
               <article key={i}>
                 <h2>{request.dataset.yColumn.label}</h2>
                 <IntervalPlot
+                  showErrorBars={showErrorBars}
                   showGuides={showGuides}
                   request={request}
                   intervals={intervals}
@@ -1111,6 +1186,7 @@ export default forwardRef<
                 {showResiduals && (
                   <div className="interval-live-residual">
                     <IntervalPlot
+                      showErrorBars={showErrorBars}
                       showGuides={showGuides}
                       request={request}
                       intervals={intervals}
@@ -1298,6 +1374,7 @@ export default forwardRef<
                         </summary>
                         {showResiduals && (
                           <IntervalPlot
+                            showErrorBars={showErrorBars}
                             showGuides={showGuides}
                             request={entry.request}
                             colors={[intervalColors[index]]}
@@ -1363,6 +1440,7 @@ export default forwardRef<
                 : undefined;
               return (
                 <IntervalPlot
+                  showErrorBars={showErrorBars}
                   showGuides={showGuides}
                   key={`${i}-${part}`}
                   request={request}

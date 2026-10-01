@@ -198,9 +198,17 @@ test("copied report separates scalar statistics and keeps normal data tables", a
   const table = new Map(sections[2].slice(1).map((row) => [row[0], row[1]]));
   expect(Number(table.get("df"))).toBe(58);
   expect(Number(table.get("n"))).toBe(61);
-  expect(sections[3][0]).toEqual(["Row", "x", "y", "predicted", "residual"]);
+  expect(sections[3][0]).toEqual([
+    "Row",
+    "x",
+    "y",
+    "predicted",
+    "residual",
+    "sigma_y",
+    "weight (1/sigma_y^2)",
+  ]);
   expect(sections[3]).toHaveLength(62);
-  expect(sections[3].every((row) => row.length === 5)).toBe(true);
+  expect(sections[3].every((row) => row.length === 7)).toBe(true);
 });
 
 test("rectangle selection changes the fit subset and supports undo, restore and cancellation", async ({

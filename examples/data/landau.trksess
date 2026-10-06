@@ -1,0 +1,889 @@
+{
+  "format": "tracker-fit-session",
+  "version": 7,
+  "engine": "qr-lm-3",
+  "request": {
+    "format": "tracker-fit-request",
+    "version": 1,
+    "requestId": "50aa0000-0000-4000-8000-000000000001",
+    "snapshotId": "50aa0000-0000-4000-8000-000000000002",
+    "source": {
+      "application": "Synthetic Landau example",
+      "version": "2026-10-06",
+      "context": "Synthetic classroom data: sampled Landau curve; not measured detector data or Poisson histogram counts.\nGenerating model: y = b + A/w * landau((x-mpv)/w), with unit-area mode-zero landau.\nTruth: b=0 V, A=150 V*keV, mpv=50 keV, w=5 keV (ROOT width convention).\nIndependent Gaussian noise: sigma_i=0.025*(1+i/101) V; i=0..100.\nNumPy PCG64 seed 20261006; NumPy 2.3.5, SciPy 1.17.0.\nGenerator: scripts/generate-landau-reference.py.\nReference: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.landau.html\nOpen landau.trksess for assigned uncertainties and starting values; or import the CSV,\nassign column 3 as Y uncertainty, enable advanced models, and select Landau peak.\nb starts fixed at zero. A is full-curve area, including the tail beyond these observations.",
+      "fileName": "landau.csv"
+    },
+    "dataset": {
+      "id": "synthetic-landau",
+      "label": "Synthetic Landau peak",
+      "xColumn": {
+        "id": "x",
+        "label": "Energy",
+        "unit": "keV"
+      },
+      "yColumn": {
+        "id": "y",
+        "label": "Signal",
+        "unit": "V"
+      },
+      "assumptions": {
+        "exactX": "asserted",
+        "gaussianIndependent": "asserted",
+        "correctModel": "asserted"
+      },
+      "rows": [
+        {
+          "id": "landau-0",
+          "x": 25.0,
+          "y": -0.013338397550988368,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-1",
+          "x": 26.35,
+          "y": -0.03107116284059133,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-2",
+          "x": 27.7,
+          "y": 0.019042073745371722,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-3",
+          "x": 29.05,
+          "y": 0.014175065677227818,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-4",
+          "x": 30.4,
+          "y": -0.0209111296881511,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-5",
+          "x": 31.75,
+          "y": 0.024597516103932602,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-6",
+          "x": 33.1,
+          "y": 0.04315001509622067,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-7",
+          "x": 34.45,
+          "y": 0.011783969093675066,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-8",
+          "x": 35.8,
+          "y": 0.017722293986856874,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-9",
+          "x": 37.15,
+          "y": 0.08015915586306585,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-10",
+          "x": 38.5,
+          "y": 0.25644977292377014,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-11",
+          "x": 39.85,
+          "y": 0.7078031361343777,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-12",
+          "x": 41.2,
+          "y": 1.362425657442852,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-13",
+          "x": 42.55,
+          "y": 2.2320451957911938,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-14",
+          "x": 43.900000000000006,
+          "y": 3.234536079953122,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-15",
+          "x": 45.25,
+          "y": 4.107274062991324,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-16",
+          "x": 46.6,
+          "y": 4.764662551078009,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-17",
+          "x": 47.95,
+          "y": 5.185830561628215,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-18",
+          "x": 49.3,
+          "y": 5.423950012788845,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-19",
+          "x": 50.650000000000006,
+          "y": 5.4502990593159195,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-20",
+          "x": 52.0,
+          "y": 5.28499867708093,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-21",
+          "x": 53.35,
+          "y": 4.983616951882315,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-22",
+          "x": 54.7,
+          "y": 4.7535215629373155,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-23",
+          "x": 56.05,
+          "y": 4.419875381478679,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-24",
+          "x": 57.400000000000006,
+          "y": 4.109232279439969,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-25",
+          "x": 58.75,
+          "y": 3.68000136445411,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-26",
+          "x": 60.1,
+          "y": 3.390568248215724,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-27",
+          "x": 61.45,
+          "y": 3.1354297066328534,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-28",
+          "x": 62.800000000000004,
+          "y": 2.7654583310750427,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-29",
+          "x": 64.15,
+          "y": 2.4913562852830005,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-30",
+          "x": 65.5,
+          "y": 2.3109425728931297,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-31",
+          "x": 66.85,
+          "y": 2.1837654775607453,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-32",
+          "x": 68.2,
+          "y": 1.928077371404578,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-33",
+          "x": 69.55000000000001,
+          "y": 1.7834799660936942,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-34",
+          "x": 70.9,
+          "y": 1.6098395854271113,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-35",
+          "x": 72.25,
+          "y": 1.5051780857854642,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-36",
+          "x": 73.6,
+          "y": 1.386520696559296,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-37",
+          "x": 74.95,
+          "y": 1.2487886760615101,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-38",
+          "x": 76.30000000000001,
+          "y": 1.1274643282166328,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-39",
+          "x": 77.65,
+          "y": 1.07379416858572,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-40",
+          "x": 79.0,
+          "y": 0.9545539006692689,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-41",
+          "x": 80.35,
+          "y": 0.9592093034142224,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-42",
+          "x": 81.7,
+          "y": 0.9169533760287851,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-43",
+          "x": 83.05000000000001,
+          "y": 0.7795554612550326,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-44",
+          "x": 84.4,
+          "y": 0.7400133533736067,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-45",
+          "x": 85.75,
+          "y": 0.7263625175477793,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-46",
+          "x": 87.1,
+          "y": 0.5819624741263443,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-47",
+          "x": 88.45,
+          "y": 0.6194019141993723,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-48",
+          "x": 89.80000000000001,
+          "y": 0.6173112272566141,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-49",
+          "x": 91.15,
+          "y": 0.5642478503396232,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-50",
+          "x": 92.5,
+          "y": 0.48859281935893645,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-51",
+          "x": 93.85000000000001,
+          "y": 0.49476425912375327,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-52",
+          "x": 95.2,
+          "y": 0.4591635096964021,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-53",
+          "x": 96.55000000000001,
+          "y": 0.3567338385995572,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-54",
+          "x": 97.9,
+          "y": 0.4432449010157735,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-55",
+          "x": 99.25,
+          "y": 0.3458758594480954,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-56",
+          "x": 100.60000000000001,
+          "y": 0.34192055105284885,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-57",
+          "x": 101.95,
+          "y": 0.3753521309665745,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-58",
+          "x": 103.30000000000001,
+          "y": 0.3096456555175057,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-59",
+          "x": 104.65,
+          "y": 0.25726749569685187,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-60",
+          "x": 106.0,
+          "y": 0.32521512419826243,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-61",
+          "x": 107.35000000000001,
+          "y": 0.24334880034784087,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-62",
+          "x": 108.7,
+          "y": 0.1862011504310222,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-63",
+          "x": 110.05000000000001,
+          "y": 0.20521248213985271,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-64",
+          "x": 111.4,
+          "y": 0.25637055649395046,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-65",
+          "x": 112.75,
+          "y": 0.23866803218068225,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-66",
+          "x": 114.10000000000001,
+          "y": 0.20190807915947634,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-67",
+          "x": 115.45,
+          "y": 0.1807395743802078,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-68",
+          "x": 116.80000000000001,
+          "y": 0.17223141831067623,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-69",
+          "x": 118.15,
+          "y": 0.23096529296787358,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-70",
+          "x": 119.5,
+          "y": 0.3013667677821502,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-71",
+          "x": 120.85000000000001,
+          "y": 0.18372226912672618,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-72",
+          "x": 122.2,
+          "y": 0.2183146497906128,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-73",
+          "x": 123.55000000000001,
+          "y": 0.15512271845483913,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-74",
+          "x": 124.9,
+          "y": 0.21075101760288026,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-75",
+          "x": 126.25,
+          "y": 0.19506183707327382,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-76",
+          "x": 127.60000000000001,
+          "y": 0.1759761195529048,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-77",
+          "x": 128.95,
+          "y": 0.10885541570287584,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-78",
+          "x": 130.3,
+          "y": 0.20063329413441391,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-79",
+          "x": 131.65,
+          "y": 0.14553905094725184,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-80",
+          "x": 133.0,
+          "y": 0.08729394396551735,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-81",
+          "x": 134.35000000000002,
+          "y": 0.2312202566396171,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-82",
+          "x": 135.7,
+          "y": 0.16458164257584107,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-83",
+          "x": 137.05,
+          "y": 0.07745606212642882,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-84",
+          "x": 138.4,
+          "y": 0.08992034654444801,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-85",
+          "x": 139.75,
+          "y": 0.1665809344797381,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-86",
+          "x": 141.10000000000002,
+          "y": 0.11791435959979761,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-87",
+          "x": 142.45,
+          "y": 0.072762557951293,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-88",
+          "x": 143.8,
+          "y": 0.08148567719937971,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-89",
+          "x": 145.15,
+          "y": 0.1248681655613102,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-90",
+          "x": 146.5,
+          "y": 0.11692800430216649,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-91",
+          "x": 147.85000000000002,
+          "y": 0.16979370884705097,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-92",
+          "x": 149.2,
+          "y": 0.15596775975568383,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-93",
+          "x": 150.55,
+          "y": 0.13266777931404203,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-94",
+          "x": 151.9,
+          "y": 0.04373414088815841,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-95",
+          "x": 153.25,
+          "y": 0.20463292475547146,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-96",
+          "x": 154.60000000000002,
+          "y": 0.07587857664194778,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-97",
+          "x": 155.95000000000002,
+          "y": 0.09658971013423755,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-98",
+          "x": 157.3,
+          "y": 0.07128864904552579,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-99",
+          "x": 158.65,
+          "y": 0.09040175844327196,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "landau-100",
+          "x": 160.0,
+          "y": 0.08663944931771203,
+          "included": true,
+          "missingReason": null
+        }
+      ]
+    },
+    "uncertainty": {
+      "kind": "supplied-per-row",
+      "errorStructure": "uncorrelated",
+      "sigmaByRow": {
+        "landau-0": 0.025,
+        "landau-1": 0.02524752475247525,
+        "landau-2": 0.025495049504950497,
+        "landau-3": 0.025742574257425745,
+        "landau-4": 0.025990099009900992,
+        "landau-5": 0.02623762376237624,
+        "landau-6": 0.026485148514851488,
+        "landau-7": 0.026732673267326736,
+        "landau-8": 0.026980198019801983,
+        "landau-9": 0.02722772277227723,
+        "landau-10": 0.02747524752475248,
+        "landau-11": 0.027722772277227727,
+        "landau-12": 0.027970297029702974,
+        "landau-13": 0.028217821782178222,
+        "landau-14": 0.02846534653465347,
+        "landau-15": 0.02871287128712871,
+        "landau-16": 0.02896039603960396,
+        "landau-17": 0.029207920792079206,
+        "landau-18": 0.029455445544554454,
+        "landau-19": 0.0297029702970297,
+        "landau-20": 0.02995049504950495,
+        "landau-21": 0.030198019801980197,
+        "landau-22": 0.030445544554455445,
+        "landau-23": 0.030693069306930693,
+        "landau-24": 0.03094059405940594,
+        "landau-25": 0.031188118811881188,
+        "landau-26": 0.031435643564356436,
+        "landau-27": 0.031683168316831684,
+        "landau-28": 0.03193069306930693,
+        "landau-29": 0.03217821782178218,
+        "landau-30": 0.03242574257425743,
+        "landau-31": 0.032673267326732675,
+        "landau-32": 0.03292079207920792,
+        "landau-33": 0.03316831683168317,
+        "landau-34": 0.03341584158415842,
+        "landau-35": 0.03366336633663366,
+        "landau-36": 0.033910891089108906,
+        "landau-37": 0.034158415841584154,
+        "landau-38": 0.0344059405940594,
+        "landau-39": 0.03465346534653465,
+        "landau-40": 0.0349009900990099,
+        "landau-41": 0.035148514851485145,
+        "landau-42": 0.03539603960396039,
+        "landau-43": 0.03564356435643564,
+        "landau-44": 0.03589108910891089,
+        "landau-45": 0.036138613861386136,
+        "landau-46": 0.036386138613861384,
+        "landau-47": 0.03663366336633663,
+        "landau-48": 0.03688118811881188,
+        "landau-49": 0.03712871287128713,
+        "landau-50": 0.037376237623762375,
+        "landau-51": 0.03762376237623763,
+        "landau-52": 0.03787128712871288,
+        "landau-53": 0.038118811881188125,
+        "landau-54": 0.03836633663366337,
+        "landau-55": 0.03861386138613862,
+        "landau-56": 0.03886138613861387,
+        "landau-57": 0.039108910891089116,
+        "landau-58": 0.039356435643564364,
+        "landau-59": 0.03960396039603961,
+        "landau-60": 0.03985148514851486,
+        "landau-61": 0.04009900990099011,
+        "landau-62": 0.040346534653465355,
+        "landau-63": 0.0405940594059406,
+        "landau-64": 0.04084158415841585,
+        "landau-65": 0.0410891089108911,
+        "landau-66": 0.041336633663366346,
+        "landau-67": 0.04158415841584159,
+        "landau-68": 0.04183168316831684,
+        "landau-69": 0.04207920792079209,
+        "landau-70": 0.04232673267326733,
+        "landau-71": 0.04257425742574258,
+        "landau-72": 0.042821782178217825,
+        "landau-73": 0.04306930693069307,
+        "landau-74": 0.04331683168316832,
+        "landau-75": 0.04356435643564357,
+        "landau-76": 0.043811881188118816,
+        "landau-77": 0.044059405940594064,
+        "landau-78": 0.04430693069306931,
+        "landau-79": 0.04455445544554456,
+        "landau-80": 0.04480198019801981,
+        "landau-81": 0.045049504950495055,
+        "landau-82": 0.0452970297029703,
+        "landau-83": 0.04554455445544554,
+        "landau-84": 0.04579207920792079,
+        "landau-85": 0.04603960396039604,
+        "landau-86": 0.04628712871287129,
+        "landau-87": 0.046534653465346534,
+        "landau-88": 0.04678217821782178,
+        "landau-89": 0.04702970297029703,
+        "landau-90": 0.04727722772277228,
+        "landau-91": 0.047524752475247525,
+        "landau-92": 0.04777227722772277,
+        "landau-93": 0.04801980198019802,
+        "landau-94": 0.04826732673267327,
+        "landau-95": 0.048514851485148516,
+        "landau-96": 0.048762376237623764,
+        "landau-97": 0.04900990099009901,
+        "landau-98": 0.04925742574257426,
+        "landau-99": 0.04950495049504951,
+        "landau-100": 0.049752475247524755
+      },
+      "provenance": {
+        "kind": "user-asserted",
+        "description": "Known synthetic generating standard deviations"
+      }
+    }
+  },
+  "settings": {
+    "model": "landau",
+    "parameters": [
+      {
+        "value": 0.0,
+        "fixed": true
+      },
+      {
+        "value": 130.0,
+        "fixed": false
+      },
+      {
+        "value": 48.0,
+        "fixed": false
+      },
+      {
+        "value": 6.0,
+        "fixed": false
+      }
+    ],
+    "excludedIds": [],
+    "conditionalInference": false,
+    "physicalTimeConfirmed": false,
+    "selectionAfterInspection": false
+  },
+  "workspace": {
+    "kind": "single-fit"
+  },
+  "view": {
+    "showResiduals": true,
+    "showGuides": true,
+    "showErrorBars": true
+  }
+}

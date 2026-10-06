@@ -40,6 +40,8 @@ export function modelNotationNote(
   model: string,
   polynomialBasis?: PolynomialBasis,
 ): string | null {
+  if (model === "landau")
+    return "Landau peak: mpv is the peak position, w is a positive scale in the ROOT width convention, and A is the total signed area above b (y-unit × x-unit), not peak height. The standard landau(z) has unit area and its mode at zero. Mean and standard deviation are undefined. The constant background starts fixed at zero; uncheck Fix b to fit it.";
   if (polynomialDegree(model) !== undefined) {
     if (polynomialBasis?.kind === "taylor")
       return "Taylor coefficients are derivatives at the fixed expansion center; the degree-i term is cᵢ(x − center)ⁱ/i!. The center is model metadata, not a fitted parameter.";

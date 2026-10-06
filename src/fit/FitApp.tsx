@@ -138,6 +138,7 @@ import powerLawExample from "../../examples/data/power-law-free.csv?raw";
 import gaussianExample from "../../examples/data/gaussian.csv?raw";
 import dampedSineExample from "../../examples/data/damped-sine.csv?raw";
 import lorentzianExample from "../../examples/data/lorentzian.csv?raw";
+import landauExample from "../../examples/data/landau.trksess?raw";
 import collisionExample from "../../examples/data/collision.csv?raw";
 import cartTrackExample from "../../examples/data/cart-track.csv?raw";
 import bounceIntervalsExample from "../../examples/data/bounce-intervals.csv?raw";
@@ -176,6 +177,7 @@ const examples = [
   ["Gaussian peak", "gaussian.csv", gaussianExample],
   ["Damped sine", "damped-sine.csv", dampedSineExample],
   ["Lorentzian peak", "lorentzian.csv", lorentzianExample],
+  ["Landau peak", "landau.trksess", landauExample],
   ["Collision", "collision.csv", collisionExample],
   ["Cart track", "cart-track.csv", cartTrackExample],
   ["Bounce intervals", "bounce-intervals.csv", bounceIntervalsExample],
@@ -2271,7 +2273,10 @@ export default function FitApp() {
                   value,
                   state.request,
                   state.settings.excludedIds,
-                ).map((value) => ({ value, fixed: false })),
+                ).map((parameterValue, i) => ({
+                  value: parameterValue,
+                  fixed: initialSettings(value).parameters[i].fixed,
+                })),
               }
             : {}),
           excludedIds: state.settings.excludedIds,

@@ -128,7 +128,7 @@ function settingsFor(model: FitSettings["model"], source: Analysis) {
       model,
       source.request,
       settings.excludedIds,
-    ).map((value) => ({ value, fixed: false }));
+    ).map((value, i) => ({ value, fixed: settings.parameters[i].fixed }));
   return settings;
 }
 

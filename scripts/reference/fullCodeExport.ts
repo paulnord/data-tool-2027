@@ -1,3 +1,8 @@
+import {
+  usesLandau,
+  pythonLandauHelper,
+  rootLandauHelper,
+} from "../../src/core/fit/landauCodeExport";
 // Reference implementation of the detailed export retained for validation.
 // The application uses src/core/fit/codeExport.ts.
 import {
@@ -220,6 +225,7 @@ function pythonExpression(settings: FitSettings) {
     sigmoid: "p[0] + p[1]*np.exp(-np.logaddexp(0.0, -(x-p[2])/p[3]))",
     "power-law-free": "p[0] + p[1]*x**p[2]",
     gaussian: "p[0] + p[1]*np.exp(-0.5*((x-p[2])/p[3])**2)",
+    landau: "p[0] + p[1]/p[3]*landau_pdf((x-p[2])/p[3])",
     "gaussian-shape": "gaussian_peak(x, p)",
     "damped-sine":
       "p[0] + np.exp(-x/p[4])*(p[1]*np.sin(2*np.pi*x/p[3]) + p[2]*np.cos(2*np.pi*x/p[3]))",
@@ -469,6 +475,7 @@ if view["showGuides"] and curve_x[0] <= fitted[2] <= curve_x[-1]:
     gaussian: centerGuide,
     "gaussian-shape": centerGuide,
     lorentzian: centerGuide,
+    landau: centerGuide,
     sigmoid:
       centerGuide +
       `
@@ -529,6 +536,7 @@ def model(x, *p):
     # Constant custom equations are scalars; callers need one prediction per X.
     return np.broadcast_to(np.asarray(value, dtype=float), np.shape(x))
 ${pythonSeriesJacobian(description.settings)}
+${usesLandau(description.settings) ? pythonLandauHelper : ""}
 ${description.settings.model === "gaussian-shape" ? pythonPeakShapeHelpers : ""}
 
 def fit_data(data, analysis):
@@ -886,6 +894,7 @@ function rootExpression(settings: FitSettings) {
       "p[0] + p[1]*((x-p[2])/p[3] >= 0 ? 1/(1+std::exp(-(x-p[2])/p[3])) : std::exp((x-p[2])/p[3])/(1+std::exp((x-p[2])/p[3])))",
     "power-law-free": "p[0] + p[1]*std::pow(x, p[2])",
     gaussian: "p[0] + p[1]*std::exp(-0.5*std::pow((x-p[2])/p[3], 2))",
+    landau: "p[0] + p[1]/p[3]*landau_pdf((x-p[2])/p[3])",
     "gaussian-shape": "gaussian_peak(x, p)",
     "damped-sine":
       "p[0] + std::exp(-x/p[4])*(p[1]*std::sin(2*TMath::Pi()*x/p[3]) + p[2]*std::cos(2*TMath::Pi()*x/p[3]))",
@@ -1006,6 +1015,7 @@ export function generateRootCode(description: CodeExportDescription) {
     gaussian: centerGuide,
     "gaussian-shape": centerGuide,
     lorentzian: centerGuide,
+    landau: centerGuide,
     sigmoid:
       meanGuide +
       `
@@ -1107,6 +1117,7 @@ export function generateRootCode(description: CodeExportDescription) {
 #include <string>
 #include <vector>
 #include <utility>
+${usesLandau(settings) ? rootLandauHelper : ""}
 ${settings.model === "gaussian-shape" ? "double gaussian_peak(double x, const double *p);" : ""}
 ${rootSeriesHelper(settings)}
 ${rootFourierHelper(settings)}
@@ -1532,7 +1543,7 @@ export function generateCodeExportBundle(
       ...(target !== "root"
         ? {
             "fit_scipy.py": generatePythonCode(description),
-            "requirements.txt": "numpy\nscipy\nmatplotlib\n",
+            "requirements.txt": `numpy\n${usesLandau(description.settings) ? "scipy>=1.15" : "scipy"}\nmatplotlib\n`,
           }
         : {}),
       ...(target !== "scipy"

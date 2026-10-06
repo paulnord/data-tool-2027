@@ -1,3 +1,4 @@
+import { landauValueDerivative } from "./landau";
 /** Restricted expression language: no JavaScript evaluation, properties or ambient names. */
 export interface CustomEquation {
   expression: string;
@@ -15,6 +16,10 @@ const functions: Record<
   string,
   [(x: number) => number, (x: number) => number]
 > = {
+  landau: [
+    (x) => landauValueDerivative(x).value,
+    (x) => landauValueDerivative(x).derivative,
+  ],
   sin: [Math.sin, Math.cos],
   cos: [Math.cos, (x) => -Math.sin(x)],
   tan: [Math.tan, (x) => 1 / Math.cos(x) ** 2],
@@ -155,6 +160,7 @@ export function renderEquation(
   const root = compiled(def).root;
   const calls: Record<EquationTarget, Record<string, string>> = {
     python: {
+      landau: "landau_pdf",
       sin: "np.sin",
       cos: "np.cos",
       tan: "np.tan",
@@ -169,6 +175,7 @@ export function renderEquation(
       cosh: "np.cosh",
     },
     root: {
+      landau: "landau_pdf",
       sin: "std::sin",
       cos: "std::cos",
       tan: "std::tan",

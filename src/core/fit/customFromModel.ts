@@ -46,6 +46,7 @@ export function customFromModel(
     sigmoid: "b+A/(1+exp(-(x-x0)/w))",
     "power-law-free": "b+A*x^n",
     gaussian: "b+A*exp(-0.5*((x-mu)/sigma)^2)",
+    landau: "b+A/w*landau((x-mpv)/w)",
     "damped-sine": "b+exp(-x/tau)*(s*sin(2*pi*x/T)+c*cos(2*pi*x/T))",
     lorentzian: "b+A/(1+((x-mu)/gamma)^2)",
   };

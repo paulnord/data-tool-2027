@@ -22,6 +22,16 @@ export function modelGuideValues(
     value: coefficients[0],
     symbol: "b",
   };
+  if (settings.model === "landau")
+    return [
+      {
+        id: "center",
+        label: "Fitted Landau peak x = mpv",
+        value: coefficients[2],
+        axis: "x",
+        symbol: "mpv",
+      },
+    ];
   if (
     settings.model === "sine" ||
     settings.model === "sine-free-period" ||

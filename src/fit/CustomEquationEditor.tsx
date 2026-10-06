@@ -132,9 +132,9 @@ export function CustomEquationEditor({
           0.5*a*t^2 with variable t. Names are case-sensitive.
         </p>
         <p>
-          Functions: sin, cos, tan, asin, acos, atan, sinh, cosh, exp, ln
-          (natural log), log (base 10), sqrt. Angles are in radians. Constants:
-          pi and e.
+          Functions: sin, cos, tan, asin, acos, atan, sinh, cosh, exp, landau,
+          ln (natural log), log (base 10), sqrt. Angles are in radians.
+          Constants: pi and e.
         </p>
         <p>
           Supply starting values and units below. Units are recorded as typed;

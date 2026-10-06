@@ -26,6 +26,7 @@ import {
 } from "../src/core/fit/schema";
 import { fit, predict } from "../src/core/fit/solve";
 import { syntheticRequest } from "../tests/support/synthetic";
+import { customFromModel } from "../src/core/fit/customFromModel";
 
 const inputs = [
   "examples/data/ball-toss.trksess",
@@ -33,6 +34,7 @@ const inputs = [
   "examples/fit/custom-session.trksess",
   "examples/fit/nonlinear-session.trksess",
   "examples/data/published/dyfeo3-spin-wave.trksess",
+  "examples/data/landau.trksess",
 ];
 const directory = mkdtempSync(join(tmpdir(), "data-tool-code-export-"));
 const scenarios: {
@@ -43,6 +45,16 @@ const scenarios: {
   input,
   session: sessionSchema.parse(JSON.parse(readFileSync(input, "utf8"))),
 }));
+const landauSession = sessionSchema.parse(
+  JSON.parse(readFileSync("examples/data/landau.trksess", "utf8")),
+);
+scenarios.push({
+  input: "landau-custom",
+  session: {
+    request: landauSession.request,
+    settings: customFromModel(landauSession.settings, landauSession.request),
+  },
+});
 for (const name of [
   "literal-division",
   "constant",
@@ -274,9 +286,13 @@ if (!hasRoot && (rootProbe.error as NodeJS.ErrnoException).code !== "ENOENT")
 if (!hasRoot)
   console.log("ROOT is not installed; actual macro checks skipped.");
 const environment = { ...process.env, MPLBACKEND: "Agg" };
+const selected = process.argv[2]
+  ? scenarios.filter(({ input }) => input.includes(process.argv[2]))
+  : scenarios;
+if (!selected.length) throw Error("No export scenarios match the filter");
 let complete = false;
 try {
-  for (const { input, session, unavailable } of scenarios) {
+  for (const { input, session, unavailable } of selected) {
     const result = fit(session.request, session.settings);
     const usedX = result.residuals.map((r) => r.x);
     const description = buildCodeExportDescription(
@@ -341,9 +357,16 @@ try {
       names.forEach((name, i) => {
         const line = output.split("\n").find((l) => l.startsWith(`${name} = `));
         const coefficient = Number(line?.split(" = ")[1].split(" (")[0]);
+        // ROOT's CERNLIB PDF is a lower-precision approximation than Boost.
+        // Require one part per million (plus the absolute tolerance) for this
+        // cross-library model; all other export tolerances remain unchanged.
+        const coefficientTolerance =
+          input.includes("landau") && language === "ROOT"
+            ? 1e-6 * (1 + Math.abs(result.coefficients[i]))
+            : tolerance;
         if (
           !Number.isFinite(coefficient) ||
-          Math.abs(coefficient - result.coefficients[i]) > tolerance
+          Math.abs(coefficient - result.coefficients[i]) > coefficientTolerance
         )
           throw Error(
             `${input}: ${language} ${name} = ${coefficient}, expected ${result.coefficients[i]}`,
@@ -435,7 +458,7 @@ try {
   }
   complete = true;
   console.log(
-    `${scenarios.length} executable export cases passed${hasRoot ? " with actual ROOT" : " (ROOT unavailable)"}.`,
+    `${selected.length} executable export cases passed${hasRoot ? " with actual ROOT" : " (ROOT unavailable)"}.`,
   );
 } finally {
   if (complete) rmSync(directory, { recursive: true, force: true });

@@ -885,6 +885,7 @@
             "exponential-growth",
             "sigmoid",
             "gaussian-shape",
+            "landau",
             "fourier",
             "custom"
           ]
@@ -1352,6 +1353,7 @@
                             "exponential-growth",
                             "sigmoid",
                             "gaussian-shape",
+                            "landau",
                             "fourier",
                             "custom"
                           ]
@@ -2561,6 +2563,7 @@
                               "exponential-growth",
                               "sigmoid",
                               "gaussian-shape",
+                              "landau",
                               "fourier",
                               "custom"
                             ]

@@ -1,3 +1,8 @@
+import {
+  usesLandau,
+  pythonLandauHelper,
+  rootLandauHelper,
+} from "./landauCodeExport";
 import { polynomialDegree, polynomialExpressions } from "./polynomialModels";
 import { renderEquation } from "./customEquation";
 import { isNonlinearModel, nonlinearModels } from "./nonlinearModels";
@@ -256,6 +261,7 @@ function pythonExpression(settings: FitSettings) {
     sigmoid: "p[0] + p[1]*np.exp(-np.logaddexp(0.0, -(x-p[2])/p[3]))",
     "power-law-free": "p[0] + p[1]*x**p[2]",
     gaussian: "p[0] + p[1]*np.exp(-0.5*((x-p[2])/p[3])**2)",
+    landau: "p[0] + p[1]/p[3]*landau_pdf((x-p[2])/p[3])",
     "gaussian-shape": "gaussian_peak(x, p)",
     "damped-sine":
       "p[0] + np.exp(-x/p[4])*(p[1]*np.sin(2*np.pi*x/p[3]) + p[2]*np.cos(2*np.pi*x/p[3]))",
@@ -477,7 +483,7 @@ export function generatePythonCode(description: CodeExportDescription) {
     settings.fourier,
   );
   const reserved = new Set(
-    "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield x np p gaussian_peak".split(
+    "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield x np p gaussian_peak landau_pdf _scipy_landau".split(
       " ",
     ),
   );
@@ -531,6 +537,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 
+${usesLandau(settings) ? pythonLandauHelper : ""}
 ${pythonPolynomialHelper(settings)}${pythonFourierHelper(settings)}
 def model(x, ${named ? aliases.join(", ") : "*p"}):
     value = ${named ? expression : pythonExpression(settings)}
@@ -687,6 +694,7 @@ function rootExpression(settings: FitSettings) {
       "p[0] + p[1]*((x-p[2])/p[3] >= 0 ? 1/(1+std::exp(-(x-p[2])/p[3])) : std::exp((x-p[2])/p[3])/(1+std::exp((x-p[2])/p[3])))",
     "power-law-free": "p[0] + p[1]*std::pow(x, p[2])",
     gaussian: "p[0] + p[1]*std::exp(-0.5*std::pow((x-p[2])/p[3], 2))",
+    landau: "p[0] + p[1]/p[3]*landau_pdf((x-p[2])/p[3])",
     "gaussian-shape": "gaussian_peak(x, p)",
     "damped-sine":
       "p[0] + std::exp(-x/p[4])*(p[1]*std::sin(2*TMath::Pi()*x/p[3]) + p[2]*std::cos(2*TMath::Pi()*x/p[3]))",
@@ -781,6 +789,7 @@ export function generateRootCode(description: CodeExportDescription) {
 #include <iomanip>
 #include <stdexcept>
 ${settings.model === "gaussian-shape" ? "\ndouble gaussian_peak(double x, const double *p);\n" : ""}
+${usesLandau(settings) ? rootLandauHelper : ""}
 ${rootSeriesHelper(settings)}
 ${rootFourierHelper(settings)}
 // Parameter order: ${names.join(", ")}
@@ -959,7 +968,7 @@ export function generateCodeExportBundle(
       ...(target !== "root"
         ? {
             "fit_scipy.py": generatePythonCode(description),
-            "requirements.txt": "numpy\nscipy\nmatplotlib\n",
+            "requirements.txt": `numpy\n${usesLandau(description.settings) ? "scipy>=1.15" : "scipy"}\nmatplotlib\n`,
           }
         : {}),
       ...(target !== "scipy"

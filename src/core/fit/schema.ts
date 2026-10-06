@@ -772,7 +772,9 @@ export function initialSettings(
         : model === "sine-free-period" && i === 3
           ? 3
           : 0,
-      fixed: model === "gaussian-shape" && i >= 4,
+      fixed:
+        (model === "gaussian-shape" && i >= 4) ||
+        (model === "landau" && i === 0),
     })),
     excludedIds: [],
     conditionalInference: false,

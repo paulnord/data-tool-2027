@@ -774,7 +774,7 @@ export function initialSettings(
           : 0,
       fixed:
         (model === "gaussian-shape" && i >= 4) ||
-        (model === "landau" && i === 0),
+        ((model === "landau" || model === "moyal") && i === 0),
     })),
     excludedIds: [],
     conditionalInference: false,

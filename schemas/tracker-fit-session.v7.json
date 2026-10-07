@@ -886,6 +886,7 @@
             "sigmoid",
             "gaussian-shape",
             "landau",
+            "moyal",
             "fourier",
             "custom"
           ]
@@ -1354,6 +1355,7 @@
                             "sigmoid",
                             "gaussian-shape",
                             "landau",
+                            "moyal",
                             "fourier",
                             "custom"
                           ]
@@ -2564,6 +2566,7 @@
                               "sigmoid",
                               "gaussian-shape",
                               "landau",
+                              "moyal",
                               "fourier",
                               "custom"
                             ]

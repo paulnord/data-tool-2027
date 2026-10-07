@@ -89,7 +89,7 @@ test("Data actions remain visible while editing at 200 percent and Examples need
   await data.locator(".fit-examples-menu summary").click();
   const popover = data.locator(".fit-examples-popover");
   await expect(
-    data.getByRole("tab", { name: "Synthetic data (15)", exact: true }),
+    data.getByRole("tab", { name: "Synthetic data (16)", exact: true }),
   ).toBeVisible();
   const publishedTab = data.getByRole("tab", {
     name: `Published studies (${publishedStudyCatalog.length})`,
@@ -125,7 +125,7 @@ test("Data actions remain visible while editing at 200 percent and Examples need
   ).toBeVisible();
   await page.keyboard.press("ArrowLeft");
   await expect(
-    data.getByRole("tab", { name: "Synthetic data (15)", exact: true }),
+    data.getByRole("tab", { name: "Synthetic data (16)", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(publishedTab).toBeFocused();

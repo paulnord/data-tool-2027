@@ -40,6 +40,8 @@ export function modelNotationNote(
   model: string,
   polynomialBasis?: PolynomialBasis,
 ): string | null {
+  if (model === "moyal")
+    return "Moyal peak: mpv is the peak position, w is a positive scale, and A is the total signed area above b (y-unit × x-unit), not peak height. The standard moyal(z) = exp(−(z + exp(−z))/2)/√(2π) has unit area and mode zero. This is the standard Moyal shape, with no Gaussian convolution or extra skew parameter. It approximates a Landau-shaped peak but has a faster, exponential right tail. The background starts fixed at zero; uncheck Fix b to fit it.";
   if (model === "landau")
     return "Landau peak: mpv is the peak position, w is a positive scale in the ROOT width convention, and A is the total signed area above b (y-unit × x-unit), not peak height. The standard landau(z) has unit area and its mode at zero. Mean and standard deviation are undefined. The constant background starts fixed at zero; uncheck Fix b to fit it.";
   if (polynomialDegree(model) !== undefined) {

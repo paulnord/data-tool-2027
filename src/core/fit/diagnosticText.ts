@@ -35,7 +35,7 @@ const statisticReasons: Readonly<Record<string, string>> = {
   "zero-derived-gradient":
     "First-order sensitivity vanishes; a reliable local standard error is unavailable",
   "zero-peak-amplitude":
-    "A zero-height peak has no defined normalized shape moments",
+    "A zero-height peak has no defined FWHM or normalized shape moments",
 };
 
 /** Keep an unfamiliar code visible rather than inventing an explanation for it. */

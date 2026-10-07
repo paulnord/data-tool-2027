@@ -47,6 +47,7 @@ export function customFromModel(
     "power-law-free": "b+A*x^n",
     gaussian: "b+A*exp(-0.5*((x-mu)/sigma)^2)",
     landau: "b+A/w*landau((x-mpv)/w)",
+    moyal: "b+A/w*moyal((x-mpv)/w)",
     "damped-sine": "b+exp(-x/tau)*(s*sin(2*pi*x/T)+c*cos(2*pi*x/T))",
     lorentzian: "b+A/(1+((x-mu)/gamma)^2)",
   };

@@ -1,4 +1,5 @@
 import { landauValueDerivative } from "./landau";
+import { moyalValueDerivative } from "./moyal";
 /** Restricted expression language: no JavaScript evaluation, properties or ambient names. */
 export interface CustomEquation {
   expression: string;
@@ -16,6 +17,10 @@ const functions: Record<
   string,
   [(x: number) => number, (x: number) => number]
 > = {
+  moyal: [
+    (x) => moyalValueDerivative(x).value,
+    (x) => moyalValueDerivative(x).derivative,
+  ],
   landau: [
     (x) => landauValueDerivative(x).value,
     (x) => landauValueDerivative(x).derivative,
@@ -161,6 +166,7 @@ export function renderEquation(
   const calls: Record<EquationTarget, Record<string, string>> = {
     python: {
       landau: "landau_pdf",
+      moyal: "moyal_pdf",
       sin: "np.sin",
       cos: "np.cos",
       tan: "np.tan",
@@ -176,6 +182,7 @@ export function renderEquation(
     },
     root: {
       landau: "landau_pdf",
+      moyal: "moyal_pdf",
       sin: "std::sin",
       cos: "std::cos",
       tan: "std::tan",

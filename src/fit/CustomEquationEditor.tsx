@@ -133,7 +133,7 @@ export function CustomEquationEditor({
         </p>
         <p>
           Functions: sin, cos, tan, asin, acos, atan, sinh, cosh, exp, landau,
-          ln (natural log), log (base 10), sqrt. Angles are in radians.
+          moyal, ln (natural log), log (base 10), sqrt. Angles are in radians.
           Constants: pi and e.
         </p>
         <p>

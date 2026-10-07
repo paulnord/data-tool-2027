@@ -1,6 +1,11 @@
 import type { FitRequest, FitSettings } from "./schema";
 import { gaussianShapeValueGradient } from "./gaussianShape";
 import { landauValueDerivative, landauValueGradient } from "./landau";
+import {
+  moyalValueDerivative,
+  moyalValueGradient,
+  MOYAL_HALF_MAX_LEFT,
+} from "./moyal";
 export const nonlinearV2ModelIds = [
   "exponential-decay",
   "power-law-free",
@@ -17,6 +22,7 @@ export const nonlinearModelIds = [
   ...additionalNonlinearModelIds,
   "gaussian-shape",
   "landau",
+  "moyal",
 ] as const;
 export type NonlinearModel = (typeof nonlinearModelIds)[number];
 export const nonlinearModels = {
@@ -68,6 +74,14 @@ export const nonlinearModels = {
     equation: "y = b + (A/w) landau((x − mpv)/w)",
     defaults: [0, 1, 0, 1],
   },
+  moyal: {
+    label: "Moyal peak",
+    names: ["b", "A", "mpv", "w"],
+    positive: [3],
+    linear: 2,
+    equation: "y = b + (A/w) moyal((x − mpv)/w)",
+    defaults: [0, 1, 0, 1],
+  },
   "gaussian-shape": {
     label: "Gaussian peak · adjustable shape",
     names: ["b", "A", "mu", "w", "skew", "tail"],
@@ -116,6 +130,8 @@ export function nonlinearValueGradient(
   const [b, A, c, d, e] = p;
   let value: number, gradient: number[];
   switch (model) {
+    case "moyal":
+      return moyalValueGradient(x, p);
     case "landau":
       return landauValueGradient(x, p);
     case "gaussian-shape":
@@ -191,7 +207,7 @@ export function nonlinearParameterUnit(
   xUnit: string | null,
   yUnit: string | null,
 ) {
-  if (model === "landau" && i === 1)
+  if ((model === "landau" || model === "moyal") && i === 1)
     return `(${yUnit ?? "?"})·(${xUnit ?? "?"})`;
   if (model === "gaussian-shape" && i >= 4) return "1";
   if (model === "power-law-free" && i === 2) return "1";
@@ -220,7 +236,7 @@ export function suggestedParameters(
   const min = rows.reduce((a, r) => Math.min(a, r.y!), Infinity),
     max = rows.reduce((a, r) => Math.max(a, r.y!), -Infinity),
     amplitude = max - min || 1;
-  if (model === "landau") {
+  if (model === "landau" || model === "moyal") {
     // The long right tail biases a two-endpoint baseline estimate. Start with
     // the default fixed zero background and estimate width from the left rise.
     const peak = rows.reduce((a, r) =>
@@ -234,15 +250,14 @@ export function suggestedParameters(
           : best,
       undefined,
     );
+    const leftHalfWidth =
+      model === "moyal" ? -MOYAL_HALF_MAX_LEFT : 1.363749974815135;
+    const density =
+      model === "moyal" ? moyalValueDerivative : landauValueDerivative;
     const w = half
-      ? Math.max((peak.x! - half.x!) / 1.363749974815135, span / 1000)
+      ? Math.max((peak.x! - half.x!) / leftHalfWidth, span / 1000)
       : span / 10;
-    return [
-      0,
-      ((peak.y! || amplitude) * w) / landauValueDerivative(0).value,
-      peak.x!,
-      w,
-    ];
+    return [0, ((peak.y! || amplitude) * w) / density(0).value, peak.x!, w];
   }
   if (
     model === "gaussian" ||

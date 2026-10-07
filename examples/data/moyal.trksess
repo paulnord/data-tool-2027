@@ -1,0 +1,889 @@
+{
+  "format": "tracker-fit-session",
+  "version": 7,
+  "engine": "qr-lm-3",
+  "request": {
+    "format": "tracker-fit-request",
+    "version": 1,
+    "requestId": "60aa0000-0000-4000-8000-000000000001",
+    "snapshotId": "60aa0000-0000-4000-8000-000000000002",
+    "source": {
+      "application": "Synthetic Moyal example",
+      "version": "2026-10-07",
+      "context": "Synthetic data: integer Poisson counts in unit-width channels; not measured detector data.\nGenerating means: 10000 times the Moyal probability integrated from channel-0.5 to channel+0.5.\nTruth: background=0 count/channel, total expected events=10000, mpv=50 channel, w=5 channel.\nAssigned Poisson error estimate: sqrt(N) count; empty channels use 1 count (sqrt(max(N,1))).\nNumPy PCG64 seed 20261007; NumPy 2.3.5, SciPy 1.17.0.\nGenerator: scripts/generate-moyal-reference.py.\nReference: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.moyal.html\nOpen moyal.trksess for assigned uncertainties and starting values; or import the CSV,\nassign column 3 as Y uncertainty, enable advanced models, and select Moyal peak.\nb starts fixed at zero. The fitted curve is evaluated at channel centers, not bin-integrated.\nWeighted least squares with observed-count errors is an approximation, especially for sparse channels.\nGaussian/model assumptions remain unconfirmed; conditional inference is enabled for approximate errors.\nA is full-curve area in count*channel; unit-width channels give it the scale of total counts.",
+      "fileName": "moyal.csv"
+    },
+    "dataset": {
+      "id": "synthetic-moyal",
+      "label": "Synthetic Moyal peak",
+      "xColumn": {
+        "id": "x",
+        "label": "Channel",
+        "unit": "channel"
+      },
+      "yColumn": {
+        "id": "y",
+        "label": "Counts",
+        "unit": "count"
+      },
+      "assumptions": {
+        "exactX": "asserted",
+        "gaussianIndependent": "unknown",
+        "correctModel": "unknown"
+      },
+      "rows": [
+        {
+          "id": "moyal-0",
+          "x": 0,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-1",
+          "x": 1,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-2",
+          "x": 2,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-3",
+          "x": 3,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-4",
+          "x": 4,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-5",
+          "x": 5,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-6",
+          "x": 6,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-7",
+          "x": 7,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-8",
+          "x": 8,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-9",
+          "x": 9,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-10",
+          "x": 10,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-11",
+          "x": 11,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-12",
+          "x": 12,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-13",
+          "x": 13,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-14",
+          "x": 14,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-15",
+          "x": 15,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-16",
+          "x": 16,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-17",
+          "x": 17,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-18",
+          "x": 18,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-19",
+          "x": 19,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-20",
+          "x": 20,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-21",
+          "x": 21,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-22",
+          "x": 22,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-23",
+          "x": 23,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-24",
+          "x": 24,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-25",
+          "x": 25,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-26",
+          "x": 26,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-27",
+          "x": 27,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-28",
+          "x": 28,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-29",
+          "x": 29,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-30",
+          "x": 30,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-31",
+          "x": 31,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-32",
+          "x": 32,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-33",
+          "x": 33,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-34",
+          "x": 34,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-35",
+          "x": 35,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-36",
+          "x": 36,
+          "y": 0,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-37",
+          "x": 37,
+          "y": 1,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-38",
+          "x": 38,
+          "y": 8,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-39",
+          "x": 39,
+          "y": 24,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-40",
+          "x": 40,
+          "y": 51,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-41",
+          "x": 41,
+          "y": 90,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-42",
+          "x": 42,
+          "y": 154,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-43",
+          "x": 43,
+          "y": 190,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-44",
+          "x": 44,
+          "y": 288,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-45",
+          "x": 45,
+          "y": 333,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-46",
+          "x": 46,
+          "y": 383,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-47",
+          "x": 47,
+          "y": 442,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-48",
+          "x": 48,
+          "y": 479,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-49",
+          "x": 49,
+          "y": 460,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-50",
+          "x": 50,
+          "y": 486,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-51",
+          "x": 51,
+          "y": 454,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-52",
+          "x": 52,
+          "y": 501,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-53",
+          "x": 53,
+          "y": 415,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-54",
+          "x": 54,
+          "y": 397,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-55",
+          "x": 55,
+          "y": 442,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-56",
+          "x": 56,
+          "y": 353,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-57",
+          "x": 57,
+          "y": 350,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-58",
+          "x": 58,
+          "y": 357,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-59",
+          "x": 59,
+          "y": 301,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-60",
+          "x": 60,
+          "y": 298,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-61",
+          "x": 61,
+          "y": 236,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-62",
+          "x": 62,
+          "y": 218,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-63",
+          "x": 63,
+          "y": 203,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-64",
+          "x": 64,
+          "y": 181,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-65",
+          "x": 65,
+          "y": 158,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-66",
+          "x": 66,
+          "y": 157,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-67",
+          "x": 67,
+          "y": 138,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-68",
+          "x": 68,
+          "y": 126,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-69",
+          "x": 69,
+          "y": 113,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-70",
+          "x": 70,
+          "y": 97,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-71",
+          "x": 71,
+          "y": 105,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-72",
+          "x": 72,
+          "y": 74,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-73",
+          "x": 73,
+          "y": 88,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-74",
+          "x": 74,
+          "y": 78,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-75",
+          "x": 75,
+          "y": 68,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-76",
+          "x": 76,
+          "y": 51,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-77",
+          "x": 77,
+          "y": 56,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-78",
+          "x": 78,
+          "y": 57,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-79",
+          "x": 79,
+          "y": 30,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-80",
+          "x": 80,
+          "y": 38,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-81",
+          "x": 81,
+          "y": 40,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-82",
+          "x": 82,
+          "y": 33,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-83",
+          "x": 83,
+          "y": 28,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-84",
+          "x": 84,
+          "y": 28,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-85",
+          "x": 85,
+          "y": 25,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-86",
+          "x": 86,
+          "y": 21,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-87",
+          "x": 87,
+          "y": 22,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-88",
+          "x": 88,
+          "y": 12,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-89",
+          "x": 89,
+          "y": 15,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-90",
+          "x": 90,
+          "y": 17,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-91",
+          "x": 91,
+          "y": 11,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-92",
+          "x": 92,
+          "y": 10,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-93",
+          "x": 93,
+          "y": 11,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-94",
+          "x": 94,
+          "y": 5,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-95",
+          "x": 95,
+          "y": 6,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-96",
+          "x": 96,
+          "y": 10,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-97",
+          "x": 97,
+          "y": 8,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-98",
+          "x": 98,
+          "y": 8,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-99",
+          "x": 99,
+          "y": 8,
+          "included": true,
+          "missingReason": null
+        },
+        {
+          "id": "moyal-100",
+          "x": 100,
+          "y": 7,
+          "included": true,
+          "missingReason": null
+        }
+      ]
+    },
+    "uncertainty": {
+      "kind": "supplied-per-row",
+      "errorStructure": "uncorrelated",
+      "sigmaByRow": {
+        "moyal-0": 1.0,
+        "moyal-1": 1.0,
+        "moyal-2": 1.0,
+        "moyal-3": 1.0,
+        "moyal-4": 1.0,
+        "moyal-5": 1.0,
+        "moyal-6": 1.0,
+        "moyal-7": 1.0,
+        "moyal-8": 1.0,
+        "moyal-9": 1.0,
+        "moyal-10": 1.0,
+        "moyal-11": 1.0,
+        "moyal-12": 1.0,
+        "moyal-13": 1.0,
+        "moyal-14": 1.0,
+        "moyal-15": 1.0,
+        "moyal-16": 1.0,
+        "moyal-17": 1.0,
+        "moyal-18": 1.0,
+        "moyal-19": 1.0,
+        "moyal-20": 1.0,
+        "moyal-21": 1.0,
+        "moyal-22": 1.0,
+        "moyal-23": 1.0,
+        "moyal-24": 1.0,
+        "moyal-25": 1.0,
+        "moyal-26": 1.0,
+        "moyal-27": 1.0,
+        "moyal-28": 1.0,
+        "moyal-29": 1.0,
+        "moyal-30": 1.0,
+        "moyal-31": 1.0,
+        "moyal-32": 1.0,
+        "moyal-33": 1.0,
+        "moyal-34": 1.0,
+        "moyal-35": 1.0,
+        "moyal-36": 1.0,
+        "moyal-37": 1.0,
+        "moyal-38": 2.8284271247461903,
+        "moyal-39": 4.898979485566356,
+        "moyal-40": 7.14142842854285,
+        "moyal-41": 9.486832980505138,
+        "moyal-42": 12.409673645990857,
+        "moyal-43": 13.784048752090222,
+        "moyal-44": 16.97056274847714,
+        "moyal-45": 18.24828759089466,
+        "moyal-46": 19.570385790780925,
+        "moyal-47": 21.02379604162864,
+        "moyal-48": 21.88606862823929,
+        "moyal-49": 21.447610589527216,
+        "moyal-50": 22.045407685048602,
+        "moyal-51": 21.307275752662516,
+        "moyal-52": 22.38302928559939,
+        "moyal-53": 20.37154878746336,
+        "moyal-54": 19.924858845171276,
+        "moyal-55": 21.02379604162864,
+        "moyal-56": 18.788294228055936,
+        "moyal-57": 18.708286933869708,
+        "moyal-58": 18.894443627691185,
+        "moyal-59": 17.349351572897472,
+        "moyal-60": 17.26267650163207,
+        "moyal-61": 15.362291495737216,
+        "moyal-62": 14.7648230602334,
+        "moyal-63": 14.247806848775006,
+        "moyal-64": 13.45362404707371,
+        "moyal-65": 12.569805089976535,
+        "moyal-66": 12.529964086141668,
+        "moyal-67": 11.74734012447073,
+        "moyal-68": 11.224972160321824,
+        "moyal-69": 10.63014581273465,
+        "moyal-70": 9.848857801796104,
+        "moyal-71": 10.246950765959598,
+        "moyal-72": 8.602325267042627,
+        "moyal-73": 9.38083151964686,
+        "moyal-74": 8.831760866327848,
+        "moyal-75": 8.246211251235321,
+        "moyal-76": 7.14142842854285,
+        "moyal-77": 7.483314773547883,
+        "moyal-78": 7.54983443527075,
+        "moyal-79": 5.477225575051661,
+        "moyal-80": 6.164414002968976,
+        "moyal-81": 6.324555320336759,
+        "moyal-82": 5.744562646538029,
+        "moyal-83": 5.291502622129181,
+        "moyal-84": 5.291502622129181,
+        "moyal-85": 5.0,
+        "moyal-86": 4.58257569495584,
+        "moyal-87": 4.69041575982343,
+        "moyal-88": 3.4641016151377544,
+        "moyal-89": 3.872983346207417,
+        "moyal-90": 4.123105625617661,
+        "moyal-91": 3.3166247903554,
+        "moyal-92": 3.1622776601683795,
+        "moyal-93": 3.3166247903554,
+        "moyal-94": 2.23606797749979,
+        "moyal-95": 2.449489742783178,
+        "moyal-96": 3.1622776601683795,
+        "moyal-97": 2.8284271247461903,
+        "moyal-98": 2.8284271247461903,
+        "moyal-99": 2.8284271247461903,
+        "moyal-100": 2.6457513110645907
+      },
+      "provenance": {
+        "kind": "user-asserted",
+        "description": "Poisson error estimate sqrt(N); sigma=1 count for empty channels"
+      }
+    }
+  },
+  "settings": {
+    "model": "moyal",
+    "parameters": [
+      {
+        "value": 0.0,
+        "fixed": true
+      },
+      {
+        "value": 9000.0,
+        "fixed": false
+      },
+      {
+        "value": 48.0,
+        "fixed": false
+      },
+      {
+        "value": 6.0,
+        "fixed": false
+      }
+    ],
+    "excludedIds": [],
+    "conditionalInference": true,
+    "physicalTimeConfirmed": false,
+    "selectionAfterInspection": false
+  },
+  "workspace": {
+    "kind": "single-fit"
+  },
+  "view": {
+    "showResiduals": true,
+    "showGuides": true,
+    "showErrorBars": true
+  }
+}

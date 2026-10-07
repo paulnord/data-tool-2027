@@ -2,6 +2,7 @@ import type { FitRequest, FitSettings } from "./schema";
 import type { FitResult, Statistic } from "./solve";
 import { gaussianShapeMoments } from "./gaussianShape";
 import { MOYAL_FWHM } from "./moyal";
+import { LANDAU_FWHM } from "./landau";
 
 export interface DerivedQuantity {
   id:
@@ -22,8 +23,9 @@ export function fitDerivedQuantities(
   settings: FitSettings,
   result: FitResult,
 ): DerivedQuantity[] {
-  if (settings.model === "moyal") {
-    const value = MOYAL_FWHM * result.coefficients[3];
+  if (settings.model === "moyal" || settings.model === "landau") {
+    const factor = settings.model === "moyal" ? MOYAL_FWHM : LANDAU_FWHM;
+    const value = factor * result.coefficients[3];
     const reason =
       result.coefficients[1] === 0
         ? "zero-peak-amplitude"
@@ -38,7 +40,7 @@ export function fitDerivedQuantities(
         unit: request.dataset.xColumn.unit ?? "?",
         standardError: reason
           ? { value: null, reason }
-          : propagated([0, 0, 0, MOYAL_FWHM], settings, result),
+          : propagated([0, 0, 0, factor], settings, result),
       },
     ];
   }

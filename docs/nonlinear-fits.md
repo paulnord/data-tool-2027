@@ -42,6 +42,7 @@ Gaussian peaks also support optional [skew and tail controls](peak-shapes.md), u
 
 The advanced [Landau peak](landau.md) uses a normalized, mode-zero Landau density,
 with area, MPV, positive width, and an optional background initially fixed at zero.
+Its derived FWHM and half-height guides measure the peak width above background.
 A ready-to-fit example and companion CSV are included.
 
 The advanced [Moyal peak](moyal.md) supplies a simple closed-form asymmetric

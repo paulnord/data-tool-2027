@@ -26,6 +26,36 @@ test("Landau example opens with Advanced off, fits and round-trips its uncertain
   expect(
     Number(await page.getByLabel("w value", { exact: true }).inputValue()),
   ).toBeCloseTo(5, 1);
+  await expect(
+    page.getByRole("table", { name: "Derived peak quantities", exact: true }),
+  ).toContainText("Full width at half maximum (FWHM)");
+  const plot = page.locator(
+    '.fit-chart svg[aria-label="Data and fitted curve"]',
+  );
+  await expect(plot.locator(".model-guide-half-max-left")).toHaveCount(1);
+  await expect(plot.locator(".model-guide-half-max-right")).toHaveCount(1);
+  await expect(plot.locator(".model-guide-half-height")).toHaveCount(1);
+  const left = Number(
+    await plot
+      .locator(".model-guide-half-max-left")
+      .getAttribute("data-guide-value"),
+  );
+  const right = Number(
+    await plot
+      .locator(".model-guide-half-max-right")
+      .getAttribute("data-guide-value"),
+  );
+  const w = Number(
+    await page.getByLabel("w value", { exact: true }).inputValue(),
+  );
+  expect(right - left).toBeCloseTo(4.018645712562254 * w, 5);
+  await page.getByRole("button", { name: "Print", exact: true }).click();
+  const print = page.getByRole("dialog", { name: "Print report", exact: true });
+  await expect(
+    print.getByRole("table", { name: "Print derived peak quantities" }),
+  ).toContainText("FWHM");
+  await expect(print.locator(".model-guide-half-max-left")).toHaveCount(1);
+  await page.keyboard.press("Escape");
   await page.screenshot({
     path: "test-results/landau-example.png",
     fullPage: true,

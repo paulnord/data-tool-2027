@@ -1334,7 +1334,7 @@ export default forwardRef<
                         inference.
                       </p>
                       {(entry.settings.model.startsWith("gaussian") ||
-                        entry.settings.model === "moyal") && (
+                        ["landau", "moyal"].includes(entry.settings.model)) && (
                         <table
                           aria-label={`${item.name} derived peak quantities`}
                         >

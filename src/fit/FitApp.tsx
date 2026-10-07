@@ -1246,7 +1246,7 @@ function PrintReport({
                     <table
                       aria-label={
                         state.settings.model.startsWith("gaussian") ||
-                        state.settings.model === "moyal"
+                        ["landau", "moyal"].includes(state.settings.model)
                           ? "Print derived peak quantities"
                           : "Print derived oscillation quantities"
                       }
@@ -3446,14 +3446,14 @@ export default function FitApp() {
                         <div className="fit-derived">
                           <h3>
                             {state.settings.model.startsWith("gaussian") ||
-                            state.settings.model === "moyal"
+                            ["landau", "moyal"].includes(state.settings.model)
                               ? "Derived peak quantities"
                               : "Derived oscillation quantities"}
                           </h3>
                           <table
                             aria-label={
                               state.settings.model.startsWith("gaussian") ||
-                              state.settings.model === "moyal"
+                              ["landau", "moyal"].includes(state.settings.model)
                                 ? "Derived peak quantities"
                                 : "Derived oscillation quantities"
                             }
@@ -3492,8 +3492,10 @@ export default function FitApp() {
                             </tbody>
                           </table>
                           <p>
-                            {state.settings.model === "moyal" ? (
-                              "FWHM = 3.590806… × w, measured at half the peak height above the fitted background. Its standard error is the same factor times the width standard error. Dashed guides mark the two crossings and half height when enabled."
+                            {["landau", "moyal"].includes(
+                              state.settings.model,
+                            ) ? (
+                              `FWHM = ${state.settings.model === "landau" ? "4.018646" : "3.590806"}… × w, measured at half the peak height above the fitted background. Its standard error is the same factor times the width standard error. Dashed guides mark the two crossings and half height when enabled.`
                             ) : state.settings.model.startsWith("gaussian") ? (
                               "These moments describe the normalized peak, including its extrapolated tails. Standard errors use the full fitted covariance and a local approximation."
                             ) : (

@@ -1,3 +1,8 @@
+import {
+  LANDAU_HALF_MAX_LEFT,
+  LANDAU_HALF_MAX_RIGHT,
+  landauValueDerivative,
+} from "./landau";
 import type { FitSettings } from "./schema";
 import {
   MOYAL_HALF_MAX_LEFT,
@@ -27,7 +32,19 @@ export function modelGuideValues(
     value: coefficients[0],
     symbol: "b",
   };
-  if (settings.model === "landau" || settings.model === "moyal")
+  if (settings.model === "landau" || settings.model === "moyal") {
+    const [left, right, density] =
+      settings.model === "moyal"
+        ? ([
+            MOYAL_HALF_MAX_LEFT,
+            MOYAL_HALF_MAX_RIGHT,
+            moyalValueDerivative,
+          ] as const)
+        : ([
+            LANDAU_HALF_MAX_LEFT,
+            LANDAU_HALF_MAX_RIGHT,
+            landauValueDerivative,
+          ] as const);
     return [
       {
         id: "center",
@@ -36,21 +53,19 @@ export function modelGuideValues(
         axis: "x",
         symbol: "mpv",
       },
-      ...(settings.model === "moyal" &&
-      coefficients[1] !== 0 &&
-      coefficients[3] > 0
+      ...(coefficients[1] !== 0 && coefficients[3] > 0
         ? [
             {
               id: "half-max-left",
               label: "Left half-height crossing (FWHM boundary)",
-              value: coefficients[2] + MOYAL_HALF_MAX_LEFT * coefficients[3],
+              value: coefficients[2] + left * coefficients[3],
               axis: "x" as const,
               symbol: "x½ left",
             },
             {
               id: "half-max-right",
               label: "Right half-height crossing (FWHM boundary)",
-              value: coefficients[2] + MOYAL_HALF_MAX_RIGHT * coefficients[3],
+              value: coefficients[2] + right * coefficients[3],
               axis: "x" as const,
               symbol: "x½ right",
             },
@@ -59,14 +74,13 @@ export function modelGuideValues(
               label: "Half peak height relative to fitted background",
               value:
                 coefficients[0] +
-                ((coefficients[1] / coefficients[3]) *
-                  moyalValueDerivative(0).value) /
-                  2,
+                ((coefficients[1] / coefficients[3]) * density(0).value) / 2,
               symbol: "y½",
             },
           ]
         : []),
     ];
+  }
   if (
     settings.model === "sine" ||
     settings.model === "sine-free-period" ||

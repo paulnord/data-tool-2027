@@ -27,6 +27,22 @@ Poisson likelihood. Fit uncertainties use the same local Jacobian conventions
 as the other nonlinear models. Selecting a model or opening an example does
 not run a fit.
 
+## FWHM and guides
+
+Results, CSV and print reports include **Full width at half maximum (FWHM)**
+in x-units. For this mode-zero, ROOT-width convention, the half-height crossings
+are `mpv - 1.3637499748151352*w` and `mpv + 2.6548957377471187*w`. Thus
+`FWHM = 4.018645712562254*w`, independent of background and area. Half height
+is measured relative to the fitted background, including for negative peaks.
+Unlike the Landau mean and variance, FWHM is finite.
+
+Its standard error is the same factor times the standard error of `w`, subject
+to the existing inference rules. Fixed width is marked fixed, and a zero-area
+curve has no reported FWHM. Enable **Show fit guides when available** to mark
+the MPV, both half-height crossings, and the half-height level. These guides
+also appear in interval/comparison plots, print, and figure exports. Custom
+equations do not automatically inherit model-specific FWHM reporting or guides.
+
 ## Example
 
 Choose **Data… → Examples → Synthetic data → Landau peak**, then **Fit selected

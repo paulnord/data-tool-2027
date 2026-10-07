@@ -1,6 +1,10 @@
 import type { FitRequest, FitSettings } from "./schema";
 import { gaussianShapeValueGradient } from "./gaussianShape";
-import { landauValueDerivative, landauValueGradient } from "./landau";
+import {
+  landauValueDerivative,
+  landauValueGradient,
+  LANDAU_HALF_MAX_LEFT,
+} from "./landau";
 import {
   moyalValueDerivative,
   moyalValueGradient,
@@ -251,7 +255,7 @@ export function suggestedParameters(
       undefined,
     );
     const leftHalfWidth =
-      model === "moyal" ? -MOYAL_HALF_MAX_LEFT : 1.363749974815135;
+      model === "moyal" ? -MOYAL_HALF_MAX_LEFT : -LANDAU_HALF_MAX_LEFT;
     const density =
       model === "moyal" ? moyalValueDerivative : landauValueDerivative;
     const w = half

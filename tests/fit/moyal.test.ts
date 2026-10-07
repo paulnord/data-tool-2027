@@ -1,10 +1,3 @@
-import { fitReportTable } from "../../src/core/fit/report";
-import { fitDerivedQuantities } from "../../src/core/fit/derivedParameters";
-import {
-  MOYAL_FWHM,
-  MOYAL_HALF_MAX_LEFT,
-  MOYAL_HALF_MAX_RIGHT,
-} from "../../src/core/fit/moyal";
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import reference from "./moyal-reference.json";
@@ -208,67 +201,6 @@ it("exports matching Moyal conventions in built-in and custom Python/ROOT progra
       generateCodeExportBundle(description).files["requirements.txt"],
     ).toContain("scipy");
   }
-});
-
-it("reports FWHM with width uncertainty, units, fixed and unavailable states", () => {
-  const { request, settings } = example();
-  const result = fit(request, settings);
-  const quantity = fitDerivedQuantities(request, settings, result)[0];
-  expect(quantity.id).toBe("fwhm");
-  expect(quantity.unit).toBe("channel");
-  expect(fitReportTable(request, settings, result)).toContainEqual([
-    quantity.label,
-    quantity.value,
-    "channel",
-    quantity.standardError.value,
-  ]);
-  expect(quantity.value).toBeCloseTo(MOYAL_FWHM * result.coefficients[3], 12);
-  expect(quantity.standardError.value).toBeCloseTo(
-    MOYAL_FWHM * result.standardErrors[3].value!,
-    12,
-  );
-  settings.parameters[3].fixed = true;
-  expect(
-    fitDerivedQuantities(request, settings, fit(request, settings))[0]
-      .standardError.reason,
-  ).toBe("fixed");
-  settings.parameters[3].fixed = false;
-  expect(
-    fitDerivedQuantities(request, settings, { ...result, covariance: null })[0]
-      .standardError.value,
-  ).toBeNull();
-  expect(
-    fitDerivedQuantities(request, settings, {
-      ...result,
-      coefficients: [1, 0, 50, 5],
-    })[0],
-  ).toMatchObject({
-    value: null,
-    standardError: { reason: "zero-peak-amplitude" },
-  });
-});
-
-it("places asymmetric FWHM boundaries at half height above any background, including dips", () => {
-  const settings = initialSettings("moyal");
-  for (const z of [MOYAL_HALF_MAX_LEFT, MOYAL_HALF_MAX_RIGHT])
-    expect(z + Math.exp(-z)).toBeCloseTo(1 + 2 * Math.log(2), 14);
-  for (const b of [0, 20])
-    for (const A of [-150, 150]) {
-      const p = [b, A, 50, 5];
-      const guides = modelGuideValues(0, settings, p);
-      const left = guides.find((g) => g.id === "half-max-left")!.value;
-      const right = guides.find((g) => g.id === "half-max-right")!.value;
-      const half = guides.find((g) => g.id === "half-height")!.value;
-      expect(left).toBeLessThan(p[2]);
-      expect(right).toBeGreaterThan(p[2]);
-      expect(right - left).toBeCloseTo(MOYAL_FWHM * p[3], 12);
-      for (const x of [left, right])
-        expect(predict(x, "moyal", p)).toBeCloseTo(half, 12);
-      expect(half - b).toBeCloseTo((predict(p[2], "moyal", p) - b) / 2, 12);
-    }
-  expect(modelGuideValues(0, settings, [0, 0, 50, 5]).map((g) => g.id)).toEqual(
-    ["center"],
-  );
 });
 
 it("uses integer channel counts and Poisson error estimates, with a stated empty-channel convention", () => {

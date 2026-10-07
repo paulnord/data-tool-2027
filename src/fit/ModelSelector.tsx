@@ -32,6 +32,7 @@ const groups: { label: string; models: [FitSettings["model"], string][] }[] = [
       ["gaussian", "Gaussian peak"],
       ["lorentzian", "Lorentzian peak"],
       ["landau", "Landau peak"],
+      ["moyal", "Moyal peak"],
       ["sigmoid", "Sigmoid · logistic"],
     ],
   },
@@ -45,6 +46,7 @@ const advancedModels = new Set<FitSettings["model"]>([
   "sigmoid",
   "gaussian-shape",
   "landau",
+  "moyal",
   "fourier",
 ]);
 

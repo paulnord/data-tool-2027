@@ -35,6 +35,7 @@ const inputs = [
   "examples/fit/nonlinear-session.trksess",
   "examples/data/published/dyfeo3-spin-wave.trksess",
   "examples/data/landau.trksess",
+  "examples/data/moyal.trksess",
 ];
 const directory = mkdtempSync(join(tmpdir(), "data-tool-code-export-"));
 const scenarios: {
@@ -53,6 +54,16 @@ scenarios.push({
   session: {
     request: landauSession.request,
     settings: customFromModel(landauSession.settings, landauSession.request),
+  },
+});
+const moyalSession = sessionSchema.parse(
+  JSON.parse(readFileSync("examples/data/moyal.trksess", "utf8")),
+);
+scenarios.push({
+  input: "moyal-custom",
+  session: {
+    request: moyalSession.request,
+    settings: customFromModel(moyalSession.settings, moyalSession.request),
   },
 });
 for (const name of [
@@ -358,10 +369,12 @@ try {
         const line = output.split("\n").find((l) => l.startsWith(`${name} = `));
         const coefficient = Number(line?.split(" = ")[1].split(" (")[0]);
         // ROOT's CERNLIB PDF is a lower-precision approximation than Boost.
-        // Require one part per million (plus the absolute tolerance) for this
-        // cross-library model; all other export tolerances remain unchanged.
+        // The count-valued Moyal example has an area near 10,000; independent
+        // nonlinear optimizers also need a relative coefficient tolerance.
+        // Require one part per million plus 1e-6 absolute for these cases.
         const coefficientTolerance =
-          input.includes("landau") && language === "ROOT"
+          (input.includes("landau") && language === "ROOT") ||
+          input.includes("moyal")
             ? 1e-6 * (1 + Math.abs(result.coefficients[i]))
             : tolerance;
         if (

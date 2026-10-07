@@ -1333,7 +1333,8 @@ export default forwardRef<
                         {fmt(entry.result.rms)} · {entry.result.inference}{" "}
                         inference.
                       </p>
-                      {entry.settings.model.startsWith("gaussian") && (
+                      {(entry.settings.model.startsWith("gaussian") ||
+                        ["landau", "moyal"].includes(entry.settings.model)) && (
                         <table
                           aria-label={`${item.name} derived peak quantities`}
                         >
@@ -1352,7 +1353,9 @@ export default forwardRef<
                             ).map((q) => (
                               <tr key={q.id}>
                                 <th>{q.label}</th>
-                                <td>{fmt(q.value)}</td>
+                                <td>
+                                  {fmt(q.value)} [{q.unit}]
+                                </td>
                                 <td>
                                   {q.standardError.reason === "fixed"
                                     ? "Fixed"

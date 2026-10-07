@@ -139,6 +139,7 @@ import gaussianExample from "../../examples/data/gaussian.csv?raw";
 import dampedSineExample from "../../examples/data/damped-sine.csv?raw";
 import lorentzianExample from "../../examples/data/lorentzian.csv?raw";
 import landauExample from "../../examples/data/landau.trksess?raw";
+import moyalExample from "../../examples/data/moyal.trksess?raw";
 import collisionExample from "../../examples/data/collision.csv?raw";
 import cartTrackExample from "../../examples/data/cart-track.csv?raw";
 import bounceIntervalsExample from "../../examples/data/bounce-intervals.csv?raw";
@@ -178,6 +179,7 @@ const examples = [
   ["Damped sine", "damped-sine.csv", dampedSineExample],
   ["Lorentzian peak", "lorentzian.csv", lorentzianExample],
   ["Landau peak", "landau.trksess", landauExample],
+  ["Moyal peak", "moyal.trksess", moyalExample],
   ["Collision", "collision.csv", collisionExample],
   ["Cart track", "cart-track.csv", cartTrackExample],
   ["Bounce intervals", "bounce-intervals.csv", bounceIntervalsExample],
@@ -1243,7 +1245,8 @@ function PrintReport({
                   {derived.length > 0 && (
                     <table
                       aria-label={
-                        state.settings.model.startsWith("gaussian")
+                        state.settings.model.startsWith("gaussian") ||
+                        ["landau", "moyal"].includes(state.settings.model)
                           ? "Print derived peak quantities"
                           : "Print derived oscillation quantities"
                       }
@@ -3442,13 +3445,15 @@ export default function FitApp() {
                       {derived.length > 0 && (
                         <div className="fit-derived">
                           <h3>
-                            {state.settings.model.startsWith("gaussian")
+                            {state.settings.model.startsWith("gaussian") ||
+                            ["landau", "moyal"].includes(state.settings.model)
                               ? "Derived peak quantities"
                               : "Derived oscillation quantities"}
                           </h3>
                           <table
                             aria-label={
-                              state.settings.model.startsWith("gaussian")
+                              state.settings.model.startsWith("gaussian") ||
+                              ["landau", "moyal"].includes(state.settings.model)
                                 ? "Derived peak quantities"
                                 : "Derived oscillation quantities"
                             }
@@ -3487,7 +3492,11 @@ export default function FitApp() {
                             </tbody>
                           </table>
                           <p>
-                            {state.settings.model.startsWith("gaussian") ? (
+                            {["landau", "moyal"].includes(
+                              state.settings.model,
+                            ) ? (
+                              `FWHM = ${state.settings.model === "landau" ? "4.018646" : "3.590806"}… × w, measured at half the peak height above the fitted background. Its standard error is the same factor times the width standard error. Dashed guides mark the two crossings and half height when enabled.`
+                            ) : state.settings.model.startsWith("gaussian") ? (
                               "These moments describe the normalized peak, including its extrapolated tails. Standard errors use the full fitted covariance and a local approximation."
                             ) : (
                               <>

@@ -1,9 +1,17 @@
 import type { FitRequest, FitSettings } from "./schema";
 import type { FitResult, Statistic } from "./solve";
 import { gaussianShapeMoments } from "./gaussianShape";
+import { MOYAL_FWHM } from "./moyal";
+import { LANDAU_FWHM } from "./landau";
 
 export interface DerivedQuantity {
-  id: "amplitude" | "phase" | "frequency" | "skewness" | "excessKurtosis";
+  id:
+    | "amplitude"
+    | "phase"
+    | "frequency"
+    | "skewness"
+    | "excessKurtosis"
+    | "fwhm";
   label: string;
   value: number | null;
   unit: string;
@@ -15,6 +23,27 @@ export function fitDerivedQuantities(
   settings: FitSettings,
   result: FitResult,
 ): DerivedQuantity[] {
+  if (settings.model === "moyal" || settings.model === "landau") {
+    const factor = settings.model === "moyal" ? MOYAL_FWHM : LANDAU_FWHM;
+    const value = factor * result.coefficients[3];
+    const reason =
+      result.coefficients[1] === 0
+        ? "zero-peak-amplitude"
+        : !Number.isFinite(value) || value <= 0
+          ? "nonfinite-derived-quantity"
+          : null;
+    return [
+      {
+        id: "fwhm",
+        label: "Full width at half maximum (FWHM)",
+        value: reason ? null : value,
+        unit: request.dataset.xColumn.unit ?? "?",
+        standardError: reason
+          ? { value: null, reason }
+          : propagated([0, 0, 0, factor], settings, result),
+      },
+    ];
+  }
   if (settings.model !== "gaussian" && settings.model !== "gaussian-shape")
     return oscillationDerivedQuantities(request, settings, result);
   const shaped = settings.model === "gaussian-shape";

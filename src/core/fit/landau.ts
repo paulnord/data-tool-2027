@@ -6,6 +6,12 @@ export const LANDAU_SCALE = 2 / Math.PI;
 export const LANDAU_ROOT_MODE =
   LANDAU_BOOST_MODE / LANDAU_SCALE + Math.log(Math.PI / 2);
 
+// Half-height roots of the mode-zero, ROOT-width density; independently
+// checked with SciPy levy_stable quadrature. No per-fit root search is needed.
+export const LANDAU_HALF_MAX_LEFT = -1.3637499748151352;
+export const LANDAU_HALF_MAX_RIGHT = 2.6548957377471187;
+export const LANDAU_FWHM = LANDAU_HALF_MAX_RIGHT - LANDAU_HALF_MAX_LEFT;
+
 function polynomial(x: number, coefficients: readonly number[]) {
   let value = coefficients.at(-1)!,
     derivative = 0;

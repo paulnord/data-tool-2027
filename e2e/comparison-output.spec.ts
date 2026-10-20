@@ -31,101 +31,106 @@ async function download(page: Page, label: string) {
   return await waiting;
 }
 
-test("comparison toolbar copies reduced chi-squared, shows supplied errors, and prints measured pages", async ({
-  page,
-  context,
-}, testInfo) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await compare(page);
-  const table = page.getByRole("table", {
-    name: "Model comparison statistics",
-    exact: true,
-  });
-  await expect(
-    table.getByRole("columnheader", { name: "χ²/df", exact: true }),
-  ).toBeVisible();
-  const cells = await table
-    .locator("tbody tr")
-    .first()
-    .locator("td")
-    .allTextContents();
-  const num = (s: string) => Number(s.replaceAll(",", ""));
-  expect(num(cells[5])).toBeCloseTo(num(cells[4]) / num(cells[1]), 5);
-  const graph = page.getByRole("img", {
-    name: "Compared fitted curves",
-    exact: true,
-  });
-  await expect(graph.locator(".comparison-error-bar")).toHaveCount(61);
-  const firstPoint = graph.locator(".comparison-point").first();
-  const rowId = await firstPoint.getAttribute("data-row-id");
-  await page.locator(".comparison-observations summary").click();
-  await page.getByLabel(`Include ${rowId}`, { exact: true }).uncheck();
-  await page
-    .getByRole("button", { name: "Refit and compare", exact: true })
-    .click();
-  await expect(
-    page.locator(".model-comparison").getByRole("status"),
-  ).toHaveText("Comparison complete");
-  await expect(firstPoint).toHaveAttribute("data-included", "false");
-  await expect(graph.locator(".comparison-error-bar")).toHaveCount(61);
-  await expect(
-    table.locator("tbody tr").first().locator("td").first(),
-  ).toHaveText("60");
-  const before = await table.innerText();
-  await page
-    .getByRole("checkbox", { name: "Show y error bars (±1σ)", exact: true })
-    .uncheck();
-  await expect(graph.locator(".comparison-error-bar")).toHaveCount(0);
-  await page
-    .getByRole("checkbox", { name: "Show y error bars (±1σ)", exact: true })
-    .check();
-  expect(await table.innerText()).toBe(before);
-  await page.getByRole("button", { name: "Copy report", exact: true }).click();
-  await expect
-    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toContain("χ²/df (reduced chi-squared)");
-  await page.getByRole("button", { name: "Print", exact: true }).click();
-  const preview = page.getByRole("dialog", {
-    name: "Print model comparison",
-    exact: true,
-  });
-  await expect(preview.locator(".fit-print-page").first()).toBeVisible();
-  await expect(
-    preview.getByRole("table", { name: "Printed model comparison statistics" }),
-  ).toContainText("χ²/df");
-  await expect(preview.locator(".comparison-error-bar")).toHaveCount(61);
-  await preview
-    .locator(".fit-print-pages")
-    .screenshot({ path: testInfo.outputPath("comparison-preview.png") });
-  await page.pdf({
-    path: testInfo.outputPath("comparison-report.pdf"),
-    preferCSSPageSize: true,
-    printBackground: true,
-  });
-  await page.emulateMedia({ media: "screen" });
-  await preview
-    .getByRole("checkbox", { name: "Full-page graph", exact: true })
-    .check();
-  await expect
-    .poll(() => preview.locator(".fit-print-page").count())
-    .toBeGreaterThanOrEqual(2);
-  await expect(preview.locator(".fit-print-page").first()).not.toContainText(
-    "Degrees of freedom df",
-  );
-  await page.emulateMedia({ media: "print" });
-  await page.pdf({
-    path: testInfo.outputPath("comparison-full-page.pdf"),
-    preferCSSPageSize: true,
-    printBackground: true,
-  });
-  await page.emulateMedia({ media: "screen" });
-  await preview
-    .getByRole("button", { name: "Close preview", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "Print", exact: true }),
-  ).toBeFocused();
-});
+test(
+  "comparison toolbar copies reduced chi-squared, shows supplied errors, and prints measured pages",
+  { tag: "@clipboard" },
+  async ({ page, context }, testInfo) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await compare(page);
+    const table = page.getByRole("table", {
+      name: "Model comparison statistics",
+      exact: true,
+    });
+    await expect(
+      table.getByRole("columnheader", { name: "χ²/df", exact: true }),
+    ).toBeVisible();
+    const cells = await table
+      .locator("tbody tr")
+      .first()
+      .locator("td")
+      .allTextContents();
+    const num = (s: string) => Number(s.replaceAll(",", ""));
+    expect(num(cells[5])).toBeCloseTo(num(cells[4]) / num(cells[1]), 5);
+    const graph = page.getByRole("img", {
+      name: "Compared fitted curves",
+      exact: true,
+    });
+    await expect(graph.locator(".comparison-error-bar")).toHaveCount(61);
+    const firstPoint = graph.locator(".comparison-point").first();
+    const rowId = await firstPoint.getAttribute("data-row-id");
+    await page.locator(".comparison-observations summary").click();
+    await page.getByLabel(`Include ${rowId}`, { exact: true }).uncheck();
+    await page
+      .getByRole("button", { name: "Refit and compare", exact: true })
+      .click();
+    await expect(
+      page.locator(".model-comparison").getByRole("status"),
+    ).toHaveText("Comparison complete");
+    await expect(firstPoint).toHaveAttribute("data-included", "false");
+    await expect(graph.locator(".comparison-error-bar")).toHaveCount(61);
+    await expect(
+      table.locator("tbody tr").first().locator("td").first(),
+    ).toHaveText("60");
+    const before = await table.innerText();
+    await page
+      .getByRole("checkbox", { name: "Show y error bars (±1σ)", exact: true })
+      .uncheck();
+    await expect(graph.locator(".comparison-error-bar")).toHaveCount(0);
+    await page
+      .getByRole("checkbox", { name: "Show y error bars (±1σ)", exact: true })
+      .check();
+    expect(await table.innerText()).toBe(before);
+    await page
+      .getByRole("button", { name: "Copy report", exact: true })
+      .click();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toContain("χ²/df (reduced chi-squared)");
+    await page.getByRole("button", { name: "Print", exact: true }).click();
+    const preview = page.getByRole("dialog", {
+      name: "Print model comparison",
+      exact: true,
+    });
+    await expect(preview.locator(".fit-print-page").first()).toBeVisible();
+    await expect(
+      preview.getByRole("table", {
+        name: "Printed model comparison statistics",
+      }),
+    ).toContainText("χ²/df");
+    await expect(preview.locator(".comparison-error-bar")).toHaveCount(61);
+    await preview
+      .locator(".fit-print-pages")
+      .screenshot({ path: testInfo.outputPath("comparison-preview.png") });
+    await page.pdf({
+      path: testInfo.outputPath("comparison-report.pdf"),
+      preferCSSPageSize: true,
+      printBackground: true,
+    });
+    await page.emulateMedia({ media: "screen" });
+    await preview
+      .getByRole("checkbox", { name: "Full-page graph", exact: true })
+      .check();
+    await expect
+      .poll(() => preview.locator(".fit-print-page").count())
+      .toBeGreaterThanOrEqual(2);
+    await expect(preview.locator(".fit-print-page").first()).not.toContainText(
+      "Degrees of freedom df",
+    );
+    await page.emulateMedia({ media: "print" });
+    await page.pdf({
+      path: testInfo.outputPath("comparison-full-page.pdf"),
+      preferCSSPageSize: true,
+      printBackground: true,
+    });
+    await page.emulateMedia({ media: "screen" });
+    await preview
+      .getByRole("button", { name: "Close preview", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Print", exact: true }),
+    ).toBeFocused();
+  },
+);
 
 test("comparison toolbar exports labeled SVG PNG and PDF with physical sizing and hidden residuals", async ({
   page,

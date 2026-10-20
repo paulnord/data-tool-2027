@@ -28,7 +28,7 @@ npm run desktop:build
 npm run test:integration
 ```
 
-Browser checks use two CI workers. Independent cases run in parallel, including cases in the same file. Tests that read or write the real system clipboard must use `{ tag: "@clipboard" }`; that project is limited to one worker because Linux browser processes share a clipboard. Keep real keyboard and cross-window clipboard coverage in that lane rather than mocking it. `npm run test:e2e` still runs both projects and every test; `-- --project=clipboard` selects only the clipboard lane for debugging. Pull requests run the same publication checks but never deploy.
+CI splits browser checks across two independent-test shards on separate runners and a serial clipboard runner. Each independent shard uses two workers, including parallel cases in the same file. Tests that read or write the real system clipboard must use `{ tag: "@clipboard" }`; that project is limited to one worker because Linux browser processes share a clipboard. Keep real keyboard and cross-window clipboard coverage in that lane rather than mocking it. `npm run test:e2e` still runs both projects and every test; `-- --project=clipboard` selects only the clipboard lane for debugging. Pull requests run the same publication checks but never deploy. Deployment waits for the build, hosted checks, and all three browser lanes.
 
 On a Mac, `npm run desktop:build` bundles the frontend into the application; the finished app does not depend on a localhost server. Open it with `open 'src-tauri/target/release/bundle/macos/Data Tool 2027.app'`. By contrast, `npm run desktop:dev` starts the Vite development server on loopback port 5174 and opens it inside the Tauri window.
 

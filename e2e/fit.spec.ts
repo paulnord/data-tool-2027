@@ -160,56 +160,61 @@ test("cancelled work cannot replace a newer analysis", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText("Fit complete");
 });
 
-test("copied report separates scalar statistics and keeps normal data tables", async ({
-  page,
-  context,
-}) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await openDemo(page);
-  await page.getByRole("button", { name: "Fit selected observations" }).click();
-  await expect(page.getByRole("status")).toHaveText("Fit complete");
-  await page.locator(".fit-settings-menu summary").click();
-  await page
-    .getByRole("button", { name: "Technical report", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Copy report", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText(
-    "Report copied with the selected sections",
-  );
-  const text = await page.evaluate(() => navigator.clipboard.readText());
-  const sections = text
-    .trimEnd()
-    .split(/\r?\n\r?\n/)
-    .map((section) => section.split(/\r?\n/).map((row) => row.split("\t")));
-  expect(text.startsWith("Dataset\t")).toBe(true);
-  expect(text.indexOf("Source notes\t")).toBeGreaterThan(
-    text.indexOf("Row\tx\ty\tpredicted\tresidual"),
-  );
-  expect(text).toContain("seed=");
-  expect(sections[1][0]).toEqual([
-    "Parameter",
-    "Value",
-    "Standard error",
-    "95% lower",
-    "95% upper",
-  ]);
-  expect(sections[2][0]).toEqual(["Statistic", "Value"]);
-  expect(sections[2].every((row) => row.length === 2)).toBe(true);
-  const table = new Map(sections[2].slice(1).map((row) => [row[0], row[1]]));
-  expect(Number(table.get("df"))).toBe(58);
-  expect(Number(table.get("n"))).toBe(61);
-  expect(sections[3][0]).toEqual([
-    "Row",
-    "x",
-    "y",
-    "predicted",
-    "residual",
-    "sigma_y",
-    "weight (1/sigma_y^2)",
-  ]);
-  expect(sections[3]).toHaveLength(62);
-  expect(sections[3].every((row) => row.length === 7)).toBe(true);
-});
+test(
+  "copied report separates scalar statistics and keeps normal data tables",
+  { tag: "@clipboard" },
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await openDemo(page);
+    await page
+      .getByRole("button", { name: "Fit selected observations" })
+      .click();
+    await expect(page.getByRole("status")).toHaveText("Fit complete");
+    await page.locator(".fit-settings-menu summary").click();
+    await page
+      .getByRole("button", { name: "Technical report", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Copy report", exact: true })
+      .click();
+    await expect(page.getByRole("status")).toHaveText(
+      "Report copied with the selected sections",
+    );
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    const sections = text
+      .trimEnd()
+      .split(/\r?\n\r?\n/)
+      .map((section) => section.split(/\r?\n/).map((row) => row.split("\t")));
+    expect(text.startsWith("Dataset\t")).toBe(true);
+    expect(text.indexOf("Source notes\t")).toBeGreaterThan(
+      text.indexOf("Row\tx\ty\tpredicted\tresidual"),
+    );
+    expect(text).toContain("seed=");
+    expect(sections[1][0]).toEqual([
+      "Parameter",
+      "Value",
+      "Standard error",
+      "95% lower",
+      "95% upper",
+    ]);
+    expect(sections[2][0]).toEqual(["Statistic", "Value"]);
+    expect(sections[2].every((row) => row.length === 2)).toBe(true);
+    const table = new Map(sections[2].slice(1).map((row) => [row[0], row[1]]));
+    expect(Number(table.get("df"))).toBe(58);
+    expect(Number(table.get("n"))).toBe(61);
+    expect(sections[3][0]).toEqual([
+      "Row",
+      "x",
+      "y",
+      "predicted",
+      "residual",
+      "sigma_y",
+      "weight (1/sigma_y^2)",
+    ]);
+    expect(sections[3]).toHaveLength(62);
+    expect(sections[3].every((row) => row.length === 7)).toBe(true);
+  },
+);
 
 test("rectangle selection changes the fit subset and supports undo, restore and cancellation", async ({
   page,
@@ -1191,76 +1196,78 @@ test("Data reopens the same source table, loads files in place, swaps axes and s
   );
 });
 
-test("cell copy/paste doubles blocks, supports row selection, and preserves undo", async ({
-  page,
-  context,
-}) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await openDemo(page);
-  await page.getByRole("button", { name: "Data…", exact: true }).click();
-  const panel = page.getByRole("dialog", { name: "Data", exact: true });
-  await panel.getByRole("button", { name: "New table" }).click();
-  await panel.getByLabel("Row 1 column 1", { exact: true }).fill(".02");
-  const modifier = process.platform === "darwin" ? "Meta" : "Control";
-  for (const count of [1, 2, 4, 8]) {
-    await panel.getByLabel("Row 1 column 1", { exact: true }).click();
-    if (count > 1)
+test(
+  "cell copy/paste doubles blocks, supports row selection, and preserves undo",
+  { tag: "@clipboard" },
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await openDemo(page);
+    await page.getByRole("button", { name: "Data…", exact: true }).click();
+    const panel = page.getByRole("dialog", { name: "Data", exact: true });
+    await panel.getByRole("button", { name: "New table" }).click();
+    await panel.getByLabel("Row 1 column 1", { exact: true }).fill(".02");
+    const modifier = process.platform === "darwin" ? "Meta" : "Control";
+    for (const count of [1, 2, 4, 8]) {
+      await panel.getByLabel("Row 1 column 1", { exact: true }).click();
+      if (count > 1)
+        await panel
+          .getByLabel(`Row ${count} column 1`, { exact: true })
+          .click({ modifiers: ["Shift"] });
+      await page.keyboard.press(`${modifier}+c`);
+      expect(
+        (await page.evaluate(() => navigator.clipboard.readText())).split("\n"),
+      ).toHaveLength(count);
       await panel
-        .getByLabel(`Row ${count} column 1`, { exact: true })
-        .click({ modifiers: ["Shift"] });
+        .getByLabel(`Row ${count + 1} column 1`, { exact: true })
+        .click();
+      await page.keyboard.press(`${modifier}+v`);
+      await expect(
+        panel.getByLabel(`Row ${count * 2} column 1`, { exact: true }),
+      ).toHaveValue(".02");
+    }
+    await expect(panel.locator("tbody tr")).toHaveCount(17);
+    await panel.getByRole("button", { name: "Undo table change" }).click();
+    await expect(panel.locator("tbody tr")).toHaveCount(9);
+    await panel
+      .getByRole("button", { name: "Select row 1", exact: true })
+      .click();
+    await panel
+      .getByRole("button", { name: "Select row 2", exact: true })
+      .click({ modifiers: ["Shift"] });
     await page.keyboard.press(`${modifier}+c`);
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied.split("\n")).toHaveLength(2);
+    expect(copied.split("\n")[0].split("\t")).toHaveLength(1);
+  },
+);
+
+test(
+  "dragging a rectangle copies two columns and Shift-arrow extends it",
+  { tag: "@clipboard" },
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await openDemo(page);
+    await page.getByRole("button", { name: "Data…", exact: true }).click();
+    const panel = page.getByRole("dialog", { name: "Data", exact: true });
+    const start = panel.getByLabel("Row 2 column 1", { exact: true }),
+      end = panel.getByLabel("Row 3 column 2", { exact: true });
+    const a = await start.boundingBox(),
+      b = await end.boundingBox();
+    await page.mouse.move(a!.x + 10, a!.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(b!.x + 10, b!.y + 10, { steps: 10 });
+    await page.mouse.up();
+    await expect(panel.locator(".fit-cell-selected")).toHaveCount(4);
+    await page.keyboard.press("ControlOrMeta+c");
     expect(
       (await page.evaluate(() => navigator.clipboard.readText())).split("\n"),
-    ).toHaveLength(count);
-    await panel
-      .getByLabel(`Row ${count + 1} column 1`, { exact: true })
-      .click();
-    await page.keyboard.press(`${modifier}+v`);
-    await expect(
-      panel.getByLabel(`Row ${count * 2} column 1`, { exact: true }),
-    ).toHaveValue(".02");
-  }
-  await expect(panel.locator("tbody tr")).toHaveCount(17);
-  await panel.getByRole("button", { name: "Undo table change" }).click();
-  await expect(panel.locator("tbody tr")).toHaveCount(9);
-  await panel
-    .getByRole("button", { name: "Select row 1", exact: true })
-    .click();
-  await panel
-    .getByRole("button", { name: "Select row 2", exact: true })
-    .click({ modifiers: ["Shift"] });
-  await page.keyboard.press(`${modifier}+c`);
-  const copied = await page.evaluate(() => navigator.clipboard.readText());
-  expect(copied.split("\n")).toHaveLength(2);
-  expect(copied.split("\n")[0].split("\t")).toHaveLength(1);
-});
-
-test("dragging a rectangle copies two columns and Shift-arrow extends it", async ({
-  page,
-  context,
-}) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await openDemo(page);
-  await page.getByRole("button", { name: "Data…", exact: true }).click();
-  const panel = page.getByRole("dialog", { name: "Data", exact: true });
-  const start = panel.getByLabel("Row 2 column 1", { exact: true }),
-    end = panel.getByLabel("Row 3 column 2", { exact: true });
-  const a = await start.boundingBox(),
-    b = await end.boundingBox();
-  await page.mouse.move(a!.x + 10, a!.y + 10);
-  await page.mouse.down();
-  await page.mouse.move(b!.x + 10, b!.y + 10, { steps: 10 });
-  await page.mouse.up();
-  await expect(panel.locator(".fit-cell-selected")).toHaveCount(4);
-  await page.keyboard.press("ControlOrMeta+c");
-  expect(
-    (await page.evaluate(() => navigator.clipboard.readText())).split("\n"),
-  ).toHaveLength(2);
-  await start.click();
-  await page.keyboard.press("Shift+ArrowDown");
-  await page.keyboard.press("Shift+ArrowRight");
-  await expect(panel.locator(".fit-cell-selected")).toHaveCount(4);
-});
+    ).toHaveLength(2);
+    await start.click();
+    await page.keyboard.press("Shift+ArrowDown");
+    await page.keyboard.press("Shift+ArrowRight");
+    await expect(panel.locator(".fit-cell-selected")).toHaveCount(4);
+  },
+);
 
 test("a full page keeps the next blank paste destination reachable", async ({
   page,
@@ -1552,117 +1559,136 @@ test("column headings select contents; Delete clears and context menu removes co
   );
 });
 
-test("copied CSV and pasted reports start with dataset names and keep comments at the bottom", async ({
-  page,
-  context,
-}) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await openDemo(page);
-  await page.locator("input[type=file]").setInputFiles({
-    name: "experiment.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from("# A useful comment\ntime,height\n0,2\n1,5\n2,8"),
-  });
-  const panel = page.getByRole("dialog", { name: "Data", exact: true });
-  await panel.getByRole("button", { name: "Use these data" }).click();
-  await page.getByRole("button", { name: "Fit selected observations" }).click();
-  await expect(page.locator(".fit-status")).toHaveText("Fitted");
-  await page.locator(".fit-settings-menu summary").click();
-  await page
-    .getByRole("button", { name: "Technical report", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Copy report", exact: true }).click();
-  const fileReport = await page.evaluate(() => navigator.clipboard.readText());
-  expect(fileReport.split("\r\n")[0]).toBe("Dataset\texperiment.csv");
-  expect(fileReport.indexOf("# A useful comment")).toBeGreaterThan(
-    fileReport.indexOf("Row\tx\ty\tpredicted\tresidual"),
-  );
-  await page.getByRole("button", { name: "Data…", exact: true }).click();
-  await panel.getByRole("button", { name: "New table" }).click();
-  await panel.getByLabel("Row 1 column 1", { exact: true }).evaluate((el) => {
-    const clipboardData = new DataTransfer();
-    clipboardData.setData("text", "time\theight\n0\t2\n1\t5\n2\t8");
-    el.dispatchEvent(
-      new ClipboardEvent("paste", {
-        clipboardData,
-        bubbles: true,
-        cancelable: true,
-      }),
+test(
+  "copied CSV and pasted reports start with dataset names and keep comments at the bottom",
+  { tag: "@clipboard" },
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await openDemo(page);
+    await page.locator("input[type=file]").setInputFiles({
+      name: "experiment.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("# A useful comment\ntime,height\n0,2\n1,5\n2,8"),
+    });
+    const panel = page.getByRole("dialog", { name: "Data", exact: true });
+    await panel.getByRole("button", { name: "Use these data" }).click();
+    await page
+      .getByRole("button", { name: "Fit selected observations" })
+      .click();
+    await expect(page.locator(".fit-status")).toHaveText("Fitted");
+    await page.locator(".fit-settings-menu summary").click();
+    await page
+      .getByRole("button", { name: "Technical report", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Copy report", exact: true })
+      .click();
+    const fileReport = await page.evaluate(() =>
+      navigator.clipboard.readText(),
     );
-  });
-  await panel.getByRole("button", { name: "Use these data" }).click();
-  await page.getByRole("button", { name: "Fit selected observations" }).click();
-  await expect(page.locator(".fit-status")).toHaveText("Fitted");
-  await page.getByRole("button", { name: "Copy report", exact: true }).click();
-  const pastedReport = await page.evaluate(() =>
-    navigator.clipboard.readText(),
-  );
-  expect(pastedReport.split("\r\n")[0]).toBe("Dataset\tPasted data");
-  for (const heading of ["Parameter\t", "Statistic\t", "Row\t"])
+    expect(fileReport.split("\r\n")[0]).toBe("Dataset\texperiment.csv");
+    expect(fileReport.indexOf("# A useful comment")).toBeGreaterThan(
+      fileReport.indexOf("Row\tx\ty\tpredicted\tresidual"),
+    );
+    await page.getByRole("button", { name: "Data…", exact: true }).click();
+    await panel.getByRole("button", { name: "New table" }).click();
+    await panel.getByLabel("Row 1 column 1", { exact: true }).evaluate((el) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text", "time\theight\n0\t2\n1\t5\n2\t8");
+      el.dispatchEvent(
+        new ClipboardEvent("paste", {
+          clipboardData,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    await panel.getByRole("button", { name: "Use these data" }).click();
+    await page
+      .getByRole("button", { name: "Fit selected observations" })
+      .click();
+    await expect(page.locator(".fit-status")).toHaveText("Fitted");
+    await page
+      .getByRole("button", { name: "Copy report", exact: true })
+      .click();
+    const pastedReport = await page.evaluate(() =>
+      navigator.clipboard.readText(),
+    );
+    expect(pastedReport.split("\r\n")[0]).toBe("Dataset\tPasted data");
+    for (const heading of ["Parameter\t", "Statistic\t", "Row\t"])
+      expect(
+        pastedReport
+          .split("\r\n")
+          .findIndex((line) => line.startsWith(heading)),
+      ).toBe(
+        fileReport.split("\r\n").findIndex((line) => line.startsWith(heading)),
+      );
+  },
+);
+
+test(
+  "table blocks copy between independent windows and saving names a pasted dataset",
+  { tag: "@clipboard" },
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await openDemo(page);
+    await page.getByRole("button", { name: "Data…", exact: true }).click();
+    const source = page.getByRole("dialog", { name: "Data", exact: true });
+    await source
+      .getByRole("button", { name: "Select entire table", exact: true })
+      .click();
+    await page.keyboard.press("ControlOrMeta+c");
     expect(
-      pastedReport.split("\r\n").findIndex((line) => line.startsWith(heading)),
-    ).toBe(
-      fileReport.split("\r\n").findIndex((line) => line.startsWith(heading)),
+      (await page.evaluate(() => navigator.clipboard.readText())).split("\n"),
+    ).toHaveLength(62);
+
+    await source.getByLabel("Row 1 column 1", { exact: true }).click();
+    await source
+      .getByLabel("Row 4 column 2", { exact: true })
+      .click({ modifiers: ["Shift"] });
+    await page.keyboard.press("ControlOrMeta+c");
+    const other = await context.newPage();
+    await openDemo(other);
+    await other.getByRole("button", { name: "Data…", exact: true }).click();
+    const destination = other.getByRole("dialog", {
+      name: "Data",
+      exact: true,
+    });
+    await destination.getByRole("button", { name: "New table" }).click();
+    await destination.getByLabel("Row 1 column 1", { exact: true }).click();
+    await destination
+      .getByLabel("Row 1 column 1", { exact: true })
+      .press(process.platform === "darwin" ? "Meta+v" : "Control+v");
+    await expect(
+      destination.getByLabel("Row 2 column 2", { exact: true }),
+    ).toHaveValue(
+      await source.getByLabel("Row 2 column 2", { exact: true }).inputValue(),
     );
-});
-
-test("table blocks copy between independent windows and saving names a pasted dataset", async ({
-  page,
-  context,
-}) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await openDemo(page);
-  await page.getByRole("button", { name: "Data…", exact: true }).click();
-  const source = page.getByRole("dialog", { name: "Data", exact: true });
-  await source
-    .getByRole("button", { name: "Select entire table", exact: true })
-    .click();
-  await page.keyboard.press("ControlOrMeta+c");
-  expect(
-    (await page.evaluate(() => navigator.clipboard.readText())).split("\n"),
-  ).toHaveLength(62);
-
-  await source.getByLabel("Row 1 column 1", { exact: true }).click();
-  await source
-    .getByLabel("Row 4 column 2", { exact: true })
-    .click({ modifiers: ["Shift"] });
-  await page.keyboard.press("ControlOrMeta+c");
-  const other = await context.newPage();
-  await openDemo(other);
-  await other.getByRole("button", { name: "Data…", exact: true }).click();
-  const destination = other.getByRole("dialog", { name: "Data", exact: true });
-  await destination.getByRole("button", { name: "New table" }).click();
-  await destination.getByLabel("Row 1 column 1", { exact: true }).click();
-  await destination
-    .getByLabel("Row 1 column 1", { exact: true })
-    .press(process.platform === "darwin" ? "Meta+v" : "Control+v");
-  await expect(
-    destination.getByLabel("Row 2 column 2", { exact: true }),
-  ).toHaveValue(
-    await source.getByLabel("Row 2 column 2", { exact: true }).inputValue(),
-  );
-  await destination.getByRole("button", { name: "Use these data" }).click();
-  await other
-    .getByRole("button", { name: "Fit selected observations" })
-    .click();
-  await expect(other.locator(".fit-status")).toHaveText("Fitted");
-  const download = other.waitForEvent("download");
-  await other.getByRole("button", { name: "Save session" }).click();
-  const saved = JSON.parse(
-    await readFile((await (await download).path())!, "utf8"),
-  );
-  expect(saved.request.dataset.label).toBe("analysis");
-  await other.getByRole("button", { name: "Copy report", exact: true }).click();
-  expect(
-    (await other.evaluate(() => navigator.clipboard.readText())).split(
-      "\r\n",
-    )[0],
-  ).toBe("Dataset\tanalysis");
-  await expect(
-    source.getByLabel("Row 2 column 1", { exact: true }),
-  ).toHaveValue("0");
-  await other.close();
-});
+    await destination.getByRole("button", { name: "Use these data" }).click();
+    await other
+      .getByRole("button", { name: "Fit selected observations" })
+      .click();
+    await expect(other.locator(".fit-status")).toHaveText("Fitted");
+    const download = other.waitForEvent("download");
+    await other.getByRole("button", { name: "Save session" }).click();
+    const saved = JSON.parse(
+      await readFile((await (await download).path())!, "utf8"),
+    );
+    expect(saved.request.dataset.label).toBe("analysis");
+    await other
+      .getByRole("button", { name: "Copy report", exact: true })
+      .click();
+    expect(
+      (await other.evaluate(() => navigator.clipboard.readText())).split(
+        "\r\n",
+      )[0],
+    ).toBe("Dataset\tanalysis");
+    await expect(
+      source.getByLabel("Row 2 column 1", { exact: true }),
+    ).toHaveValue("0");
+    await other.close();
+  },
+);
 
 test("print preview includes both vector plots and results without interactive controls in print", async ({
   page,
@@ -1797,84 +1823,85 @@ test("Print works without a fit and keeps the entire framed graph inside scaled 
   await expect(manual.locator("table")).toHaveCount(0);
 });
 
-test("plain column headings support dragging, modifier sets and batch menu actions", async ({
-  page,
-  context,
-}) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await openDemo(page);
-  await page.locator("input[type=file]").setInputFiles({
-    name: "sets.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from("id,x,y,c,d,e\na,0,2,C0,D0,E0\nb,1,3,C1,D1,E1"),
-  });
-  const panel = page.getByRole("dialog", { name: "Data", exact: true });
-  const heading = (n: number) =>
-    panel.getByLabel(`Select column ${n}`, { exact: true });
-  await expect(heading(1)).toHaveJSProperty("tagName", "TH");
-  await expect(
-    panel.getByRole("button", { name: "Select column 1", exact: true }),
-  ).toHaveCount(0);
-  const a = await heading(4).boundingBox(),
-    b = await heading(6).boundingBox();
-  await page.mouse.move(a!.x + a!.width / 2, a!.y + 10);
-  await page.mouse.down();
-  await page.mouse.move(b!.x + b!.width / 2, b!.y + 10, { steps: 8 });
-  await page.mouse.up();
-  for (const n of [4, 5, 6])
-    await expect(heading(n)).toHaveAttribute("aria-selected", "true");
-  await expect(panel.getByLabel("Undo table change")).toBeDisabled();
-  await heading(5).click({ button: "right" });
-  await panel.getByRole("menuitem", { name: "Copy", exact: true }).click();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    "c\td\te\nC0\tD0\tE0\nC1\tD1\tE1",
-  );
-  await heading(1).click();
-  await heading(4).click({ modifiers: ["Alt"] });
-  await heading(6).click({ modifiers: ["Alt"] });
-  await heading(4).click({ modifiers: ["Alt"] });
-  await expect(heading(4)).toHaveAttribute("aria-selected", "false");
-  await heading(6).click({ button: "right" });
-  await panel.getByRole("menuitem", { name: "Copy", exact: true }).click();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    "id\te\na\tE0\nb\tE1",
-  );
-  await heading(1).click({ button: "right" });
-  await panel
-    .getByRole("menuitem", { name: "Clear contents", exact: true })
-    .click();
-  await expect(panel.getByLabel("Row 2 column 1", { exact: true })).toHaveValue(
-    "",
-  );
-  await expect(panel.getByLabel("Row 2 column 6", { exact: true })).toHaveValue(
-    "",
-  );
-  await expect(panel.getByLabel("Row 2 column 4", { exact: true })).toHaveValue(
-    "C0",
-  );
-  await panel.getByLabel("Undo table change").click();
-  await expect(heading(6)).toHaveAttribute("aria-selected", "true");
-  await heading(1).click({ button: "right" });
-  await panel
-    .getByRole("menuitem", { name: "Delete selected columns", exact: true })
-    .click();
-  await expect(
-    panel.getByLabel("Select column 1", { exact: true }),
-  ).toContainText("Suggested X");
-  await expect(
-    panel.getByLabel("Select column 2", { exact: true }),
-  ).toContainText("Suggested Y");
-  await expect(panel.getByLabel("Row 2 column 3", { exact: true })).toHaveValue(
-    "C0",
-  );
-  await expect(heading(5)).toHaveCount(0);
-  await panel.getByLabel("Undo table change").click();
-  await expect(panel.getByLabel("Row 2 column 6", { exact: true })).toHaveValue(
-    "E0",
-  );
-  await panel.getByLabel("Redo table change").click();
-  await expect(heading(5)).toHaveCount(0);
-});
+test(
+  "plain column headings support dragging, modifier sets and batch menu actions",
+  { tag: "@clipboard" },
+  async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await openDemo(page);
+    await page.locator("input[type=file]").setInputFiles({
+      name: "sets.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("id,x,y,c,d,e\na,0,2,C0,D0,E0\nb,1,3,C1,D1,E1"),
+    });
+    const panel = page.getByRole("dialog", { name: "Data", exact: true });
+    const heading = (n: number) =>
+      panel.getByLabel(`Select column ${n}`, { exact: true });
+    await expect(heading(1)).toHaveJSProperty("tagName", "TH");
+    await expect(
+      panel.getByRole("button", { name: "Select column 1", exact: true }),
+    ).toHaveCount(0);
+    const a = await heading(4).boundingBox(),
+      b = await heading(6).boundingBox();
+    await page.mouse.move(a!.x + a!.width / 2, a!.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(b!.x + b!.width / 2, b!.y + 10, { steps: 8 });
+    await page.mouse.up();
+    for (const n of [4, 5, 6])
+      await expect(heading(n)).toHaveAttribute("aria-selected", "true");
+    await expect(panel.getByLabel("Undo table change")).toBeDisabled();
+    await heading(5).click({ button: "right" });
+    await panel.getByRole("menuitem", { name: "Copy", exact: true }).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      "c\td\te\nC0\tD0\tE0\nC1\tD1\tE1",
+    );
+    await heading(1).click();
+    await heading(4).click({ modifiers: ["Alt"] });
+    await heading(6).click({ modifiers: ["Alt"] });
+    await heading(4).click({ modifiers: ["Alt"] });
+    await expect(heading(4)).toHaveAttribute("aria-selected", "false");
+    await heading(6).click({ button: "right" });
+    await panel.getByRole("menuitem", { name: "Copy", exact: true }).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      "id\te\na\tE0\nb\tE1",
+    );
+    await heading(1).click({ button: "right" });
+    await panel
+      .getByRole("menuitem", { name: "Clear contents", exact: true })
+      .click();
+    await expect(
+      panel.getByLabel("Row 2 column 1", { exact: true }),
+    ).toHaveValue("");
+    await expect(
+      panel.getByLabel("Row 2 column 6", { exact: true }),
+    ).toHaveValue("");
+    await expect(
+      panel.getByLabel("Row 2 column 4", { exact: true }),
+    ).toHaveValue("C0");
+    await panel.getByLabel("Undo table change").click();
+    await expect(heading(6)).toHaveAttribute("aria-selected", "true");
+    await heading(1).click({ button: "right" });
+    await panel
+      .getByRole("menuitem", { name: "Delete selected columns", exact: true })
+      .click();
+    await expect(
+      panel.getByLabel("Select column 1", { exact: true }),
+    ).toContainText("Suggested X");
+    await expect(
+      panel.getByLabel("Select column 2", { exact: true }),
+    ).toContainText("Suggested Y");
+    await expect(
+      panel.getByLabel("Row 2 column 3", { exact: true }),
+    ).toHaveValue("C0");
+    await expect(heading(5)).toHaveCount(0);
+    await panel.getByLabel("Undo table change").click();
+    await expect(
+      panel.getByLabel("Row 2 column 6", { exact: true }),
+    ).toHaveValue("E0");
+    await panel.getByLabel("Redo table change").click();
+    await expect(heading(5)).toHaveCount(0);
+  },
+);
 
 test("long print comments remain intact and continue after the fit summary", async ({
   page,

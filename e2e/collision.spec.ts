@@ -227,3 +227,51 @@ test("collision is reachable with missing columns and at compact sizes", async (
     await workspace.evaluate((el) => el.scrollWidth > el.clientWidth + 1),
   ).toBe(false);
 });
+
+test("copies a single-paste velocity block and raw phase selections without changing fits", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const workspace = await openCollision(page);
+  const copy = page.getByRole("button", { name: "Copy report", exact: true });
+  await expect(copy).toBeDisabled();
+  await page
+    .getByLabel("Accept uncertainty assumptions", { exact: false })
+    .check();
+  await page.getByRole("button", { name: "Fit before and after" }).click();
+  await expect(workspace.getByRole("status")).toHaveText(
+    "8 of 8 fits complete",
+  );
+  await copy.click();
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  const rows = text.split("\n").map((r) => r.split("\t"));
+  expect(rows[0].slice(0, 8)).toEqual([
+    "Object",
+    "Phase",
+    "vx (m/s)",
+    "σ(vx) (m/s)",
+    "R² x",
+    "vy (m/s)",
+    "σ(vy) (m/s)",
+    "R² y",
+  ]);
+  expect(rows.slice(1, 5).map((r) => r.slice(0, 2))).toEqual([
+    ["Object 1", "Before"],
+    ["Object 2", "Before"],
+    ["Object 1", "After"],
+    ["Object 2", "After"],
+  ]);
+  expect(rows[7][5]).toBe("Phase");
+  expect(new Set(rows.slice(8).map((r) => r[5]))).toEqual(
+    new Set(["Before", "Exclude", "After"]),
+  );
+  expect(rows[1][13]).toContain("Residual-based");
+  expect(Number(rows[10][10])).toBe(rows.length - 8);
+  await copy.click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(text);
+  await page
+    .getByLabel("Position uncertainties", { exact: true })
+    .selectOption("supplied");
+  await expect(copy).toBeDisabled();
+});

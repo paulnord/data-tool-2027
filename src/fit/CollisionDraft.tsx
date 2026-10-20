@@ -25,10 +25,10 @@ import {
 } from "../core/fit/dataTable";
 import {
   collisionRequests,
-  collisionReport,
   type CollisionConfig,
   type CollisionChannel,
 } from "../core/fit/collision";
+import { collisionWorksheet } from "../core/fit/collisionWorksheet";
 import type { FitRequest, CollisionWorkspace } from "../core/fit/schema";
 import { statisticReasonText } from "../core/fit/diagnosticText";
 import { automaticDomain, plotScale } from "./plotScale";
@@ -632,10 +632,14 @@ export default forwardRef<
     copy: async () => {
       if (!channels) return;
       try {
-        await navigator.clipboard.writeText(collisionReport(channels));
-        setNotice("Report copied");
-      } catch {
-        setError("Clipboard unavailable. Print the report to PDF instead.");
+        await navigator.clipboard.writeText(
+          collisionWorksheet(channels, source, config),
+        );
+        setNotice("Velocity summary, raw data, and fit details copied");
+      } catch (error) {
+        setError(
+          `Could not copy report: ${error instanceof Error ? error.message : String(error)}. Print the report to PDF instead.`,
+        );
       }
     },
     print: async () => {

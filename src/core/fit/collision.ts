@@ -176,6 +176,7 @@ export function collisionReport(channels: CollisionChannel[]): string {
       "Inference",
       "Uncertainty",
       "Notes",
+      "R²",
     ],
   ];
   for (const channel of channels)
@@ -209,9 +210,11 @@ export function collisionReport(channels: CollisionChannel[]): string {
           [
             ...(r?.warnings ?? []),
             uncertaintyReason ? statisticReasonText(uncertaintyReason) : "",
+            r?.rSquared.reason ? statisticReasonText(r.rSquared.reason) : "",
           ]
             .filter(Boolean)
             .join(" "),
+        r?.rSquared.value ?? "Unavailable",
       ]);
     }
   rows.push(

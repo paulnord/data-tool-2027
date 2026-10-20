@@ -28,7 +28,10 @@ import {
   type CollisionConfig,
   type CollisionChannel,
 } from "../core/fit/collision";
-import { collisionWorksheet } from "../core/fit/collisionWorksheet";
+import {
+  collisionPositions,
+  collisionFitTable,
+} from "../core/fit/collisionWorksheet";
 import type { FitRequest, CollisionWorkspace } from "../core/fit/schema";
 import { statisticReasonText } from "../core/fit/diagnosticText";
 import { automaticDomain, plotScale } from "./plotScale";
@@ -454,6 +457,7 @@ function CollisionPlot({
 
 export type CollisionActions = {
   copy: () => Promise<void>;
+  copyPositions: () => Promise<void>;
   print: () => Promise<void>;
   session: () => CollisionWorkspace;
 };
@@ -632,13 +636,24 @@ export default forwardRef<
     copy: async () => {
       if (!channels) return;
       try {
-        await navigator.clipboard.writeText(
-          collisionWorksheet(channels, source, config),
-        );
-        setNotice("Velocity summary, raw data, and fit details copied");
+        await navigator.clipboard.writeText(collisionFitTable(channels));
+        setNotice("Eight fit results copied");
       } catch (error) {
         setError(
           `Could not copy report: ${error instanceof Error ? error.message : String(error)}. Print the report to PDF instead.`,
+        );
+      }
+    },
+    copyPositions: async () => {
+      if (!channels) return;
+      try {
+        await navigator.clipboard.writeText(
+          collisionPositions(channels, source, config),
+        );
+        setNotice("Positions and phase selections copied");
+      } catch (error) {
+        setError(
+          `Could not copy positions: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     },

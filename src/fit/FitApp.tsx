@@ -2893,8 +2893,16 @@ export default function FitApp() {
                         : copy()
                 }
               >
-                Copy report
+                {collisionOpen ? "Copy fits" : "Copy report"}
               </button>
+              {collisionOpen && (
+                <button
+                  disabled={!collisionReady}
+                  onClick={() => collisionActions.current?.copyPositions()}
+                >
+                  Copy positions
+                </button>
+              )}
               <button
                 disabled={
                   comparisonOpen

@@ -5,7 +5,10 @@ import {
   collisionFits,
   type CollisionConfig,
 } from "../../src/core/fit/collision";
-import { collisionWorksheet } from "../../src/core/fit/collisionWorksheet";
+import {
+  collisionPositions,
+  collisionFitTable,
+} from "../../src/core/fit/collisionWorksheet";
 import type { DataTable } from "../../src/core/fit/schema";
 
 const table: DataTable = {
@@ -35,49 +38,57 @@ function exported(t = table, c = config) {
   const source = analysisFromTable(t, "source");
   const channels = collisionFits(source, c);
   const original = JSON.stringify({ source, channels, c });
-  const result = parseDelimited(collisionWorksheet(channels, source, c), "\t");
+  const positions = parseDelimited(
+    collisionPositions(channels, source, c),
+    "\t",
+  );
+  const fits = parseDelimited(collisionFitTable(channels), "\t");
   expect(JSON.stringify({ source, channels, c })).toBe(original);
-  return { result, channels, source };
+  return { positions, fits, channels, source };
 }
-it("matches the eight-column velocity block, phase-major row order, actual R² and unrounded values", () => {
-  const { result, channels } = exported();
-  expect(result[0].slice(0, 8)).toEqual([
+it("exports one long row per fit with exact coefficients, counts and intervals", () => {
+  const { fits, channels } = exported();
+  expect(fits).toHaveLength(9);
+  expect(fits[1][13]).toContain("conditional");
+  expect(fits[1][13]).toContain("selection after inspecting");
+  expect(fits[0]).toEqual([
     "Object",
     "Phase",
-    "vx (m/s)",
-    "σ(vx) (m/s)",
-    "R² x",
-    "vy (m/s)",
-    "σ(vy) (m/s)",
-    "R² y",
+    "Axis",
+    "N",
+    "Velocity (m/s)",
+    "Velocity σ (m/s)",
+    "Intercept (m)",
+    "R²",
+    "From (s)",
+    "To (s)",
+    "Uncertainty method",
+    "Position σ (m)",
+    "Source column",
+    "Notes",
   ]);
-  expect(result.slice(1, 5).map((r) => r.slice(0, 2))).toEqual([
-    ["Object 1", "Before"],
-    ["Object 2", "Before"],
-    ["Object 1", "After"],
-    ["Object 2", "After"],
-  ]);
-  for (const [row, object, phase] of [
-    [1, 0, "before"],
-    [2, 1, "before"],
-    [3, 0, "after"],
-    [4, 1, "after"],
-  ] as const) {
-    for (let axis = 0; axis < 2; axis++) {
-      const r = channels[object * 2 + axis][phase].result!;
-      expect(result[row].slice(2 + axis * 3, 5 + axis * 3)).toEqual(
-        [r.coefficients[1], r.standardErrors[1].value, r.rSquared.value].map(
-          String,
-        ),
-      );
-    }
+  for (let i = 0; i < 8; i++) {
+    const c = channels[i % 4],
+      phase = i < 4 ? "before" : "after",
+      r = c[phase].result!;
+    expect(fits[i + 1].slice(0, 10)).toEqual(
+      [
+        `Object ${Math.floor((i % 4) / 2) + 1}`,
+        i < 4 ? "Before" : "After",
+        i % 2 ? "y" : "x",
+        r.n,
+        r.coefficients[1],
+        r.standardErrors[1].value,
+        r.coefficients[0],
+        r.rSquared.value,
+        ...c[phase].interval,
+      ].map(String),
+    );
   }
-  expect(result[0][16]).toBe("Collision fit report");
-  expect(result[2][36]).toBe("R²");
 });
-it("preserves raw source order and precision, inclusive windows, and a whole collision gap", () => {
-  const { result } = exported();
-  expect(result[7].slice(0, 6)).toEqual([
+it("preserves every raw row, source precision, and inclusive phase membership", () => {
+  const { positions } = exported();
+  expect(positions[0]).toEqual([
     "Time (s)",
     "Object 1 x (m)",
     "Object 1 y (m)",
@@ -85,79 +96,78 @@ it("preserves raw source order and precision, inclusive windows, and a whole col
     "Object 2 y (m)",
     "Phase",
   ]);
-  expect(result.slice(8).map((r) => r.slice(0, 5))).toEqual(
+  expect(positions.slice(1).map((r) => r.slice(0, 5))).toEqual(
     table.cells.slice(1),
   );
-  expect(result.slice(8).map((r) => r[5])).toEqual([
+  expect(positions.slice(1).map((r) => r[5])).toEqual([
     ...Array(5).fill("Before"),
     ...Array(5).fill("Exclude"),
     ...Array(5).fill("After"),
   ]);
-  expect(result[10].slice(9, 11)).toEqual(["Raw data rows", "15"]);
-  expect(result[7].slice(9, 12)).toEqual(["Before", "0", "0.4"]);
-  expect(result[8].slice(9, 12)).toEqual(["After", "1", "1.4"]);
 });
-it("keeps axis-specific missing values without falsely excluding other components", () => {
+it("keeps missing axes independent and invalid times excluded", () => {
   const changed = structuredClone(table);
   changed.cells[2][2] = "";
   changed.cells[8][0] = "";
-  const { result, channels } = exported(changed);
-  expect(result[9].slice(0, 6)).toEqual([...changed.cells[2], "Before"]);
-  expect(result[15][5]).toBe("Exclude");
-  expect(channels[0].before.result!.n).toBe(5);
-  expect(channels[1].before.result!.n).toBe(4);
-  expect(result[5][0]).toContain("excluded independently");
+  const { positions, fits } = exported(changed);
+  expect(positions[2]).toEqual([...changed.cells[2], "Before"]);
+  expect(positions[8][5]).toBe("Exclude");
+  expect(fits[1][3]).toBe("5");
+  expect(fits[2][3]).toBe("4");
 });
-it("labels supplied versus residual sigma truthfully and preserves unavailable uncertainty", () => {
-  const { result } = exported(table, {
+it("preserves uncertainty methods and unavailable statistics instead of zero", () => {
+  const { fits } = exported(table, {
     ...config,
     sigmas: [0.1, null, 0.2, null],
     conditional: false,
   });
-  expect(result[1][13]).toBe("Supplied position precision");
-  expect(result[1][14]).toBe("0.1");
-  expect(result[2][13]).toContain("Residual-based");
-  expect(result[2][14]).toBe("");
-  expect(result[1][3]).toBe("Unavailable");
-  expect(result.map((r) => r.join(" ")).join(" ")).toContain(
-    "Required inference assumptions",
-  );
+  expect(fits[1][10]).toBe("Supplied position precision");
+  expect(fits[1][11]).toBe("0.1");
+  expect(fits[2][10]).toBe("Residual-based");
+  expect(fits[2][11]).toBe("Not supplied");
+  expect(fits[1][5]).toBe("Unavailable");
+  expect(fits[1][13]).toContain("Required inference assumptions");
 });
-it("does not fabricate R² for constant positions or slopes for failed fits", () => {
+it("explains failed fits and constant-axis unavailable R²", () => {
   const changed = structuredClone(table);
   changed.cells.slice(1).forEach((r, i) => {
     r[1] = "2";
     if (i < 5) r[2] = "";
   });
-  const { result } = exported(changed);
-  expect(result[1][4]).toBe("Unavailable");
-  expect(result[1].slice(5, 8)).toEqual([
-    "Unavailable",
-    "Unavailable",
-    "Unavailable",
+  const { fits } = exported(changed);
+  expect(fits[1][7]).toBe("Unavailable");
+  expect(fits[1][13]).not.toBe("");
+  expect(fits[2].slice(3, 8)).toEqual(Array(5).fill("Unavailable"));
+  expect(fits[2][13]).not.toBe("");
+});
+it("uses explicit per-row units only for genuinely mixed units, never converts", () => {
+  const { fits, positions, channels } = exported({
+    ...table,
+    units: ["s", "cm", "m", "m", ""],
+  });
+  expect(fits[0][4]).toBe("Velocity (source units)");
+  expect(fits[0].slice(14)).toEqual([
+    "Velocity unit",
+    "Position unit",
+    "Time unit",
   ]);
+  expect(fits[1].slice(14)).toEqual(["cm/s", "cm", "s"]);
+  expect(fits[1][4]).toBe(String(channels[0].before.result!.coefficients[1]));
+  expect(positions[0][1]).toBe("Object 1 x (cm)");
 });
-it("keeps true mixed/unknown units and warns instead of relabeling or converting to SI", () => {
-  const changed = { ...table, units: ["s", "cm", "m", "m", ""] };
-  const { result, channels } = exported(changed);
-  expect(result[0][2]).toBe("vx (Object 1: cm/s; Object 2: m/s)");
-  expect(result[1][2]).toBe(String(channels[0].before.result!.coefficients[1]));
-  expect(result[5][0]).toContain("Unit warning");
-  expect(result[7][1]).toBe("Object 1 x (cm)");
-});
-it("rejects overlapping or divergent selections rather than inventing one phase", () => {
+it("rejects overlapping and divergent shared selections", () => {
   const { channels, source } = exported();
   channels[0].after.interval[0] = 0.3;
-  expect(() => collisionWorksheet(channels, source, config)).toThrow(
+  expect(() => collisionPositions(channels, source, config)).toThrow(
     /Overlapping/,
   );
   channels[0].after.interval[0] = 1;
   channels[1].before.settings.excludedIds.push("r1");
-  expect(() => collisionWorksheet(channels, source, config)).toThrow(
+  expect(() => collisionPositions(channels, source, config)).toThrow(
     /identical time selections/,
   );
 });
-it("escapes labels as text, retains negative numbers, and retains more than100 raw rows", () => {
+it("escapes source labels, preserves negative numbers and more than100 raw rows", () => {
   const changed = structuredClone(table);
   changed.cells[0][1] = "=1+1";
   changed.cells[1][1] = "-1.2345678901234567";
@@ -165,46 +175,22 @@ it("escapes labels as text, retains negative numbers, and retains more than100 r
     changed.cells.push([String(i), "1", "2", "3", "4"]);
     changed.rowIds.push(`r${i + 1}`);
   }
-  const { result } = exported(changed);
-  expect(result[1][11]).toBe("'=1+1");
-  expect(result[8][1]).toBe("-1.2345678901234567");
-  expect(result[10][10]).toBe("120");
-  expect(result.length).toBe(128);
+  const { positions, fits } = exported(changed);
+  expect(fits[1][12]).toBe("'=1+1");
+  expect(positions[1][1]).toBe("-1.2345678901234567");
+  expect(positions).toHaveLength(121);
 });
-it("keeps a short raw block distinct from metadata and diagnostics", () => {
-  const changed = {
-    ...table,
-    cells: table.cells.slice(0, 5),
-    rowIds: table.rowIds.slice(0, 5),
-  };
-  const { result } = exported(changed, {
-    ...config,
-    before: [0, 0.1],
-    after: [0.2, 0.3],
-  });
-  expect(result[10][10]).toBe("4");
-  expect(result.slice(8, 12).map((r) => r.slice(0, 5))).toEqual(
-    changed.cells.slice(1),
-  );
-  expect(result[12].slice(0, 6)).toEqual(Array(6).fill(""));
-});
-it("honors reordered position assignments and missing values in the first channel", () => {
-  const changed = structuredClone(table);
-  changed.cells[2][3] = "";
-  const { result, channels } = exported(changed, {
+it("honors reordered assignments", () => {
+  const { positions, fits } = exported(table, {
     ...config,
     columns: [3, 4, 1, 2],
   });
-  expect(result[1][11]).toBe("x2");
-  expect(result[9].slice(0, 6)).toEqual([
-    changed.cells[2][0],
-    "",
-    changed.cells[2][4],
-    changed.cells[2][1],
-    changed.cells[2][2],
-    "Before",
+  expect(fits[1][12]).toBe("x2");
+  expect(positions[2].slice(0, 5)).toEqual([
+    table.cells[2][0],
+    table.cells[2][3],
+    table.cells[2][4],
+    table.cells[2][1],
+    table.cells[2][2],
   ]);
-  expect(result[1][2]).toBe(String(channels[0].before.result!.coefficients[1]));
-  expect(channels[0].before.result!.n).toBe(4);
-  expect(channels[1].before.result!.n).toBe(5);
 });

@@ -1,20 +1,41 @@
 import { tableForAnalysis, type TableAnalysis } from "./dataTable";
-import {
-  collisionReport,
-  type CollisionChannel,
-  type CollisionConfig,
-} from "./collision";
+import { type CollisionChannel, type CollisionConfig } from "./collision";
+import { statisticReasonText } from "./diagnosticText";
 
 type Cell = string | number;
+function tsv(rows: Cell[][]): string {
+  return rows
+    .map((row) =>
+      row
+        .map((cell) => {
+          let value = String(cell);
+          // Keep numeric text intact; never execute imported labels as formulas.
+          if (
+            /^[=+@-]/.test(value.trimStart()) &&
+            !Number.isFinite(Number(value))
+          )
+            value = `'${value}`;
+          return /[\t\r\n"]/.test(value)
+            ? `"${value.replace(/"/g, '""')}"`
+            : value;
+        })
+        .join("\t"),
+    )
+    .join("\n");
+}
+function fourChannels(channels: CollisionChannel[]) {
+  if (channels.length !== 4)
+    throw Error("Four fitted position channels are required.");
+}
+const unit = (value: string | null | undefined) => value || "unspecified";
 
-/** Stable, single-paste spreadsheet layout. No fit or uncertainty is recalculated. */
-export function collisionWorksheet(
+/** Original positions plus actual shared selection. Missing axes stay independent. */
+export function collisionPositions(
   channels: CollisionChannel[],
   source: TableAnalysis,
   config: CollisionConfig,
 ): string {
-  if (channels.length !== 4)
-    throw Error("Four fitted position channels are required.");
+  fourChannels(channels);
   const first = channels[0];
   if (first.before.interval[1] >= first.after.interval[0])
     throw Error(
@@ -34,68 +55,19 @@ export function collisionWorksheet(
           "A shared Phase column requires identical time selections for all four channels.",
         );
     }
-  const rows: Cell[][] = [];
-  const put = (row: number, column: number, values: Cell[]) => {
-    rows[row] ??= [];
-    values.forEach((value, i) => {
-      rows[row][column + i] = value;
-    });
-  };
-  const velocityUnit = (i: number) => {
-    const d = channels[i].request.dataset;
-    return `${d.yColumn.unit || "unspecified position unit"}/${d.xColumn.unit || "unspecified time unit"}`;
-  };
-  const axisUnit = (i: number) =>
-    velocityUnit(i) === velocityUnit(i + 2)
-      ? velocityUnit(i)
-      : `Object 1: ${velocityUnit(i)}; Object 2: ${velocityUnit(i + 2)}`;
-  put(0, 0, [
-    "Object",
-    "Phase",
-    `vx (${axisUnit(0)})`,
-    `σ(vx) (${axisUnit(0)})`,
-    "R² x",
-    `vy (${axisUnit(1)})`,
-    `σ(vy) (${axisUnit(1)})`,
-    "R² y",
-  ]);
-  let summaryRow = 1;
-  for (const phase of ["before", "after"] as const)
-    for (let object = 0; object < 2; object++) {
-      const values = [0, 1].flatMap((axis) => {
-        const r = channels[object * 2 + axis][phase].result;
-        return [
-          r?.coefficients[1] ?? "Unavailable",
-          r?.standardErrors[1].value ?? "Unavailable",
-          r?.rSquared.value ?? "Unavailable",
-        ];
-      });
-      put(summaryRow++, 0, [
-        `Object ${object + 1}`,
-        phase === "before" ? "Before" : "After",
-        ...values,
-      ]);
-    }
-  const siUnits = channels.every(
-    (c) =>
-      c.request.dataset.xColumn.unit === "s" &&
-      c.request.dataset.yColumn.unit === "m",
-  );
-  put(5, 0, [
-    `${siUnits ? "" : "Unit warning: data are not all in metres and seconds. Match destination units before using these values. "}σ(v) is the fitted slope standard error; see each channel's uncertainty method. Phase is the shared time selection; missing/invalid positions are excluded independently for each axis. No unit conversion is applied.`,
-  ]);
-  const timeUnit = first.request.dataset.xColumn.unit || "unspecified";
-  put(7, 0, [
-    `Time (${timeUnit})`,
-    ...channels.map(
-      (c, i) =>
-        `Object ${Math.floor(i / 2) + 1} ${i % 2 ? "y" : "x"} (${c.request.dataset.yColumn.unit || "unspecified"})`,
-    ),
-    "Phase",
-  ]);
+  const rows: Cell[][] = [
+    [
+      `Time (${unit(first.request.dataset.xColumn.unit)})`,
+      ...channels.map(
+        (c, i) =>
+          `Object ${Math.floor(i / 2) + 1} ${i % 2 ? "y" : "x"} (${unit(c.request.dataset.yColumn.unit)})`,
+      ),
+      "Phase",
+    ],
+  ];
   const table = tableForAnalysis(source);
-  const beforeExcluded = new Set(first.before.settings.excludedIds);
-  const afterExcluded = new Set(first.after.settings.excludedIds);
+  const beforeExcluded = new Set(first.before.settings.excludedIds),
+    afterExcluded = new Set(first.after.settings.excludedIds);
   const timeRows = new Map(first.request.dataset.rows.map((r) => [r.id, r]));
   table.cells.slice(table.headerRows).forEach((row, i) => {
     const id = table.rowIds[table.headerRows + i];
@@ -108,53 +80,78 @@ export function collisionWorksheet(
           : !afterExcluded.has(id)
             ? "After"
             : "Exclude";
-    put(8 + i, 0, [
+    rows.push([
       row[config.time] ?? "",
       ...config.columns.map((c) => row[c] ?? ""),
       phase,
     ]);
   });
-  put(0, 9, [
-    "Object",
-    "Axis",
-    "Source column",
-    "Position unit",
-    "Uncertainty method",
-    "Supplied position σ",
-  ]);
-  channels.forEach((c, i) => {
-    const u = c.request.uncertainty;
-    put(i + 1, 9, [
-      `Object ${Math.floor(i / 2) + 1}`,
-      i % 2 ? "y" : "x",
-      c.request.dataset.yColumn.label,
-      c.request.dataset.yColumn.unit || "unspecified",
-      u.kind === "supplied-common"
-        ? "Supplied position precision"
-        : "Residual-based (estimated separately per interval)",
-      u.kind === "supplied-common" ? u.sigmaY : "",
-    ]);
-  });
-  put(6, 9, ["Phase", `From (${timeUnit})`, `To (${timeUnit})`]);
-  put(7, 9, ["Before", ...first.before.interval]);
-  put(8, 9, ["After", ...first.after.interval]);
-  put(10, 9, ["Raw data rows", table.cells.length - table.headerRows]);
-  put(11, 9, ["Format", "collision-worksheet-v1"]);
-  put(12, 9, [
-    "Selection",
-    "Endpoints included; Exclude is outside both windows. Missing positions do not remove other components. See fit details for failed fits and unavailable statistics.",
-  ]);
-  collisionReport(channels)
-    .split("\n")
-    .forEach((line, i) => put(i, 16, line.split("\t")));
-  const width = Math.max(...rows.map((r) => r?.length ?? 0));
-  return Array.from({ length: rows.length }, (_, i) =>
-    Array.from({ length: width }, (_, j) => {
-      let value = String(rows[i]?.[j] ?? "");
-      // Preserve numeric text, but do not execute imported labels/notes as formulas.
-      if (/^[=+@-]/.test(value.trimStart()) && !Number.isFinite(Number(value)))
-        value = `'${value}`;
-      return /[\t\r\n"]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-    }).join("\t"),
-  ).join("\n");
+  return tsv(rows);
+}
+
+/** One row per fit, with full-precision coefficients and truthful units/uncertainty. */
+export function collisionFitTable(channels: CollisionChannel[]): string {
+  fourChannels(channels);
+  const positions = channels.map((c) => unit(c.request.dataset.yColumn.unit));
+  const times = channels.map((c) => unit(c.request.dataset.xColumn.unit));
+  const mixed = new Set(positions).size > 1 || new Set(times).size > 1;
+  const positionUnit = mixed ? "source units" : positions[0];
+  const timeUnit = mixed ? "source units" : times[0];
+  const velocityUnit = mixed ? "source units" : `${positionUnit}/${timeUnit}`;
+  const rows: Cell[][] = [
+    [
+      "Object",
+      "Phase",
+      "Axis",
+      "N",
+      `Velocity (${velocityUnit})`,
+      `Velocity σ (${velocityUnit})`,
+      `Intercept (${positionUnit})`,
+      "R²",
+      `From (${timeUnit})`,
+      `To (${timeUnit})`,
+      "Uncertainty method",
+      `Position σ (${positionUnit})`,
+      "Source column",
+      "Notes",
+      ...(mixed ? ["Velocity unit", "Position unit", "Time unit"] : []),
+    ],
+  ];
+  for (const phase of ["before", "after"] as const)
+    channels.forEach((channel, i) => {
+      const segment = channel[phase],
+        r = segment.result,
+        u = channel.request.uncertainty;
+      const reasons = [
+        segment.error,
+        ...(r?.warnings ?? []),
+        r?.standardErrors[1].reason
+          ? statisticReasonText(r.standardErrors[1].reason)
+          : null,
+        r?.rSquared.reason ? statisticReasonText(r.rSquared.reason) : null,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      rows.push([
+        `Object ${Math.floor(i / 2) + 1}`,
+        phase === "before" ? "Before" : "After",
+        i % 2 ? "y" : "x",
+        r?.n ?? "Unavailable",
+        r?.coefficients[1] ?? "Unavailable",
+        r?.standardErrors[1].value ?? "Unavailable",
+        r?.coefficients[0] ?? "Unavailable",
+        r?.rSquared.value ?? "Unavailable",
+        ...segment.interval,
+        u.kind === "supplied-common"
+          ? "Supplied position precision"
+          : "Residual-based",
+        u.kind === "supplied-common" ? u.sigmaY : "Not supplied",
+        channel.request.dataset.yColumn.label,
+        reasons,
+        ...(mixed
+          ? [`${positions[i]}/${times[i]}`, positions[i], times[i]]
+          : []),
+      ]);
+    });
+  return tsv(rows);
 }

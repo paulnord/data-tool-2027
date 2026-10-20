@@ -228,14 +228,19 @@ test("collision is reachable with missing columns and at compact sizes", async (
   ).toBe(false);
 });
 
-test("copies a single-paste velocity block and raw phase selections without changing fits", async ({
+test("copies separate positions and fits without changing results", async ({
   page,
   context,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const workspace = await openCollision(page);
-  const copy = page.getByRole("button", { name: "Copy report", exact: true });
-  await expect(copy).toBeDisabled();
+  const fits = page.getByRole("button", { name: "Copy fits", exact: true });
+  const positions = page.getByRole("button", {
+    name: "Copy positions",
+    exact: true,
+  });
+  await expect(fits).toBeDisabled();
+  await expect(positions).toBeDisabled();
   await page
     .getByLabel("Accept uncertainty assumptions", { exact: false })
     .check();
@@ -243,35 +248,49 @@ test("copies a single-paste velocity block and raw phase selections without chan
   await expect(workspace.getByRole("status")).toHaveText(
     "8 of 8 fits complete",
   );
-  await copy.click();
-  const text = await page.evaluate(() => navigator.clipboard.readText());
-  const rows = text.split("\n").map((r) => r.split("\t"));
+  await fits.click();
+  const fitText = await page.evaluate(() => navigator.clipboard.readText());
+  const rows = fitText.split("\n").map((r) => r.split("\t"));
+  expect(rows).toHaveLength(9);
   expect(rows[0].slice(0, 8)).toEqual([
     "Object",
     "Phase",
-    "vx (m/s)",
-    "σ(vx) (m/s)",
-    "R² x",
-    "vy (m/s)",
-    "σ(vy) (m/s)",
-    "R² y",
+    "Axis",
+    "N",
+    "Velocity (m/s)",
+    "Velocity σ (m/s)",
+    "Intercept (m)",
+    "R²",
   ]);
-  expect(rows.slice(1, 5).map((r) => r.slice(0, 2))).toEqual([
-    ["Object 1", "Before"],
-    ["Object 2", "Before"],
-    ["Object 1", "After"],
-    ["Object 2", "After"],
+  expect(rows[1][10]).toBe("Residual-based");
+  await positions.click();
+  const positionText = await page.evaluate(() =>
+    navigator.clipboard.readText(),
+  );
+  const raw = positionText.split("\n").map((r) => r.split("\t"));
+  expect(raw[0]).toEqual([
+    "Time (s)",
+    "Object 1 x (m)",
+    "Object 1 y (m)",
+    "Object 2 x (m)",
+    "Object 2 y (m)",
+    "Phase",
   ]);
-  expect(rows[7][5]).toBe("Phase");
-  expect(new Set(rows.slice(8).map((r) => r[5]))).toEqual(
+  expect(raw).toHaveLength(42);
+  expect(new Set(raw.slice(1).map((r) => r[5]))).toEqual(
     new Set(["Before", "Exclude", "After"]),
   );
-  expect(rows[1][13]).toContain("Residual-based");
-  expect(Number(rows[10][10])).toBe(rows.length - 8);
-  await copy.click();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(text);
+  await fits.click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    fitText,
+  );
+  await positions.click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    positionText,
+  );
   await page
     .getByLabel("Position uncertainties", { exact: true })
     .selectOption("supplied");
-  await expect(copy).toBeDisabled();
+  await expect(fits).toBeDisabled();
+  await expect(positions).toBeDisabled();
 });
